@@ -1,0 +1,6 @@
+[workspace]
+
+members = [
+    "antigen",
+    "antigen_test"
+]

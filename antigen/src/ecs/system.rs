@@ -1,5 +1,5 @@
 use super::ECS;
 
-pub trait SystemTrait {
-    fn run(&mut self, ecs: &mut ECS) -> Result<(), String>;
+pub trait SystemTrait<T: ECS> {
+    fn run(&mut self, ecs: &mut T) -> Result<(), String>;
 }

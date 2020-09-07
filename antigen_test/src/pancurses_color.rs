@@ -1,5 +1,3 @@
-use antigen::ecs::ComponentTrait;
-
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
 pub struct ColorRGB<T: Default + Ord> {
     pub r: T,
@@ -54,22 +52,3 @@ impl Default for PancursesColorPair {
         )
     }
 }
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub struct PancursesColorPairComponent {
-    pub color_pair: PancursesColorPair,
-}
-
-impl PancursesColorPairComponent {
-    pub fn new(color_pair: PancursesColorPair) -> Self {
-        PancursesColorPairComponent { color_pair }
-    }
-}
-
-impl Default for PancursesColorPairComponent {
-    fn default() -> Self {
-        PancursesColorPairComponent::new(PancursesColorPair::default())
-    }
-}
-
-impl ComponentTrait for PancursesColorPairComponent {}

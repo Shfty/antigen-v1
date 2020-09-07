@@ -1,8 +1,7 @@
-use crate::ecs::ComponentTrait;
+use crate::ecs::{ComponentMetadataTrait, ComponentTrait};
 use std::fmt::Debug;
 
 pub type CharComponent = PrimitiveComponent<char>;
-pub type StringSliceComponent<'a> = PrimitiveComponent<&'a str>;
 pub type StringComponent = PrimitiveComponent<String>;
 
 #[derive(Debug, Copy, Clone)]
@@ -32,3 +31,13 @@ where
 }
 
 impl<T> ComponentTrait for PrimitiveComponent<T> where T: Debug + Clone + 'static {}
+
+impl<T> ComponentMetadataTrait for PrimitiveComponent<T> where T: Debug + Clone + 'static {
+    fn get_name() -> &'static str {
+        "Primitive"
+    }
+
+    fn get_description() -> &'static str {
+        "Primitive Type Component"
+    }
+}

@@ -1,15 +1,36 @@
 use super::{
-    component::{ComponentData, ComponentID},
-    ComponentTrait, ECS, GUID,
+    component::{get_component_id, CloneComponentTrait, ComponentData, ComponentID},
+    ComponentMetadataTrait, ComponentTrait, ECS,
 };
-use std::collections::HashMap;
+use crate::primitive_types::UID;
+use std::{
+    collections::HashMap,
+    ops::{Add, AddAssign},
+};
 
-pub type AssemblageID = GUID;
+#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
+pub struct AssemblageID(pub UID);
+
+impl Add<UID> for AssemblageID {
+    type Output = AssemblageID;
+
+    fn add(self, rhs: i64) -> Self::Output {
+        let AssemblageID(self_id) = self;
+        AssemblageID(self_id + rhs)
+    }
+}
+
+impl AddAssign<UID> for AssemblageID {
+    fn add_assign(&mut self, rhs: UID) {
+        let AssemblageID(self_id) = self;
+        *self_id = *self_id + rhs;
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Assemblage {
-    official_name: String,
-    description: String,
+    pub official_name: String,
+    pub description: String,
 }
 
 impl Assemblage {
@@ -21,14 +42,20 @@ impl Assemblage {
     }
 }
 
-pub struct AssemblageBuilder<'a> {
-    ecs: &'a mut ECS,
+pub struct AssemblageBuilder<'a, T>
+where
+    T: ECS,
+{
+    ecs: &'a mut T,
     assemblage: Assemblage,
     component_data: HashMap<ComponentID, ComponentData>,
 }
 
-impl<'a> AssemblageBuilder<'a> {
-    pub fn new(ecs: &'a mut ECS, official_name: &str, description: &str) -> AssemblageBuilder<'a> {
+impl<'a, T> AssemblageBuilder<'a, T>
+where
+    T: ECS,
+{
+    pub fn new(ecs: &'a mut T, official_name: &str, description: &str) -> AssemblageBuilder<'a, T> {
         AssemblageBuilder {
             ecs,
             assemblage: Assemblage::new(official_name, description),
@@ -36,9 +63,18 @@ impl<'a> AssemblageBuilder<'a> {
         }
     }
 
-    pub fn component<T: ComponentTrait + 'static>(mut self, data: T) -> AssemblageBuilder<'a> {
+    pub fn component<J: ComponentTrait + CloneComponentTrait + ComponentMetadataTrait + 'static>(
+        mut self,
+        data: J,
+    ) -> AssemblageBuilder<'a, T>
+    where
+        T: ECS,
+    {
+        if !self.ecs.is_component_registered::<J>() {
+            self.ecs.register_component::<J>();
+        }
         self.component_data
-            .insert(ECS::get_component_id::<T>(), Box::new(data));
+            .insert(get_component_id::<J>(), Box::new(data));
         self
     }
 

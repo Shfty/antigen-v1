@@ -7,23 +7,67 @@ use std::{
 mod assemblage;
 mod component;
 mod entity;
-mod entity_query;
 mod system;
 
+pub mod components;
+pub mod systems;
+
 pub use assemblage::AssemblageID;
-pub use component::ComponentTrait;
+pub use component::{ComponentMetadataTrait, ComponentTrait};
 pub use entity::EntityID;
 pub use system::SystemTrait;
 
 use assemblage::{Assemblage, AssemblageBuilder};
-use component::{ComponentData, ComponentDataID, ComponentID, ComponentInterface};
+use component::{
+    get_component_id, ComponentData, ComponentDataID, ComponentID, ComponentInterface,
+};
 use entity::EntityDebug;
-use entity_query::EntityQueryBuilder;
 
-type GUID = i64;
+pub trait ECS: Sized {
+    fn is_component_registered<T: ComponentTrait + 'static>(&self) -> bool;
+
+    fn register_component<T: ComponentTrait + ComponentMetadataTrait + 'static>(
+        &mut self,
+    ) -> ComponentID;
+
+    fn register_assemblage(
+        &mut self,
+        assemblage: Assemblage,
+        component_data: HashMap<ComponentID, ComponentData>,
+    ) -> AssemblageID;
+
+    fn build_assemblage(
+        &mut self,
+        official_name: &str,
+        description: &str,
+    ) -> AssemblageBuilder<Self>;
+
+    fn create_entity(&mut self, label: &str) -> EntityID;
+
+    fn assemble_entity(
+        &mut self,
+        assemblage_id: AssemblageID,
+        label: &str,
+    ) -> Result<EntityID, String>;
+
+    fn add_component_to_entity<T: ComponentTrait + ComponentMetadataTrait + 'static>(
+        &mut self,
+        entity_id: EntityID,
+        component_data: T,
+    ) -> Result<&mut T, String>;
+
+    fn get_entities_by_predicate(&self, predicate: impl Fn(&EntityID) -> bool) -> Vec<EntityID>;
+
+    fn entity_has_component<T: ComponentTrait + 'static>(&self, entity_id: &EntityID) -> bool;
+
+    fn get_entity_component<T: ComponentTrait + 'static>(
+        &mut self,
+        entity_id: EntityID,
+    ) -> Result<&mut T, String>;
+}
 
 #[derive(Debug)]
-pub struct ECS {
+pub struct SingleThreadedECS {
     entity_head: EntityID,
     component_data_head: ComponentDataID,
     assemblage_head: AssemblageID,
@@ -40,12 +84,18 @@ pub struct ECS {
     assemblage_data: HashMap<AssemblageID, HashMap<ComponentID, ComponentData>>,
 }
 
-impl Default for ECS {
+impl SingleThreadedECS {
+    pub fn new() -> Self {
+        SingleThreadedECS::default()
+    }
+}
+
+impl Default for SingleThreadedECS {
     fn default() -> Self {
-        ECS {
-            entity_head: 0,
-            component_data_head: 0,
-            assemblage_head: 0,
+        SingleThreadedECS {
+            entity_head: EntityID(0),
+            component_data_head: ComponentDataID(0),
+            assemblage_head: AssemblageID(0),
 
             entities: HashSet::new(),
             components: HashMap::new(),
@@ -61,41 +111,55 @@ impl Default for ECS {
     }
 }
 
-impl ECS {
-    // Public Interface
-    pub fn get_component_id<T: ComponentTrait + 'static>() -> ComponentID {
-        TypeId::of::<T>()
+impl ECS for SingleThreadedECS {
+    fn is_component_registered<T: ComponentTrait + 'static>(&self) -> bool {
+        self.is_component_registered_by_id(&get_component_id::<T>())
     }
 
-    pub fn new() -> ECS {
-        ECS::default()
-    }
-
-    pub fn register_component<T: ComponentTrait + Default + 'static>(
+    fn register_component<T: ComponentTrait + ComponentMetadataTrait + 'static>(
         &mut self,
-        official_name: &str,
-        description: &str,
     ) -> ComponentID {
-        let component_id = TypeId::of::<T>();
-        let component: ComponentInterface =
-            ComponentInterface::new(official_name, description, || Box::new(T::default()));
-        self.components.insert(component_id, component);
+        let component_id = ComponentID(TypeId::of::<T>());
+        let component_name = T::get_name();
+        let component_description = T::get_description();
+
+        self.register_component_by_id(component_id, component_name, component_description);
 
         component_id
     }
 
-    pub fn build_assemblage(
+    fn register_assemblage(
+        &mut self,
+        assemblage: Assemblage,
+        component_data: HashMap<ComponentID, ComponentData>,
+    ) -> AssemblageID {
+        let assemblage_id = self.assemblage_head;
+
+        self.assemblages.insert(assemblage_id, assemblage);
+
+        self.assemblage_components
+            .insert(assemblage_id, component_data.keys().copied().collect());
+
+        self.assemblage_data.insert(assemblage_id, component_data);
+
+        self.assemblage_head += 1;
+
+        assemblage_id
+    }
+
+    fn build_assemblage(
         &mut self,
         official_name: &str,
         description: &str,
-    ) -> AssemblageBuilder {
+    ) -> AssemblageBuilder<Self> {
         AssemblageBuilder::new(self, official_name, description)
     }
 
-    pub fn create_entity(&mut self, label: &str) -> EntityID {
+    fn create_entity(&mut self, label: &str) -> EntityID {
         let entity_id: EntityID = self.entity_head;
         self.entities.insert(entity_id);
         self.entity_components.insert(entity_id, HashMap::new());
+
         self.entity_head += 1;
 
         let entity_debug = EntityDebug::new(label);
@@ -104,7 +168,7 @@ impl ECS {
         entity_id
     }
 
-    pub fn assemble_entity(
+    fn assemble_entity(
         &mut self,
         assemblage_id: AssemblageID,
         label: &str,
@@ -129,23 +193,36 @@ impl ECS {
             match assemblage_data.remove(&component_id) {
                 Some(component_data) => pending_component_data.push((component_id, component_data)),
                 None => {
-                    self.create_component_and_add_to_entity_by_id(entity_id, component_id)?;
+                    return Err(format!(
+                        "No assemblage data for component {:?}",
+                        component_id
+                    ))
                 }
             }
         }
 
         for (component_id, component_data) in pending_component_data {
-            self.add_component_to_entity(entity_id, component_id, component_data)?;
+            self.add_registered_component_to_entity(entity_id, component_id, component_data)?;
         }
 
         Ok(entity_id)
     }
 
-    pub fn create_component_and_add_to_entity<T: ComponentTrait + 'static>(
+    fn add_component_to_entity<T: ComponentTrait + ComponentMetadataTrait + 'static>(
         &mut self,
         entity_id: EntityID,
+        component_data: T,
     ) -> Result<&mut T, String> {
-        self.create_component_and_add_to_entity_by_id(entity_id, ECS::get_component_id::<T>())?;
+        if !self.is_component_registered::<T>() {
+            self.register_component::<T>();
+        }
+
+        self.add_registered_component_to_entity(
+            entity_id,
+            get_component_id::<T>(),
+            Box::new(component_data),
+        )?;
+
         let component = self.get_entity_component::<T>(entity_id)?;
         let component = match component.as_mut_any().downcast_mut::<T>() {
             Some(component) => component,
@@ -155,19 +232,18 @@ impl ECS {
         Ok(component)
     }
 
-    pub fn get_entities_with_components(&mut self, components: &[ComponentID]) -> Vec<EntityID> {
-        self.entities
-            .iter()
-            .filter(|entity_id| {
-                !components
-                    .iter()
-                    .any(|component_id| !self.entity_has_component(**entity_id, *component_id))
-            })
-            .copied()
-            .collect()
+    fn get_entities_by_predicate(&self, predicate: impl Fn(&EntityID) -> bool) -> Vec<EntityID> {
+        self.entities.iter().copied().filter(predicate).collect()
     }
 
-    pub fn get_entity_component<T: ComponentTrait + 'static>(
+    fn entity_has_component<T: ComponentTrait + 'static>(&self, entity_id: &EntityID) -> bool {
+        match self.entity_components.get(entity_id) {
+            Some(components) => components.get(&get_component_id::<T>()).is_some(),
+            None => false,
+        }
+    }
+
+    fn get_entity_component<T: ComponentTrait + 'static>(
         &mut self,
         entity_id: EntityID,
     ) -> Result<&mut T, String> {
@@ -176,12 +252,15 @@ impl ECS {
             None => return Err("No such entity".into()),
         };
 
-        let component_data_id = match entity_components.get(&ECS::get_component_id::<T>()) {
+        let component_data_id = match entity_components.get(&get_component_id::<T>()) {
             Some(component_data_id) => *component_data_id,
             None => return Err("No such component".into()),
         };
 
-        let component_data = self.get_component_data_by_id(component_data_id)?;
+        let component_data = match self.component_data.get_mut(&component_data_id) {
+            Some(component_data) => component_data,
+            None => return Err("No such component data".into()),
+        };
 
         let component_data = match component_data.as_mut_any().downcast_mut::<T>() {
             Some(component_data) => component_data,
@@ -190,67 +269,66 @@ impl ECS {
 
         Ok(component_data)
     }
+}
 
-    pub fn build_entity_query(&mut self) -> EntityQueryBuilder {
-        EntityQueryBuilder::new(self)
-    }
-
-    // Private Methods
-    fn get_component_by_id(&self, component_id: ComponentID) -> Option<&ComponentInterface> {
-        self.components.get(&component_id)
-    }
-
-    fn get_component_data_by_id(
-        &mut self,
-        component_data_id: ComponentDataID,
-    ) -> Result<&mut ComponentData, String> {
-        match self.component_data.get_mut(&component_data_id) {
-            Some(component_data) => Ok(component_data),
-            None => Err("No such component data".into()),
+// Private Interface
+impl SingleThreadedECS {
+    fn get_entity_label(&self, entity_id: EntityID) -> &str {
+        match self.entity_debug.get(&entity_id) {
+            Some(entity_debug) => &entity_debug.label,
+            None => "Invalid Entity",
         }
     }
 
-    fn register_assemblage(
+    fn get_entities(&self) -> &HashSet<EntityID> {
+        &self.entities
+    }
+
+    fn get_components(&self) -> &HashMap<ComponentID, ComponentInterface> {
+        &self.components
+    }
+
+    fn get_component_data(&self) -> &HashMap<ComponentDataID, ComponentData> {
+        &self.component_data
+    }
+
+    fn get_entity_components(&self) -> &HashMap<EntityID, HashMap<ComponentID, ComponentDataID>> {
+        &self.entity_components
+    }
+
+    fn get_assemblages(&self) -> &HashMap<AssemblageID, Assemblage> {
+        &self.assemblages
+    }
+
+    fn is_component_registered_by_id(&self, component_id: &ComponentID) -> bool {
+        self.components.get(component_id).is_some()
+    }
+
+    fn register_component_by_id(
         &mut self,
-        assemblage: Assemblage,
-        component_data: HashMap<ComponentID, ComponentData>,
-    ) -> AssemblageID {
-        let assemblage_id = self.assemblage_head;
-
-        self.assemblages.insert(assemblage_id, assemblage);
-
-        self.assemblage_components
-            .insert(assemblage_id, component_data.keys().copied().collect());
-
-        self.assemblage_data.insert(assemblage_id, component_data);
-
-        self.assemblage_head += 1;
-
-        assemblage_id
+        component_id: ComponentID,
+        name: &str,
+        description: &str,
+    ) {
+        let component = ComponentInterface::new(name, description);
+        self.components.insert(component_id, component);
     }
 
-    fn add_component_data(&mut self, component_data: ComponentData) -> ComponentDataID {
-        let component_data_id = self.component_data_head;
-        self.component_data
-            .insert(component_data_id, component_data);
-        self.component_data_head += 1;
-        component_data_id
-    }
-
-    fn add_component_to_entity(
+    fn add_registered_component_to_entity(
         &mut self,
         entity_id: EntityID,
         component_id: ComponentID,
         component_data: ComponentData,
     ) -> Result<ComponentDataID, String> {
-        if self.get_component_by_id(component_id).is_none() {
-            return Err(format!(
-                "Can't add unregistered component {:?} to entity {}",
-                component_id, entity_id
-            ));
-        }
+        self.components
+            .get(&component_id)
+            .expect("Can't add unregistered component to entity");
 
-        let component_data_id = self.add_component_data(component_data);
+        let component_data_id = self.component_data_head;
+        self.component_data
+            .insert(component_data_id, component_data);
+
+        self.component_data_head += 1;
 
         let entity_component = match self.entity_components.get_mut(&entity_id) {
             Some(entity_component) => entity_component,
@@ -265,35 +343,5 @@ impl ECS {
         entity_component.insert(component_id, component_data_id);
 
         Ok(component_data_id)
-    }
-
-    fn create_component_and_add_to_entity_by_id(
-        &mut self,
-        entity_id: EntityID,
-        component_id: ComponentID,
-    ) -> Result<ComponentDataID, String> {
-        let component = match self.get_component_by_id(component_id) {
-            Some(component) => component,
-            None => {
-                return Err(format!(
-                    "Can't add unregistered component {:?} to entity {}",
-                    component_id, entity_id
-                ))
-            }
-        };
-
-        let constructor = &component.data_constructor;
-        let component_data = constructor();
-        let component_data_id =
-            self.add_component_to_entity(entity_id, component_id, component_data)?;
-
-        Ok(component_data_id)
-    }
-
-    fn entity_has_component(&self, entity_id: EntityID, component_id: ComponentID) -> bool {
-        match self.entity_components.get(&entity_id) {
-            Some(components) => components.get(&component_id).is_some(),
-            None => false,
-        }
     }
 }

@@ -1,11 +1,52 @@
-use super::GUID;
-use std::{any::Any, any::TypeId, fmt::Debug};
+use crate::primitive_types::UID;
+use std::{
+    any::Any,
+    any::TypeId,
+    fmt::{Debug, Display},
+    ops::{Add, AddAssign},
+};
 
-pub type ComponentID = TypeId;
-pub type ComponentDataID = GUID;
+#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
+pub struct ComponentID(pub TypeId);
+
+impl Display for ComponentID {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let ComponentID(component_id) = self;
+        write!(f, "{:?}", component_id)
+    }
+}
+
+pub fn get_component_id<T: ComponentTrait + 'static>() -> ComponentID {
+    ComponentID(TypeId::of::<T>())
+}
+
+#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
+pub struct ComponentDataID(pub UID);
+
+impl Add<UID> for ComponentDataID {
+    type Output = ComponentDataID;
+
+    fn add(self, rhs: i64) -> Self::Output {
+        let ComponentDataID(self_id) = self;
+        ComponentDataID(self_id + rhs)
+    }
+}
+
+impl AddAssign<UID> for ComponentDataID {
+    fn add_assign(&mut self, rhs: UID) {
+        let ComponentDataID(self_id) = self;
+        *self_id = *self_id + rhs;
+    }
+}
+
 pub type ComponentData = Box<dyn ComponentTrait>;
 
 pub trait ComponentTrait: CloneComponentTrait + AnyComponentTrait + Debug {}
+
+pub trait ComponentMetadataTrait {
+    fn get_name() -> &'static str;
+    fn get_description() -> &'static str;
+}
 
 pub trait CloneComponentTrait {
     fn clone_component(&self) -> ComponentData;
@@ -47,22 +88,13 @@ impl Clone for ComponentData {
 pub struct ComponentInterface {
     pub official_name: String,
     pub description: String,
-    pub data_constructor: Box<dyn Fn() -> ComponentData>,
 }
 
 impl ComponentInterface {
-    pub fn new<F: 'static>(
-        official_name: &str,
-        description: &str,
-        data_constructor: F,
-    ) -> ComponentInterface
-    where
-        F: Fn() -> ComponentData,
-    {
+    pub fn new(official_name: &str, description: &str) -> ComponentInterface {
         ComponentInterface {
             official_name: official_name.into(),
             description: description.into(),
-            data_constructor: Box::new(data_constructor),
         }
     }
 }

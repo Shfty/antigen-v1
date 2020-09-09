@@ -1,9 +1,9 @@
 use crate::{
     components::{CharComponent, PositionComponent},
-    ecs::EntityComponentSystemDebug,
+    ecs::EntityComponentDatabaseDebug,
 };
 use crate::{
-    ecs::{EntityComponentSystem, SystemEvent, SystemTrait},
+    ecs::{EntityComponentDatabase, SystemEvent, SystemTrait},
     primitive_types::IVector2,
 };
 
@@ -12,23 +12,23 @@ pub struct ASCIIRendererSystem;
 
 impl<T> SystemTrait<T> for ASCIIRendererSystem
 where
-    T: EntityComponentSystem + EntityComponentSystemDebug,
+    T: EntityComponentDatabase + EntityComponentDatabaseDebug,
 {
-    fn run(&mut self, ecs: &mut T) -> Result<SystemEvent, String>
+    fn run(&mut self, db: &mut T) -> Result<SystemEvent, String>
     where
-        T: EntityComponentSystem + EntityComponentSystemDebug,
+        T: EntityComponentDatabase + EntityComponentDatabaseDebug,
     {
-        let entities = ecs.get_entities_by_predicate(|entity_id| {
-            ecs.entity_has_component::<PositionComponent>(entity_id)
-                && ecs.entity_has_component::<CharComponent>(entity_id)
+        let entities = db.get_entities_by_predicate(|entity_id| {
+            db.entity_has_component::<PositionComponent>(entity_id)
+                && db.entity_has_component::<CharComponent>(entity_id)
         });
 
         let mut positions: Vec<(IVector2, char)> = Vec::new();
         for entity_id in entities {
-            let ascii_component = ecs.get_entity_component::<CharComponent>(entity_id)?;
+            let ascii_component = db.get_entity_component::<CharComponent>(entity_id)?;
             let ascii = ascii_component.data;
 
-            let position_component = ecs.get_entity_component::<PositionComponent>(entity_id)?;
+            let position_component = db.get_entity_component::<PositionComponent>(entity_id)?;
             positions.push((position_component.data, ascii))
         }
 

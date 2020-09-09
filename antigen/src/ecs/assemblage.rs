@@ -1,7 +1,7 @@
 use super::{
     component::{get_component_id, ComponentData, ComponentID},
-    ComponentMetadataTrait, ComponentTrait, EntityComponentSystem, EntityID,
-};
+    ComponentMetadataTrait, ComponentTrait, EntityID,
+entity_component_database::EntityComponentDatabase};
 use crate::primitive_types::UID;
 use std::{
     collections::HashMap,
@@ -29,20 +29,20 @@ impl AddAssign<UID> for AssemblageID {
 
 pub struct AssemblageBuilder<'a, T>
 where
-    T: EntityComponentSystem,
+    T: EntityComponentDatabase,
 {
-    ecs: &'a mut T,
+    db: &'a mut T,
     assemblage: Assemblage,
     component_data: HashMap<ComponentID, ComponentData>,
 }
 
 impl<'a, T> AssemblageBuilder<'a, T>
 where
-    T: EntityComponentSystem,
+    T: EntityComponentDatabase,
 {
-    pub fn new(ecs: &'a mut T, assemblage: Assemblage) -> Self {
+    pub fn new(db: &'a mut T, assemblage: Assemblage) -> Self {
         AssemblageBuilder {
-            ecs,
+            db,
             assemblage,
             component_data: HashMap::new()
         }
@@ -52,8 +52,8 @@ where
     where
         C: ComponentTrait + ComponentMetadataTrait + 'static,
     {
-        if !self.ecs.is_component_registered::<C>() {
-            self.ecs.register_component::<C>();
+        if !self.db.is_component_registered::<C>() {
+            self.db.register_component::<C>();
         }
 
         self.component_data
@@ -83,26 +83,26 @@ impl Assemblage {
         }
     }
 
-    pub fn build<'a, T>(ecs: &'a mut T, name: &str, description: &str) -> AssemblageBuilder<'a, T> where T: EntityComponentSystem {
-        AssemblageBuilder::new(ecs, Assemblage::new(name, description))
+    pub fn build<'a, T>(db: &'a mut T, name: &str, description: &str) -> AssemblageBuilder<'a, T> where T: EntityComponentDatabase {
+        AssemblageBuilder::new(db, Assemblage::new(name, description))
     }
 
     pub fn create_and_assemble_entity(
         &self,
-        ecs: &mut impl EntityComponentSystem,
+        db: &mut impl EntityComponentDatabase,
         label: &str,
     ) -> Result<EntityID, String> {
-        let entity_id = ecs.create_entity(label);
-        self.assemble_entity(ecs, entity_id)
+        let entity_id = db.create_entity(label);
+        self.assemble_entity(db, entity_id)
     }
 
     pub fn assemble_entity(
         &self,
-        ecs: &mut impl EntityComponentSystem,
+        db: &mut impl EntityComponentDatabase,
         entity_id: EntityID,
     ) -> Result<EntityID, String> {
         for (component_id, component_data) in &self.component_data {
-            ecs.add_registered_component_to_entity(
+            db.add_registered_component_to_entity(
                 entity_id,
                 *component_id,
                 component_data.clone(),

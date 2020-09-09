@@ -2,10 +2,11 @@ use antigen::{
     components::IntRangeComponent,
     ecs::{
         components::{DebugData, ECSDebugComponent},
-        SystemTrait, ECS,
+        SystemTrait, EntityComponentSystem, SystemEvent,
     },
-};
+ecs::EntityComponentSystemDebug};
 
+#[derive(Debug)]
 pub struct DebugTabSystem;
 
 impl DebugTabSystem {
@@ -14,8 +15,8 @@ impl DebugTabSystem {
     }
 }
 
-impl<T> SystemTrait<T> for DebugTabSystem where T: ECS {
-    fn run(&mut self, ecs: &mut T) -> Result<(), String> {
+impl<T> SystemTrait<T> for DebugTabSystem where T: EntityComponentSystem + EntityComponentSystemDebug {
+    fn run(&mut self, ecs: &mut T) -> Result<SystemEvent, String> {
         let entities = ecs.get_entities_by_predicate(|entity_id| {
             ecs.entity_has_component::<IntRangeComponent>(entity_id)
                 && ecs.entity_has_component::<ECSDebugComponent>(entity_id)
@@ -31,11 +32,10 @@ impl<T> SystemTrait<T> for DebugTabSystem where T: ECS {
                 1 => DebugData::Components,
                 2 => DebugData::ComponentData,
                 3 => DebugData::EntityComponents,
-                4 => DebugData::Assemblages,
                 _ => DebugData::Entities,
             };
         }
 
-        Ok(())
+        Ok(SystemEvent::None)
     }
 }

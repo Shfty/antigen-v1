@@ -1,19 +1,36 @@
-use antigen::{primitive_types::UID, ecs::{ComponentMetadataTrait, ComponentTrait}};
+use antigen::{
+    ecs::{ComponentMetadataTrait, ComponentTrait},
+    primitive_types::UID,
+};
+use pancurses::Window;
 
 pub type WindowID = UID;
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug)]
 pub struct PancursesWindowComponent {
     pub window_id: WindowID,
+    pub window: Option<Window>,
 }
 
-impl PancursesWindowComponent {
-    pub fn new(window_id: WindowID) -> Self {
-        PancursesWindowComponent { window_id }
+impl Clone for PancursesWindowComponent {
+    fn clone(&self) -> Self {
+        PancursesWindowComponent {
+            window_id: self.window_id,
+            window: None
+        }
     }
 }
 
-impl Default for PancursesWindowComponent {
+impl<'a> PancursesWindowComponent {
+    pub fn new(window_id: WindowID) -> Self {
+        PancursesWindowComponent {
+            window_id,
+            window: None,
+        }
+    }
+}
+
+impl<'a> Default for PancursesWindowComponent {
     fn default() -> Self {
         PancursesWindowComponent::new(0)
     }

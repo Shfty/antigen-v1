@@ -1,6 +1,6 @@
 use super::{
-    component::{get_component_id, CloneComponentTrait, ComponentData, ComponentID},
-    ComponentMetadataTrait, ComponentTrait, ECS,
+    component::{get_component_id, ComponentData, ComponentID},
+    ComponentMetadataTrait, ComponentTrait, EntityComponentSystem, EntityID,
 };
 use crate::primitive_types::UID;
 use std::{
@@ -27,24 +27,9 @@ impl AddAssign<UID> for AssemblageID {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct Assemblage {
-    pub official_name: String,
-    pub description: String,
-}
-
-impl Assemblage {
-    pub fn new(official_name: &str, description: &str) -> Assemblage {
-        Assemblage {
-            official_name: official_name.into(),
-            description: description.into(),
-        }
-    }
-}
-
 pub struct AssemblageBuilder<'a, T>
 where
-    T: ECS,
+    T: EntityComponentSystem,
 {
     ecs: &'a mut T,
     assemblage: Assemblage,
@@ -53,33 +38,77 @@ where
 
 impl<'a, T> AssemblageBuilder<'a, T>
 where
-    T: ECS,
+    T: EntityComponentSystem,
 {
-    pub fn new(ecs: &'a mut T, official_name: &str, description: &str) -> AssemblageBuilder<'a, T> {
+    pub fn new(ecs: &'a mut T, assemblage: Assemblage) -> Self {
         AssemblageBuilder {
             ecs,
-            assemblage: Assemblage::new(official_name, description),
+            assemblage,
+            component_data: HashMap::new()
+        }
+    }
+
+    pub fn add_component<C>(mut self, component: C) -> Self
+    where
+        C: ComponentTrait + ComponentMetadataTrait + 'static,
+    {
+        if !self.ecs.is_component_registered::<C>() {
+            self.ecs.register_component::<C>();
+        }
+
+        self.component_data
+            .insert(get_component_id::<C>(), Box::new(component));
+        self
+    }
+
+    pub fn finish(mut self) -> Assemblage {
+        self.assemblage.component_data = self.component_data;
+        self.assemblage
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Assemblage {
+    pub name: String,
+    pub description: String,
+    component_data: HashMap<ComponentID, ComponentData>,
+}
+
+impl Assemblage {
+    pub fn new(name: &str, description: &str) -> Self {
+        Assemblage {
+            name: name.into(),
+            description: description.into(),
             component_data: HashMap::new(),
         }
     }
 
-    pub fn component<J: ComponentTrait + CloneComponentTrait + ComponentMetadataTrait + 'static>(
-        mut self,
-        data: J,
-    ) -> AssemblageBuilder<'a, T>
-    where
-        T: ECS,
-    {
-        if !self.ecs.is_component_registered::<J>() {
-            self.ecs.register_component::<J>();
-        }
-        self.component_data
-            .insert(get_component_id::<J>(), Box::new(data));
-        self
+    pub fn build<'a, T>(ecs: &'a mut T, name: &str, description: &str) -> AssemblageBuilder<'a, T> where T: EntityComponentSystem {
+        AssemblageBuilder::new(ecs, Assemblage::new(name, description))
     }
 
-    pub fn finish(self) -> AssemblageID {
-        self.ecs
-            .register_assemblage(self.assemblage, self.component_data)
+    pub fn create_and_assemble_entity(
+        &self,
+        ecs: &mut impl EntityComponentSystem,
+        label: &str,
+    ) -> Result<EntityID, String> {
+        let entity_id = ecs.create_entity(label);
+        self.assemble_entity(ecs, entity_id)
+    }
+
+    pub fn assemble_entity(
+        &self,
+        ecs: &mut impl EntityComponentSystem,
+        entity_id: EntityID,
+    ) -> Result<EntityID, String> {
+        for (component_id, component_data) in &self.component_data {
+            ecs.add_registered_component_to_entity(
+                entity_id,
+                *component_id,
+                component_data.clone(),
+            )?;
+        }
+
+        Ok(entity_id)
     }
 }

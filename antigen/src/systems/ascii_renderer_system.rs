@@ -1,14 +1,23 @@
-use crate::components::{CharComponent, PositionComponent};
 use crate::{
-    ecs::{SystemTrait, ECS},
+    components::{CharComponent, PositionComponent},
+    ecs::EntityComponentSystemDebug,
+};
+use crate::{
+    ecs::{EntityComponentSystem, SystemEvent, SystemTrait},
     primitive_types::IVector2,
 };
 
 #[derive(Debug)]
 pub struct ASCIIRendererSystem;
 
-impl<T> SystemTrait<T> for ASCIIRendererSystem where T: ECS {
-    fn run(&mut self, ecs: &mut T) -> Result<(), String> {
+impl<T> SystemTrait<T> for ASCIIRendererSystem
+where
+    T: EntityComponentSystem + EntityComponentSystemDebug,
+{
+    fn run(&mut self, ecs: &mut T) -> Result<SystemEvent, String>
+    where
+        T: EntityComponentSystem + EntityComponentSystemDebug,
+    {
         let entities = ecs.get_entities_by_predicate(|entity_id| {
             ecs.entity_has_component::<PositionComponent>(entity_id)
                 && ecs.entity_has_component::<CharComponent>(entity_id)
@@ -39,6 +48,6 @@ impl<T> SystemTrait<T> for ASCIIRendererSystem where T: ECS {
 
         println!();
 
-        Ok(())
+        Ok(SystemEvent::None)
     }
 }

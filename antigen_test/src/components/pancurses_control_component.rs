@@ -1,4 +1,3 @@
-use super::pancurses_window_component::WindowID;
 use antigen::ecs::{ComponentMetadataTrait, ComponentTrait};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -15,17 +14,14 @@ impl Default for ControlData {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct PancursesControlComponent {
-    pub window_id: WindowID,
     pub control_data: ControlData,
 }
 
 impl PancursesControlComponent {
     pub fn new(
-        window_id: WindowID,
         control_data: ControlData,
     ) -> Self {
         PancursesControlComponent {
-            window_id,
             control_data,
         }
     }
@@ -33,7 +29,7 @@ impl PancursesControlComponent {
 
 impl Default for PancursesControlComponent {
     fn default() -> Self {
-        PancursesControlComponent::new(0, ControlData::default())
+        PancursesControlComponent::new(ControlData::default())
     }
 }
 

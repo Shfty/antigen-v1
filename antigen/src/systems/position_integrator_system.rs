@@ -1,6 +1,6 @@
-use crate::components::{PositionComponent, VelocityComponent};
+use crate::{components::{PositionComponent, VelocityComponent}, ecs::EntityComponentSystemDebug};
 use crate::{
-    ecs::{SystemTrait, ECS},
+    ecs::{SystemTrait, EntityComponentSystem, SystemEvent},
     primitive_types::IVector2,
 };
 
@@ -19,8 +19,8 @@ impl PositionIntegratorSystem {
     }
 }
 
-impl<T> SystemTrait<T> for PositionIntegratorSystem where T: ECS {
-    fn run(&mut self, ecs: &mut T) -> Result<(), String> {
+impl<T> SystemTrait<T> for PositionIntegratorSystem where T: EntityComponentSystem + EntityComponentSystemDebug {
+    fn run(&mut self, ecs: &mut T) -> Result<SystemEvent, String> where T: EntityComponentSystem + EntityComponentSystemDebug {
         let entities = ecs.get_entities_by_predicate(|entity_id| {
             ecs.entity_has_component::<PositionComponent>(entity_id)
                 && ecs.entity_has_component::<VelocityComponent>(entity_id)
@@ -39,6 +39,6 @@ impl<T> SystemTrait<T> for PositionIntegratorSystem where T: ECS {
             *y += y_vel;
         }
 
-        Ok(())
+        Ok(SystemEvent::None)
     }
 }

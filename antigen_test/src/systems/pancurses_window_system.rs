@@ -10,9 +10,9 @@ use antigen::{
     components::ParentEntityComponent,
     components::{CharComponent, PositionComponent, SizeComponent},
     ecs::EntityID,
-    ecs::{EntityComponentSystem, SystemEvent, SystemTrait},
+    ecs::{EntityComponentDatabase, SystemEvent, SystemTrait},
     primitive_types::IVector2,
-ecs::EntityComponentSystemDebug};
+ecs::EntityComponentDatabaseDebug};
 use pancurses::ToChtype;
 use std::collections::HashMap;
 
@@ -31,7 +31,7 @@ impl PancursesWindowSystem {
 
     fn try_create_window(
         &mut self,
-        ecs: &mut impl EntityComponentSystem,
+        ecs: &mut impl EntityComponentDatabase,
         entity_id: EntityID,
         parent_window_entity_id: Option<EntityID>,
     ) -> Result<(), String> {
@@ -140,22 +140,22 @@ impl PancursesWindowSystem {
         */
 }
 
-impl<T> SystemTrait<T> for PancursesWindowSystem where T: EntityComponentSystem + EntityComponentSystemDebug
+impl<T> SystemTrait<T> for PancursesWindowSystem where T: EntityComponentDatabase + EntityComponentDatabaseDebug
 {
-    fn run(&mut self, ecs: &mut T) -> Result<SystemEvent, String> {
+    fn run(&mut self, db: &mut T) -> Result<SystemEvent, String> {
         // Get window entities, update internal window state
-        let mut window_entities = ecs.get_entities_by_predicate(|entity_id| {
-            ecs.entity_has_component::<PancursesWindowComponent>(entity_id)
-                && ecs.entity_has_component::<SizeComponent>(entity_id)
+        let mut window_entities = db.get_entities_by_predicate(|entity_id| {
+            db.entity_has_component::<PancursesWindowComponent>(entity_id)
+                && db.entity_has_component::<SizeComponent>(entity_id)
         });
 
         window_entities.sort_by(|lhs, rhs| {
-            let lhs_window_component = ecs
+            let lhs_window_component = db
                 .get_entity_component::<PancursesWindowComponent>(*lhs)
                 .unwrap();
             let lhs_window_id = lhs_window_component.window_id;
 
-            let rhs_window_component = ecs
+            let rhs_window_component = db
                 .get_entity_component::<PancursesWindowComponent>(*rhs)
                 .unwrap();
             let rhs_window_id = rhs_window_component.window_id;
@@ -167,12 +167,12 @@ impl<T> SystemTrait<T> for PancursesWindowSystem where T: EntityComponentSystem 
             let entity_id = *entity_id;
 
             let parent_entity_id =
-                match ecs.get_entity_component::<ParentEntityComponent>(entity_id) {
+                match db.get_entity_component::<ParentEntityComponent>(entity_id) {
                     Ok(parent_entity_component) => Some(parent_entity_component.parent_id),
                     Err(_) => None,
                 };
 
-            self.try_create_window(ecs, entity_id, parent_entity_id)?;
+            self.try_create_window(db, entity_id, parent_entity_id)?;
         }
 
         /*

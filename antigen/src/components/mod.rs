@@ -6,6 +6,7 @@ mod primitive_components;
 mod size_component;
 mod timer_component;
 mod velocity_component;
+mod ecs_debug_component;
 
 pub use global_position_component::GlobalPositionComponent;
 pub use int_range_component::IntRangeComponent;
@@ -17,3 +18,4 @@ pub use primitive_components::StringComponent;
 pub use size_component::SizeComponent;
 pub use timer_component::TimerComponent;
 pub use velocity_component::VelocityComponent;
+pub use ecs_debug_component::{ECSDebugComponent, DebugData};

@@ -13,9 +13,9 @@ use antigen::{
         CharComponent, GlobalPositionComponent, PositionComponent, SizeComponent, StringComponent,
     },
     ecs::EntityID,
-    ecs::{EntityComponentSystem, SystemEvent, SystemTrait},
+    ecs::{EntityComponentDatabase, SystemEvent, SystemTrait},
     primitive_types::IVector2,
-ecs::EntityComponentSystemDebug};
+ecs::EntityComponentDatabaseDebug};
 use pancurses::{ToChtype, Window};
 use std::collections::{HashMap, HashSet};
 
@@ -166,22 +166,22 @@ enum RenderData {
     Rect(i64, i64, i64, i64, char, i16, bool),
 }
 
-impl<T> SystemTrait<T> for PancursesRendererSystem where T: EntityComponentSystem + EntityComponentSystemDebug
+impl<T> SystemTrait<T> for PancursesRendererSystem where T: EntityComponentDatabase + EntityComponentDatabaseDebug
 {
-    fn run(&mut self, ecs: &mut T) -> Result<SystemEvent, String> {
+    fn run(&mut self, db: &mut T) -> Result<SystemEvent, String> {
         // Get window entities, update internal window state
-        let mut window_entities = ecs.get_entities_by_predicate(|entity_id| {
-            ecs.entity_has_component::<PancursesWindowComponent>(entity_id)
-                && ecs.entity_has_component::<SizeComponent>(entity_id)
+        let mut window_entities = db.get_entities_by_predicate(|entity_id| {
+            db.entity_has_component::<PancursesWindowComponent>(entity_id)
+                && db.entity_has_component::<SizeComponent>(entity_id)
         });
 
         window_entities.sort_by(|lhs, rhs| {
-            let lhs_window_component = ecs
+            let lhs_window_component = db
                 .get_entity_component::<PancursesWindowComponent>(*lhs)
                 .unwrap();
             let lhs_window_id = lhs_window_component.window_id;
 
-            let rhs_window_component = ecs
+            let rhs_window_component = db
                 .get_entity_component::<PancursesWindowComponent>(*rhs)
                 .unwrap();
             let rhs_window_id = rhs_window_component.window_id;
@@ -191,7 +191,7 @@ impl<T> SystemTrait<T> for PancursesRendererSystem where T: EntityComponentSyste
 
         let mut window_sizes: Vec<IVector2> = Vec::new();
         for entity_id in &window_entities {
-            let size_component = ecs.get_entity_component::<SizeComponent>(*entity_id)?;
+            let size_component = db.get_entity_component::<SizeComponent>(*entity_id)?;
             let size = size_component.data;
             window_sizes.push(size);
         }
@@ -200,14 +200,14 @@ impl<T> SystemTrait<T> for PancursesRendererSystem where T: EntityComponentSyste
         let mut string_data: HashMap<EntityID, HashSet<RenderData>> = HashMap::new();
         let mut rect_data: HashMap<EntityID, HashSet<RenderData>> = HashMap::new();
 
-        let control_entities = ecs.get_entities_by_predicate(|entity_id| {
-            ecs.entity_has_component::<PancursesControlComponent>(entity_id)
-                && ecs.entity_has_component::<ParentEntityComponent>(entity_id)
-                && ecs.entity_has_component::<PositionComponent>(entity_id)
+        let control_entities = db.get_entities_by_predicate(|entity_id| {
+            db.entity_has_component::<PancursesControlComponent>(entity_id)
+                && db.entity_has_component::<ParentEntityComponent>(entity_id)
+                && db.entity_has_component::<PositionComponent>(entity_id)
         });
 
-        let color_set_entities = ecs.get_entities_by_predicate(|entity_id| {
-            ecs.entity_has_component::<PancursesColorSetComponent>(entity_id)
+        let color_set_entities = db.get_entities_by_predicate(|entity_id| {
+            db.entity_has_component::<PancursesColorSetComponent>(entity_id)
         });
         let color_set_entity = color_set_entities
             .get(0)
@@ -215,29 +215,29 @@ impl<T> SystemTrait<T> for PancursesRendererSystem where T: EntityComponentSyste
 
         for entity_id in control_entities {
             let IVector2(x, y) = if let Ok(global_position_component) =
-                ecs.get_entity_component::<GlobalPositionComponent>(entity_id)
+                db.get_entity_component::<GlobalPositionComponent>(entity_id)
             {
                 global_position_component.data
             } else {
-                match ecs.get_entity_component::<PositionComponent>(entity_id) {
+                match db.get_entity_component::<PositionComponent>(entity_id) {
                     Ok(position_component) => position_component.data,
                     Err(err) => return Err(err),
                 }
             };
 
             let color_pair =
-                match ecs.get_entity_component::<PancursesColorPairComponent>(entity_id) {
+                match db.get_entity_component::<PancursesColorPairComponent>(entity_id) {
                     Ok(pancurses_color_pair_component) => pancurses_color_pair_component.data,
                     Err(_) => PancursesColorPair::default(),
                 };
 
             let color_set_component =
-                ecs.get_entity_component::<PancursesColorSetComponent>(*color_set_entity)?;
+                db.get_entity_component::<PancursesColorSetComponent>(*color_set_entity)?;
             let color_pair_idx = color_set_component.get_color_pair_idx(color_pair);
 
             // Search up parent chain for window component
             let parent_entity_component =
-                match ecs.get_entity_component::<ParentEntityComponent>(entity_id) {
+                match db.get_entity_component::<ParentEntityComponent>(entity_id) {
                     Ok(parent_entity_component) => parent_entity_component,
                     Err(err) => return Err(err),
                 };
@@ -246,7 +246,7 @@ impl<T> SystemTrait<T> for PancursesRendererSystem where T: EntityComponentSyste
             let mut parent_id: Option<EntityID> = None;
 
             loop {
-                if ecs
+                if db
                     .get_entity_component::<PancursesWindowComponent>(candidate_id)
                     .is_ok()
                 {
@@ -254,7 +254,7 @@ impl<T> SystemTrait<T> for PancursesRendererSystem where T: EntityComponentSyste
                     break;
                 }
 
-                match ecs.get_entity_component::<ParentEntityComponent>(candidate_id) {
+                match db.get_entity_component::<ParentEntityComponent>(candidate_id) {
                     Ok(parent_entity_component) => candidate_id = parent_entity_component.parent_id,
                     Err(_) => break,
                 }
@@ -280,7 +280,7 @@ impl<T> SystemTrait<T> for PancursesRendererSystem where T: EntityComponentSyste
 
             // Extract render data from control component
             let control_component =
-                match ecs.get_entity_component::<PancursesControlComponent>(entity_id) {
+                match db.get_entity_component::<PancursesControlComponent>(entity_id) {
                     Ok(control_component) => control_component,
                     Err(err) => return Err(err),
                 };
@@ -288,11 +288,11 @@ impl<T> SystemTrait<T> for PancursesRendererSystem where T: EntityComponentSyste
             match &control_component.control_data {
                 ControlData::String => {
                     let string = if let Ok(string_component) =
-                        ecs.get_entity_component::<StringComponent>(entity_id)
+                        db.get_entity_component::<StringComponent>(entity_id)
                     {
                         string_component.data.clone()
                     } else if let Ok(char_component) =
-                        ecs.get_entity_component::<CharComponent>(entity_id)
+                        db.get_entity_component::<CharComponent>(entity_id)
                     {
                         char_component.data.to_string()
                     } else {
@@ -311,12 +311,12 @@ impl<T> SystemTrait<T> for PancursesRendererSystem where T: EntityComponentSyste
                 ControlData::Rect { filled } => {
                     let filled = *filled;
 
-                    let char = match ecs.get_entity_component::<CharComponent>(entity_id) {
+                    let char = match db.get_entity_component::<CharComponent>(entity_id) {
                         Ok(char_component) => char_component.data,
                         Err(_) => ' ',
                     };
 
-                    let size_component = ecs.get_entity_component::<SizeComponent>(entity_id)?;
+                    let size_component = db.get_entity_component::<SizeComponent>(entity_id)?;
                     let IVector2(w, h) = size_component.data;
                     window_rects.insert(RenderData::Rect(x, y, w, h, char, color_pair_idx, filled));
                 }
@@ -329,7 +329,7 @@ impl<T> SystemTrait<T> for PancursesRendererSystem where T: EntityComponentSyste
         for (entity_id, IVector2(width, height)) in window_entities.iter().zip(window_sizes.iter())
         {
             let parent_entity_id =
-                match ecs.get_entity_component::<ParentEntityComponent>(*entity_id) {
+                match db.get_entity_component::<ParentEntityComponent>(*entity_id) {
                     Ok(parent_entity_component) => Some(parent_entity_component.parent_id),
                     Err(_) => None,
                 };
@@ -339,7 +339,7 @@ impl<T> SystemTrait<T> for PancursesRendererSystem where T: EntityComponentSyste
             }
 
             let window_component =
-                ecs.get_entity_component::<PancursesWindowComponent>(*entity_id)?;
+                db.get_entity_component::<PancursesWindowComponent>(*entity_id)?;
             if let Some(window) = &window_component.window {
                 window.erase();
 
@@ -359,7 +359,7 @@ impl<T> SystemTrait<T> for PancursesRendererSystem where T: EntityComponentSyste
         // Present
         if let Some(entity_id) = root_window_entity {
             let window_component =
-                ecs.get_entity_component::<PancursesWindowComponent>(entity_id)?;
+                db.get_entity_component::<PancursesWindowComponent>(entity_id)?;
             if let Some(window) = &window_component.window {
                 window.refresh();
             }

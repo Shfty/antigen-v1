@@ -4,8 +4,8 @@ use crate::components::{
 };
 use antigen::{
     components::ParentEntityComponent,
-    ecs::{EntityComponentSystem, SystemEvent, SystemTrait},
-ecs::EntityComponentSystemDebug};
+    ecs::{EntityComponentDatabase, SystemEvent, SystemTrait},
+ecs::EntityComponentDatabaseDebug};
 
 #[derive(Debug)]
 pub struct PancursesInputSystem {
@@ -22,21 +22,21 @@ impl PancursesInputSystem {
     }
 }
 
-impl<T> SystemTrait<T> for PancursesInputSystem where T: EntityComponentSystem + EntityComponentSystemDebug
+impl<T> SystemTrait<T> for PancursesInputSystem where T: EntityComponentDatabase + EntityComponentDatabaseDebug
 {
-    fn run(&mut self, ecs: &mut T) -> Result<SystemEvent, String> {
+    fn run(&mut self, db: &mut T) -> Result<SystemEvent, String> {
         self.input_buffer.clear();
 
-        let window_entities = ecs.get_entities_by_predicate(|entity_id| {
-            ecs.entity_has_component::<PancursesWindowComponent>(entity_id)
-                && !ecs.entity_has_component::<ParentEntityComponent>(entity_id)
+        let window_entities = db.get_entities_by_predicate(|entity_id| {
+            db.entity_has_component::<PancursesWindowComponent>(entity_id)
+                && !db.entity_has_component::<ParentEntityComponent>(entity_id)
         });
 
         assert!(window_entities.len() <= 1);
 
         if let Some(entity_id) = window_entities.get(0) {
             let window_component =
-                ecs.get_entity_component::<PancursesWindowComponent>(*entity_id)?;
+                db.get_entity_component::<PancursesWindowComponent>(*entity_id)?;
             if let Some(window) = &window_component.window {
                 for _ in 0..self.input_buffer_size {
                     if let Some(input) = window.getch() {
@@ -55,27 +55,27 @@ impl<T> SystemTrait<T> for PancursesInputSystem where T: EntityComponentSystem +
                 return Ok(SystemEvent::Quit);
             }
             if let pancurses::Input::Character(' ') = input {
-                let window_entities = ecs.get_entities_by_predicate(|entity_id| {
-                    ecs.entity_has_component::<PancursesWindowComponent>(entity_id)
+                let window_entities = db.get_entities_by_predicate(|entity_id| {
+                    db.entity_has_component::<PancursesWindowComponent>(entity_id)
                 });
 
                 for entity_id in window_entities {
                     let pancurses_window_component =
-                        ecs.get_entity_component::<PancursesWindowComponent>(entity_id)?;
+                        db.get_entity_component::<PancursesWindowComponent>(entity_id)?;
                     if pancurses_window_component.window_id == 0 {
-                        ecs.remove_component_from_entity::<PancursesWindowComponent>(entity_id)?;
+                        db.remove_component_from_entity::<PancursesWindowComponent>(entity_id)?;
                     }
                 }
             }
         }
 
-        let entities = ecs.get_entities_by_predicate(|entity_id| {
-            ecs.entity_has_component::<PancursesInputBufferComponent>(entity_id)
+        let entities = db.get_entities_by_predicate(|entity_id| {
+            db.entity_has_component::<PancursesInputBufferComponent>(entity_id)
         });
 
         for entity_id in entities {
             let pancurses_input_buffer_component =
-                ecs.get_entity_component::<PancursesInputBufferComponent>(entity_id)?;
+                db.get_entity_component::<PancursesInputBufferComponent>(entity_id)?;
 
             pancurses_input_buffer_component.input_buffer = self.input_buffer.clone();
         }

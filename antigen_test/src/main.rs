@@ -1,26 +1,23 @@
 mod components;
 mod pancurses_color;
-mod profiler;
 mod systems;
-mod system_runner;
 
 use std::{collections::HashMap, time::Duration};
 
-use system_runner::SystemRunner;
 use antigen::{
     components::{
         CharComponent, GlobalPositionComponent, IntRangeComponent, ParentEntityComponent,
         PositionComponent, SizeComponent, StringComponent, VelocityComponent,
     },
-    ecs::{
-        components::{DebugData, ECSDebugComponent},
-        systems::ECSDebugSystem,
-        Assemblage, EntityComponentSystem, EntityID, SingleThreadedECS, SystemEvent,
-    },
+    components::{DebugData, ECSDebugComponent},
+    ecs::entity_component_database::SingleThreadedDatabase,
+    ecs::system_runner::SingleThreadedSystemRunner,
+    ecs::SystemRunner,
+    ecs::{Assemblage, EntityComponentDatabase, EntityID, SystemEvent},
     primitive_types::IVector2,
-    systems::{GlobalPositionSystem, PositionIntegratorSystem},
+    profiler::Profiler,
+    systems::{ECSDebugSystem, GlobalPositionSystem, PositionIntegratorSystem},
 };
-use profiler::Profiler;
 
 use components::{
     pancurses_color_pair_component::PancursesColorPairComponent,
@@ -35,13 +32,11 @@ use systems::{
     PancursesRendererSystem, PancursesWindowSystem,
 };
 
-// TODO: Better automation for system execution - leverage component data to avoid manually calling extra methods (ex. input set/get) from main loop
-
 // TODO: Pancurses-compatible UI controls
 //       - List
 //       - List item
 // TODO: Debug menu
-// TODO: Profiler singleton
+// TODO: Profiler singleton (system?)
 // TODO: Profiler menu
 
 #[derive(Eq, PartialEq, Hash)]
@@ -61,21 +56,21 @@ fn main() {
 }
 
 fn create_string_control(
-    ecs: &mut impl EntityComponentSystem,
+    db: &mut impl EntityComponentDatabase,
     string_assemblage: &Assemblage,
     label: &str,
     text: &str,
     (x, y): (i64, i64),
 ) -> Result<EntityID, String> {
-    let entity_id = string_assemblage.create_and_assemble_entity(ecs, label)?;
+    let entity_id = string_assemblage.create_and_assemble_entity(db, label)?;
 
-    let debug_title_component = ecs.get_entity_component::<PancursesControlComponent>(entity_id)?;
+    let debug_title_component = db.get_entity_component::<PancursesControlComponent>(entity_id)?;
     debug_title_component.control_data = ControlData::String;
 
-    let string_component = ecs.get_entity_component::<StringComponent>(entity_id)?;
+    let string_component = db.get_entity_component::<StringComponent>(entity_id)?;
     string_component.data = text.into();
 
-    let position_component = ecs.get_entity_component::<PositionComponent>(entity_id)?;
+    let position_component = db.get_entity_component::<PositionComponent>(entity_id)?;
     let IVector2(pos_x, pos_y) = &mut position_component.data;
     *pos_x = x;
     *pos_y = y;
@@ -84,19 +79,19 @@ fn create_string_control(
 }
 
 fn create_window_entity(
-    ecs: &mut impl EntityComponentSystem,
+    db: &mut impl EntityComponentDatabase,
     label: &str,
     window_id: i64,
     position: IVector2,
     size: IVector2,
     parent_window_entity_id: Option<EntityID>,
 ) -> Result<EntityID, String> {
-    let entity_id = ecs.create_entity(label);
-    ecs.add_component_to_entity(entity_id, PancursesWindowComponent::new(window_id))?;
-    ecs.add_component_to_entity(entity_id, PositionComponent::new(position))?;
-    ecs.add_component_to_entity(entity_id, SizeComponent::new(size))?;
+    let entity_id = db.create_entity(label);
+    db.add_component_to_entity(entity_id, PancursesWindowComponent::new(window_id))?;
+    db.add_component_to_entity(entity_id, PositionComponent::new(position))?;
+    db.add_component_to_entity(entity_id, SizeComponent::new(size))?;
     if let Some(parent_window_entity_id) = parent_window_entity_id {
-        ecs.add_component_to_entity(
+        db.add_component_to_entity(
             entity_id,
             ParentEntityComponent::new(parent_window_entity_id),
         )?;
@@ -105,7 +100,7 @@ fn create_window_entity(
 }
 
 fn main_internal() -> Result<(), String> {
-    let mut ecs = SingleThreadedECS::new();
+    let mut ecs = SingleThreadedDatabase::new();
 
     let assemblages = setup_assemblages(&mut ecs);
 
@@ -243,7 +238,7 @@ fn main_internal() -> Result<(), String> {
     let mut ecs_debug_system = ECSDebugSystem::new();
     let mut pancurses_renderer_system = PancursesRendererSystem::new();
 
-    let mut system_runner = SystemRunner::<SingleThreadedECS>::new(&mut ecs);
+    let mut system_runner = SingleThreadedSystemRunner::<SingleThreadedDatabase>::new(&mut ecs);
     system_runner.register_system("Pancurses Window", &mut pancurses_window_system);
     system_runner.register_system("Pancurses Input", &mut pancurses_input_system);
     system_runner.register_system("UI Tab Input", &mut ui_tab_input_system);
@@ -273,14 +268,14 @@ fn main_internal() -> Result<(), String> {
 }
 
 fn setup_assemblages(
-    ecs: &mut impl EntityComponentSystem,
+    db: &mut impl EntityComponentDatabase,
 ) -> HashMap<EntityAssemblage, Assemblage> {
     let mut assemblages: HashMap<EntityAssemblage, Assemblage> = HashMap::new();
 
     assemblages.insert(
         EntityAssemblage::Player,
         Assemblage::build(
-            ecs,
+            db,
             "Player Entity",
             "Controllable ASCII character with position and velocity",
         )
@@ -298,7 +293,7 @@ fn setup_assemblages(
 
     assemblages.insert(
         EntityAssemblage::StringControl,
-        Assemblage::build(ecs, "String Entity", "ASCII string control")
+        Assemblage::build(db, "String Entity", "ASCII string control")
             .add_component(PancursesControlComponent::new(ControlData::String))
             .add_component(StringComponent::default())
             .add_component(PositionComponent::default())
@@ -307,7 +302,7 @@ fn setup_assemblages(
 
     assemblages.insert(
         EntityAssemblage::RectControl,
-        Assemblage::build(ecs, "Rect Entity", "ASCII Rectangle control")
+        Assemblage::build(db, "Rect Entity", "ASCII Rectangle control")
             .add_component(PancursesControlComponent::new(ControlData::Rect {
                 filled: true,
             }))
@@ -323,7 +318,7 @@ fn setup_assemblages(
 
     assemblages.insert(
         EntityAssemblage::BorderControl,
-        Assemblage::build(ecs, "Border Entity", "ASCII Border control")
+        Assemblage::build(db, "Border Entity", "ASCII Border control")
             .add_component(PancursesControlComponent::new(ControlData::Rect {
                 filled: false,
             }))

@@ -1,7 +1,7 @@
 use crate::components::{IntRangeComponent, StringComponent};
 use crate::ecs::{
     components::{DebugData, ECSDebugComponent},
-    {EntityID, SystemTrait, ECS},
+    EntityComponentSystemDebug, SystemEvent, {EntityComponentSystem, SystemTrait},
 };
 
 #[derive(Debug)]
@@ -19,8 +19,8 @@ impl ECSDebugSystem {
     }
 }
 
-impl<T> SystemTrait<T> for ECSDebugSystem where T: ECS {
-    fn run(&mut self, ecs: &mut T) -> Result<(), String> {
+impl<T> SystemTrait<T> for ECSDebugSystem where T: EntityComponentSystem + EntityComponentSystemDebug {
+    fn run(&mut self, ecs: &mut T) -> Result<SystemEvent, String> where T: EntityComponentSystem + EntityComponentSystemDebug {
         let entities = ecs.get_entities_by_predicate(|entity_id| {
             ecs.entity_has_component::<ECSDebugComponent>(entity_id)
                 && ecs.entity_has_component::<StringComponent>(entity_id)
@@ -31,14 +31,12 @@ impl<T> SystemTrait<T> for ECSDebugSystem where T: ECS {
             let ecs_debug_component = ecs.get_entity_component::<ECSDebugComponent>(entity_id)?;
             let debug_data = ecs_debug_component.debug_data;
 
-            let ecs_string = "ECS Debug String".to_string();
-            /*
             let ecs_string = match debug_data {
                 DebugData::Entities => ecs
                     .get_entities()
                     .iter()
                     .copied()
-                    .map(|entity_id: EntityID| ecs.get_entity_label(entity_id))
+                    .map(|entity_id| ecs.get_entity_label(*entity_id))
                     .fold("Entities:\n".to_string(), |acc, next| acc + next + "\n"),
                 DebugData::Components => ecs
                     .get_components()
@@ -51,19 +49,13 @@ impl<T> SystemTrait<T> for ECSDebugSystem where T: ECS {
                 DebugData::EntityComponents => {
                     format!("Entity Components: {:#?}", ecs.get_entity_components())
                 }
-                DebugData::Assemblages => ecs
-                    .get_assemblages()
-                    .iter()
-                    .map(|(_, assemblage)| &assemblage.official_name)
-                    .fold("Assemblages:\n".to_string(), |acc, next| acc + next + "\n"),
             };
-            */
 
             let string_component = ecs.get_entity_component::<StringComponent>(entity_id)?;
 
             string_component.data = ecs_string.clone();
         }
 
-        Ok(())
+        Ok(SystemEvent::None)
     }
 }

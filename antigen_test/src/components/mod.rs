@@ -3,3 +3,4 @@ pub mod pancurses_control_component;
 pub mod pancurses_input_buffer_component;
 pub mod pancurses_prev_next_input_component;
 pub mod pancurses_color_pair_component;
+pub mod pancurses_color_set_component;

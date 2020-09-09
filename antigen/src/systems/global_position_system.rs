@@ -1,5 +1,5 @@
-use crate::components::{GlobalPositionComponent, ParentEntityComponent, PositionComponent};
-use crate::ecs::{SystemTrait, ECS};
+use crate::{components::{GlobalPositionComponent, ParentEntityComponent, PositionComponent}, ecs::EntityComponentSystemDebug};
+use crate::ecs::{SystemTrait, EntityComponentSystem, SystemEvent};
 
 #[derive(Debug)]
 pub struct GlobalPositionSystem;
@@ -16,11 +16,9 @@ impl GlobalPositionSystem {
     }
 }
 
-impl<T> SystemTrait<T> for GlobalPositionSystem
-where
-    T: ECS,
+impl<T> SystemTrait<T> for GlobalPositionSystem where T: EntityComponentSystem + EntityComponentSystemDebug
 {
-    fn run(&mut self, ecs: &mut T) -> Result<(), String> {
+    fn run(&mut self, ecs: &mut T) -> Result<SystemEvent, String> where T: EntityComponentSystem + EntityComponentSystemDebug {
         let entities = ecs.get_entities_by_predicate(|entity_id| {
             ecs.entity_has_component::<PositionComponent>(entity_id)
                 && ecs.entity_has_component::<ParentEntityComponent>(entity_id)
@@ -52,6 +50,6 @@ where
             global_position_component.data = global_position;
         }
 
-        Ok(())
+        Ok(SystemEvent::None)
     }
 }

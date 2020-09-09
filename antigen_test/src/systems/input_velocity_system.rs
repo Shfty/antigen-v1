@@ -1,10 +1,11 @@
 use crate::components::pancurses_input_buffer_component::PancursesInputBufferComponent;
 use antigen::{
     components::VelocityComponent,
-    ecs::{SystemTrait, ECS},
+    ecs::{SystemTrait, EntityComponentSystem, SystemEvent},
     primitive_types::IVector2,
-};
+ecs::EntityComponentSystemDebug};
 
+#[derive(Debug)]
 pub struct InputVelocitySystem;
 
 impl InputVelocitySystem {
@@ -13,8 +14,8 @@ impl InputVelocitySystem {
     }
 }
 
-impl<T> SystemTrait<T> for InputVelocitySystem where T: ECS {
-    fn run(&mut self, ecs: &mut T) -> Result<(), String> {
+impl<T> SystemTrait<T> for InputVelocitySystem where T: EntityComponentSystem + EntityComponentSystemDebug {
+    fn run(&mut self, ecs: &mut T) -> Result<SystemEvent, String> {
         let entities = ecs.get_entities_by_predicate(|entity_id| {
             ecs.entity_has_component::<PancursesInputBufferComponent>(entity_id)
                 && ecs.entity_has_component::<VelocityComponent>(entity_id)
@@ -44,6 +45,6 @@ impl<T> SystemTrait<T> for InputVelocitySystem where T: ECS {
             *y_vel = move_input.1;
         }
 
-        Ok(())
+        Ok(SystemEvent::None)
     }
 }

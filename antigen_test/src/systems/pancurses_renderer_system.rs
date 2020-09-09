@@ -1,189 +1,39 @@
 use crate::{
+    components::pancurses_color_set_component::PancursesColorSetComponent,
     components::{
         pancurses_color_pair_component::PancursesColorPairComponent,
         pancurses_control_component::{ControlData, PancursesControlComponent},
         pancurses_window_component::PancursesWindowComponent,
     },
-    pancurses_color::{PancursesColor, PancursesColorPair},
+    pancurses_color::PancursesColorPair,
 };
 use antigen::{
+    components::ParentEntityComponent,
     components::{
         CharComponent, GlobalPositionComponent, PositionComponent, SizeComponent, StringComponent,
     },
-    ecs::{SystemTrait, ECS},
+    ecs::EntityID,
+    ecs::{EntityComponentSystem, SystemEvent, SystemTrait},
     primitive_types::IVector2,
-};
+ecs::EntityComponentSystemDebug};
 use pancurses::{ToChtype, Window};
 use std::collections::{HashMap, HashSet};
 
-type WindowID = i64;
-
 #[derive(Debug)]
-struct PancursesWindow {
-    window: Window,
-    width: i64,
-    height: i64,
-    background_char: char,
-    background_color: PancursesColorPair,
-}
-
-impl PancursesWindow {
-    fn new(
-        window: Window,
-        width: i64,
-        height: i64,
-        background_char: char,
-        background_color: PancursesColorPair,
-    ) -> PancursesWindow {
-        PancursesWindow {
-            window,
-            width,
-            height,
-            background_char,
-            background_color,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct PancursesRendererSystem {
-    input_buffer_size: i64,
-
-    window_head: i64,
-    windows: HashMap<WindowID, PancursesWindow>,
-
-    color_head: i16,
-    colors: HashMap<PancursesColor, i16>,
-
-    color_pair_head: i16,
-    color_pairs: HashMap<PancursesColorPair, i16>,
-}
+pub struct PancursesRendererSystem;
 
 impl PancursesRendererSystem {
-    pub fn new(input_buffer_size: i64) -> PancursesRendererSystem {
-        PancursesRendererSystem {
-            input_buffer_size,
-            window_head: 0,
-            windows: HashMap::new(),
-            color_head: 8,
-            colors: HashMap::new(),
-            color_pair_head: 1,
-            color_pairs: vec![(PancursesColorPair::default(), 0)]
-                .into_iter()
-                .collect(),
-        }
+    pub fn new() -> PancursesRendererSystem {
+        PancursesRendererSystem
     }
 
-    fn create_window(
-        &mut self,
-        window_id: WindowID,
-        IVector2(pos_x, pos_y): IVector2,
-        IVector2(width, height): IVector2,
-        background_char: char,
-        background_color_pair: PancursesColorPair,
+    fn render_strings(
+        &self,
+        window: &Window,
+        width: i64,
+        height: i64,
+        strings: &HashSet<RenderData>,
     ) {
-        let window: Window;
-        if window_id == 0 {
-            window = pancurses::initscr();
-            pancurses::resize_term(height as i32, width as i32);
-            pancurses::curs_set(0);
-            pancurses::start_color();
-            pancurses::noecho();
-            for i in 0..8 {
-                let (r, g, b) = pancurses::color_content(i);
-                self.colors.insert(PancursesColor::new(r, g, b), i);
-            }
-        } else {
-            window = self
-                .windows
-                .get(&0)
-                .expect("No main window")
-                .window
-                .derwin(height as i32, width as i32, pos_y as i32, pos_x as i32)
-                .unwrap();
-        }
-
-        window.keypad(true);
-        window.nodelay(true);
-
-        window.bkgdset(
-            background_char.to_chtype()
-                | pancurses::COLOR_PAIR(self.get_color_pair_idx(background_color_pair) as u64),
-        );
-
-        self.windows.insert(
-            window_id,
-            PancursesWindow::new(
-                window,
-                width,
-                height,
-                background_char,
-                background_color_pair,
-            ),
-        );
-    }
-
-    fn destroy_window(&mut self, window_id: WindowID) {
-        if window_id == 0 {
-            pancurses::endwin();
-            self.windows.clear();
-        } else {
-            self.windows.remove(&window_id);
-        }
-    }
-
-    pub fn get_input(&self) -> Vec<pancurses::Input> {
-        let mut input_buffer: Vec<pancurses::Input> = Vec::new();
-
-        let main_window = match self.windows.get(&0) {
-            Some(main_window) => main_window,
-            None => return input_buffer,
-        };
-
-        for _ in 0..self.input_buffer_size {
-            if let Some(input) = main_window.window.getch() {
-                input_buffer.push(input);
-            } else {
-                break;
-            }
-        }
-
-        pancurses::flushinp();
-
-        input_buffer
-    }
-
-    pub fn get_color_idx(&mut self, color: PancursesColor) -> i16 {
-        match self.colors.get(&color) {
-            Some(color) => *color,
-            None => {
-                let idx = self.color_head;
-                pancurses::init_color(idx, color.r, color.g, color.b);
-                self.colors.insert(color, idx);
-                self.color_head += 1;
-                idx
-            }
-        }
-    }
-
-    pub fn get_color_pair_idx(&mut self, color_pair: PancursesColorPair) -> i16 {
-        match self.color_pairs.get(&color_pair) {
-            Some(color_pair) => *color_pair,
-            None => {
-                let idx = self.color_pair_head;
-                pancurses::init_pair(
-                    idx,
-                    self.get_color_idx(color_pair.foreground),
-                    self.get_color_idx(color_pair.background),
-                );
-                self.color_pairs.insert(color_pair, idx);
-                self.color_pair_head += 1;
-                idx
-            }
-        }
-    }
-
-    fn render_strings(&self, pancurses_window: &PancursesWindow, strings: &HashSet<RenderData>) {
         strings
             .iter()
             .flat_map(|render_data| {
@@ -199,10 +49,10 @@ impl PancursesRendererSystem {
                         new_str = str[(len - (len + x)) as usize..].into();
                     }
 
-                    if new_x > pancurses_window.width {
+                    if new_x > width {
                         new_str.clear();
-                    } else if new_x > pancurses_window.width - new_str.len() as i64 {
-                        new_str = new_str[..(pancurses_window.width - new_x) as usize].into();
+                    } else if new_x > width - new_str.len() as i64 {
+                        new_str = new_str[..(width - new_x) as usize].into();
                     }
 
                     return Some((new_x, *y, new_str, *color));
@@ -212,75 +62,95 @@ impl PancursesRendererSystem {
             })
             .filter(|(_, y, str, _)| {
                 let len = str.len() as i64;
-                len > 0 && *y >= 0 && *y < pancurses_window.height
+                len > 0 && *y >= 0 && *y < height
             })
             .for_each(|(x, y, string, color_pair)| {
                 let mut y = y as i32;
-                pancurses_window.window.mv(y, x as i32);
+                window.mv(y, x as i32);
                 for char in string.chars() {
                     if char == '\n' {
                         y += 1;
-                        pancurses_window.window.mv(y, x as i32);
+                        window.mv(y, x as i32);
                     } else {
-                        pancurses_window
-                            .window
-                            .addch(char.to_chtype() | pancurses::COLOR_PAIR(color_pair as u64));
+                        window.addch(char.to_chtype() | pancurses::COLOR_PAIR(color_pair as u64));
                     }
                 }
             });
     }
 
-    fn render_rects(&self, pancurses_window: &PancursesWindow, rects: &HashSet<RenderData>) {
+    fn render_rects(&self, window: &Window, width: i64, height: i64, rects: &HashSet<RenderData>) {
         rects.iter().for_each(|render_data| {
             if let RenderData::Rect(x, y, w, h, char, color_pair, filled) = render_data {
-                let x = *x;
-                let y = *y;
-                let w = *w;
-                let h = *h;
+                let mut w = *w;
+                let width_delta = (x + w) - width;
+                if width_delta > 0 {
+                    w -= width_delta;
+                }
+
+                let mut h = *h;
+                let height_delta = (y + h) - height;
+                if height_delta > 0 {
+                    h -= height_delta;
+                }
+
+                let mut x = *x;
+                if x < 0 {
+                    w += x;
+                    x = 0;
+                }
+
+                let mut y = *y;
+                if y < 0 {
+                    h += y;
+                    y = 0;
+                }
+
                 let char = *char;
                 let color_pair = *color_pair;
+
+                if w == 0 || h == 0 {
+                    return;
+                }
 
                 if *filled {
                     if w >= h {
                         for y in y..y + h {
-                            pancurses_window.window.mv(y as i32, x as i32);
-                            pancurses_window.window.hline(
+                            window.mv(y as i32, x as i32);
+                            window.hline(
                                 char.to_chtype() | pancurses::COLOR_PAIR(color_pair as u64),
                                 w as i32,
                             );
                         }
                     } else {
                         for x in x..x + w {
-                            pancurses_window.window.mv(y as i32, x as i32);
-                            pancurses_window.window.vline(
+                            window.mv(y as i32, x as i32);
+                            window.vline(
                                 char.to_chtype() | pancurses::COLOR_PAIR(color_pair as u64),
                                 h as i32,
                             );
                         }
                     }
                 } else {
-                    pancurses_window.window.mv(y as i32, x as i32);
-                    pancurses_window.window.hline(
+                    window.mv(y as i32, x as i32);
+                    window.hline(
                         char.to_chtype() | pancurses::COLOR_PAIR(color_pair as u64),
                         w as i32,
                     );
 
-                    pancurses_window.window.mv((y + h - 1) as i32, x as i32);
-                    pancurses_window.window.hline(
+                    window.mv((y + h - 1) as i32, x as i32);
+                    window.hline(
                         char.to_chtype() | pancurses::COLOR_PAIR(color_pair as u64),
                         w as i32,
                     );
 
-                    pancurses_window.window.mv((y + 1) as i32, x as i32);
-                    pancurses_window.window.vline(
+                    window.mv((y + 1) as i32, x as i32);
+                    window.vline(
                         char.to_chtype() | pancurses::COLOR_PAIR(color_pair as u64),
                         (h - 2) as i32,
                     );
 
-                    pancurses_window
-                        .window
-                        .mv((y + 1) as i32, (x + w - 1) as i32);
-                    pancurses_window.window.vline(
+                    window.mv((y + 1) as i32, (x + w - 1) as i32);
+                    window.vline(
                         char.to_chtype() | pancurses::COLOR_PAIR(color_pair as u64),
                         (h - 2) as i32,
                     );
@@ -296,84 +166,52 @@ enum RenderData {
     Rect(i64, i64, i64, i64, char, i16, bool),
 }
 
-impl<T> SystemTrait<T> for PancursesRendererSystem where T: ECS {
-    fn run(&mut self, ecs: &mut T) -> Result<(), String> {
+impl<T> SystemTrait<T> for PancursesRendererSystem where T: EntityComponentSystem + EntityComponentSystemDebug
+{
+    fn run(&mut self, ecs: &mut T) -> Result<SystemEvent, String> {
         // Get window entities, update internal window state
-        let window_entities = ecs.get_entities_by_predicate(|entity_id| {
+        let mut window_entities = ecs.get_entities_by_predicate(|entity_id| {
             ecs.entity_has_component::<PancursesWindowComponent>(entity_id)
                 && ecs.entity_has_component::<SizeComponent>(entity_id)
         });
 
-        let mut active_window_ids: Vec<WindowID> = Vec::new();
-        let mut active_window_data: HashMap<
-            WindowID,
-            (IVector2, IVector2, char, PancursesColorPair),
-        > = HashMap::new();
-        for entity_id in window_entities {
-            let position = match ecs.get_entity_component::<PositionComponent>(entity_id) {
-                Ok(position_component) => position_component.data,
-                Err(_) => IVector2(0, 0),
-            };
+        window_entities.sort_by(|lhs, rhs| {
+            let lhs_window_component = ecs
+                .get_entity_component::<PancursesWindowComponent>(*lhs)
+                .unwrap();
+            let lhs_window_id = lhs_window_component.window_id;
 
-            let char = match ecs.get_entity_component::<CharComponent>(entity_id) {
-                Ok(char_component) => char_component.data,
-                Err(_) => ' ',
-            };
+            let rhs_window_component = ecs
+                .get_entity_component::<PancursesWindowComponent>(*rhs)
+                .unwrap();
+            let rhs_window_id = rhs_window_component.window_id;
 
-            let color_pair =
-                match ecs.get_entity_component::<PancursesColorPairComponent>(entity_id) {
-                    Ok(pancurses_color_pair_component) => pancurses_color_pair_component.data,
-                    Err(_) => PancursesColorPair::default(),
-                };
+            lhs_window_id.cmp(&rhs_window_id)
+        });
 
-            let size_component = ecs.get_entity_component::<SizeComponent>(entity_id)?;
+        let mut window_sizes: Vec<IVector2> = Vec::new();
+        for entity_id in &window_entities {
+            let size_component = ecs.get_entity_component::<SizeComponent>(*entity_id)?;
             let size = size_component.data;
-
-            let window_component =
-                ecs.get_entity_component::<PancursesWindowComponent>(entity_id)?;
-
-            active_window_ids.push(window_component.window_id);
-            active_window_data.insert(
-                window_component.window_id,
-                (position, size, char, color_pair),
-            );
-        }
-
-        active_window_ids.sort();
-
-        for window_id in &active_window_ids {
-            if self.windows.get(&window_id).is_none() {
-                let (position, size, background_char, background_color_pair) =
-                    active_window_data[&window_id];
-                self.create_window(
-                    *window_id,
-                    position,
-                    size,
-                    background_char,
-                    background_color_pair,
-                );
-            }
-        }
-
-        let inactive_window_ids: Vec<WindowID> = self
-            .windows
-            .keys()
-            .filter(|window_id| !active_window_ids.contains(window_id))
-            .copied()
-            .collect();
-
-        for window_id in inactive_window_ids {
-            self.destroy_window(window_id);
+            window_sizes.push(size);
         }
 
         // Gather string and rect data for rendering
-        let mut string_data: HashMap<WindowID, HashSet<RenderData>> = HashMap::new();
-        let mut rect_data: HashMap<WindowID, HashSet<RenderData>> = HashMap::new();
+        let mut string_data: HashMap<EntityID, HashSet<RenderData>> = HashMap::new();
+        let mut rect_data: HashMap<EntityID, HashSet<RenderData>> = HashMap::new();
 
         let control_entities = ecs.get_entities_by_predicate(|entity_id| {
             ecs.entity_has_component::<PancursesControlComponent>(entity_id)
+                && ecs.entity_has_component::<ParentEntityComponent>(entity_id)
                 && ecs.entity_has_component::<PositionComponent>(entity_id)
         });
+
+        let color_set_entities = ecs.get_entities_by_predicate(|entity_id| {
+            ecs.entity_has_component::<PancursesColorSetComponent>(entity_id)
+        });
+        let color_set_entity = color_set_entities
+            .get(0)
+            .expect("Color set entity does not exist");
 
         for entity_id in control_entities {
             let IVector2(x, y) = if let Ok(global_position_component) =
@@ -393,24 +231,59 @@ impl<T> SystemTrait<T> for PancursesRendererSystem where T: ECS {
                     Err(_) => PancursesColorPair::default(),
                 };
 
-            let color_pair_idx = self.get_color_pair_idx(color_pair);
+            let color_set_component =
+                ecs.get_entity_component::<PancursesColorSetComponent>(*color_set_entity)?;
+            let color_pair_idx = color_set_component.get_color_pair_idx(color_pair);
 
+            // Search up parent chain for window component
+            let parent_entity_component =
+                match ecs.get_entity_component::<ParentEntityComponent>(entity_id) {
+                    Ok(parent_entity_component) => parent_entity_component,
+                    Err(err) => return Err(err),
+                };
+
+            let mut candidate_id = parent_entity_component.parent_id;
+            let mut parent_id: Option<EntityID> = None;
+
+            loop {
+                if ecs
+                    .get_entity_component::<PancursesWindowComponent>(candidate_id)
+                    .is_ok()
+                {
+                    parent_id = Some(candidate_id);
+                    break;
+                }
+
+                match ecs.get_entity_component::<ParentEntityComponent>(candidate_id) {
+                    Ok(parent_entity_component) => candidate_id = parent_entity_component.parent_id,
+                    Err(_) => break,
+                }
+            }
+
+            // Skip rendering this entity if it has no window ancestor
+            let parent_id = match parent_id {
+                Some(parent_id) => parent_id,
+                None => continue,
+            };
+
+            // Create render data storage for this entity
+            if string_data.get(&parent_id).is_none() {
+                string_data.insert(parent_id, HashSet::new());
+            }
+
+            if rect_data.get(&parent_id).is_none() {
+                rect_data.insert(parent_id, HashSet::new());
+            }
+
+            let window_strings = string_data.get_mut(&parent_id).unwrap();
+            let window_rects = rect_data.get_mut(&parent_id).unwrap();
+
+            // Extract render data from control component
             let control_component =
                 match ecs.get_entity_component::<PancursesControlComponent>(entity_id) {
                     Ok(control_component) => control_component,
                     Err(err) => return Err(err),
                 };
-
-            if string_data.get(&control_component.window_id).is_none() {
-                string_data.insert(control_component.window_id, HashSet::new());
-            }
-
-            if rect_data.get(&control_component.window_id).is_none() {
-                rect_data.insert(control_component.window_id, HashSet::new());
-            }
-
-            let window_strings = string_data.get_mut(&control_component.window_id).unwrap();
-            let window_rects = rect_data.get_mut(&control_component.window_id).unwrap();
 
             match &control_component.control_data {
                 ControlData::String => {
@@ -451,24 +324,47 @@ impl<T> SystemTrait<T> for PancursesRendererSystem where T: ECS {
         }
 
         // Render window contents
-        for window_id in &active_window_ids {
-            let pancurses_window = &self.windows[&window_id];
-            let window = &pancurses_window.window;
+        let mut root_window_entity = None;
 
-            window.erase();
+        for (entity_id, IVector2(width, height)) in window_entities.iter().zip(window_sizes.iter())
+        {
+            let parent_entity_id =
+                match ecs.get_entity_component::<ParentEntityComponent>(*entity_id) {
+                    Ok(parent_entity_component) => Some(parent_entity_component.parent_id),
+                    Err(_) => None,
+                };
 
-            if let Some(rect_data) = rect_data.get(window_id) {
-                self.render_rects(pancurses_window, rect_data);
+            if parent_entity_id.is_none() {
+                root_window_entity = Some(*entity_id);
             }
 
-            if let Some(string_data) = string_data.get(window_id) {
-                self.render_strings(pancurses_window, string_data);
+            let window_component =
+                ecs.get_entity_component::<PancursesWindowComponent>(*entity_id)?;
+            if let Some(window) = &window_component.window {
+                window.erase();
+
+                let width = *width;
+                let height = *height;
+
+                if let Some(rect_data) = rect_data.get(&entity_id) {
+                    self.render_rects(window, width, height, rect_data);
+                }
+
+                if let Some(string_data) = string_data.get(&entity_id) {
+                    self.render_strings(window, width, height, string_data);
+                }
             }
         }
 
         // Present
-        pancurses::doupdate();
+        if let Some(entity_id) = root_window_entity {
+            let window_component =
+                ecs.get_entity_component::<PancursesWindowComponent>(entity_id)?;
+            if let Some(window) = &window_component.window {
+                window.refresh();
+            }
+        }
 
-        Ok(())
+        Ok(SystemEvent::None)
     }
 }

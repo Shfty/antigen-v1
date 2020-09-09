@@ -5,8 +5,7 @@ pub enum DebugData {
     Entities,
     Components,
     ComponentData,
-    EntityComponents,
-    Assemblages,
+    EntityComponents
 }
 
 #[derive(Debug, Copy, Clone)]

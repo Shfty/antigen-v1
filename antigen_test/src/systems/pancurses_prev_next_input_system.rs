@@ -4,9 +4,10 @@ use crate::components::{
 };
 use antigen::{
     components::IntRangeComponent,
-    ecs::{SystemTrait, ECS},
-};
+    ecs::{SystemTrait, EntityComponentSystem, SystemEvent},
+ecs::EntityComponentSystemDebug};
 
+#[derive(Debug)]
 pub struct PancursesPrevNextInputSystem;
 
 impl PancursesPrevNextInputSystem {
@@ -15,8 +16,8 @@ impl PancursesPrevNextInputSystem {
     }
 }
 
-impl<T> SystemTrait<T> for PancursesPrevNextInputSystem where T: ECS {
-    fn run(&mut self, ecs: &mut T) -> Result<(), String> {
+impl<T> SystemTrait<T> for PancursesPrevNextInputSystem where T: EntityComponentSystem + EntityComponentSystemDebug {
+    fn run(&mut self, ecs: &mut T) -> Result<SystemEvent, String> {
         let entities = ecs.get_entities_by_predicate(|entity_id| {
             ecs.entity_has_component::<PancursesPrevNextInputComponent>(entity_id)
                 && ecs.entity_has_component::<PancursesInputBufferComponent>(entity_id)
@@ -42,7 +43,7 @@ impl<T> SystemTrait<T> for PancursesPrevNextInputSystem where T: ECS {
                 } else if input == next_input {
                     offset += 1;
                 } else {
-                    return Ok(());
+                    return Ok(SystemEvent::None);
                 }
             }
 
@@ -57,6 +58,6 @@ impl<T> SystemTrait<T> for PancursesPrevNextInputSystem where T: ECS {
             );
         }
 
-        Ok(())
+        Ok(SystemEvent::None)
     }
 }

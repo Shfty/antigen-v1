@@ -1,14 +1,12 @@
 mod components;
 mod pancurses_color;
+mod profiler;
 mod systems;
+mod system_runner;
 
-mod unboxed_test;
+use std::{collections::HashMap, time::Duration};
 
-use std::{
-    collections::HashMap,
-    time::{Duration, SystemTime, UNIX_EPOCH},
-};
-
+use system_runner::SystemRunner;
 use antigen::{
     components::{
         CharComponent, GlobalPositionComponent, IntRangeComponent, ParentEntityComponent,
@@ -17,24 +15,27 @@ use antigen::{
     ecs::{
         components::{DebugData, ECSDebugComponent},
         systems::ECSDebugSystem,
-        AssemblageID, SingleThreadedECS, EntityID, SystemTrait, ECS,
+        Assemblage, EntityComponentSystem, EntityID, SingleThreadedECS, SystemEvent,
     },
     primitive_types::IVector2,
     systems::{GlobalPositionSystem, PositionIntegratorSystem},
 };
+use profiler::Profiler;
 
 use components::{
     pancurses_color_pair_component::PancursesColorPairComponent,
     pancurses_control_component::{ControlData, PancursesControlComponent},
     pancurses_input_buffer_component::PancursesInputBufferComponent,
     pancurses_prev_next_input_component::PancursesPrevNextInputComponent,
-    pancurses_window_component::{PancursesWindowComponent, WindowID},
+    pancurses_window_component::PancursesWindowComponent,
 };
 use pancurses_color::{PancursesColor, PancursesColorPair};
 use systems::{
     DebugTabSystem, InputVelocitySystem, PancursesInputSystem, PancursesPrevNextInputSystem,
-    PancursesRendererSystem,
+    PancursesRendererSystem, PancursesWindowSystem,
 };
+
+// TODO: Better automation for system execution - leverage component data to avoid manually calling extra methods (ex. input set/get) from main loop
 
 // TODO: Pancurses-compatible UI controls
 //       - List
@@ -42,11 +43,6 @@ use systems::{
 // TODO: Debug menu
 // TODO: Profiler singleton
 // TODO: Profiler menu
-// TODO: Better automation for system execution
-//       How to account for systems that need to take input from the outside world during the main loop?
-//       Currently splitting them out as special cases, but that doesn't seem like good practice
-//       Could add input as a new system event? Would need to be generic, or some sort of antigen-specific input type
-// TODO: Clone trait boundary should only be enforced when trying to register a component as part of an assemblage
 
 #[derive(Eq, PartialEq, Hash)]
 enum EntityAssemblage {
@@ -65,18 +61,16 @@ fn main() {
 }
 
 fn create_string_control(
-    ecs: &mut impl ECS,
-    assemblage_id: AssemblageID,
+    ecs: &mut impl EntityComponentSystem,
+    string_assemblage: &Assemblage,
     label: &str,
     text: &str,
-    window_id: WindowID,
     (x, y): (i64, i64),
 ) -> Result<EntityID, String> {
-    let entity_id = ecs.assemble_entity(assemblage_id, label)?;
+    let entity_id = string_assemblage.create_and_assemble_entity(ecs, label)?;
 
     let debug_title_component = ecs.get_entity_component::<PancursesControlComponent>(entity_id)?;
     debug_title_component.control_data = ControlData::String;
-    debug_title_component.window_id = window_id;
 
     let string_component = ecs.get_entity_component::<StringComponent>(entity_id)?;
     string_component.data = text.into();
@@ -89,75 +83,63 @@ fn create_string_control(
     Ok(entity_id)
 }
 
-struct Profiler {
-    name: String,
-    start_ts: Duration,
-}
-
-impl Profiler {
-    fn start(name: &str) -> Profiler {
-        println!("{} start", &name);
-
-        Profiler {
-            name: name.into(),
-            start_ts: Self::get_now(),
-        }
+fn create_window_entity(
+    ecs: &mut impl EntityComponentSystem,
+    label: &str,
+    window_id: i64,
+    position: IVector2,
+    size: IVector2,
+    parent_window_entity_id: Option<EntityID>,
+) -> Result<EntityID, String> {
+    let entity_id = ecs.create_entity(label);
+    ecs.add_component_to_entity(entity_id, PancursesWindowComponent::new(window_id))?;
+    ecs.add_component_to_entity(entity_id, PositionComponent::new(position))?;
+    ecs.add_component_to_entity(entity_id, SizeComponent::new(size))?;
+    if let Some(parent_window_entity_id) = parent_window_entity_id {
+        ecs.add_component_to_entity(
+            entity_id,
+            ParentEntityComponent::new(parent_window_entity_id),
+        )?;
     }
-
-    fn get_now() -> Duration {
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("Time went backwards")
-    }
-
-    fn finish(self) -> Duration {
-        let delta = Self::get_now() - self.start_ts;
-        println!(
-            "{} finish. Took {}ms / {}ns / {}us",
-            self.name,
-            delta.as_millis(),
-            delta.as_micros(),
-            delta.as_nanos()
-        );
-        delta
-    }
+    Ok(entity_id)
 }
 
 fn main_internal() -> Result<(), String> {
     let mut ecs = SingleThreadedECS::new();
-    let assemblages = register_assemblages(&mut ecs);
+
+    let assemblages = setup_assemblages(&mut ecs);
 
     // Create Main Window
-    let main_window_entity = ecs.create_entity("Main Window");
-    ecs.add_component_to_entity(main_window_entity, PositionComponent::default())?;
-    ecs.add_component_to_entity(main_window_entity, SizeComponent::new(IVector2(128, 32)))?;
-    ecs.add_component_to_entity(main_window_entity, PancursesWindowComponent::new(0))?;
+    let main_window_entity = create_window_entity(
+        &mut ecs,
+        "Main Window",
+        0,
+        IVector2::default(),
+        IVector2(128, 32),
+        None,
+    )?;
 
     // Create Game Window
-    let game_window_entity = ecs.create_entity("Game Window");
-    ecs.add_component_to_entity(game_window_entity, PositionComponent::default())?;
-    ecs.add_component_to_entity(game_window_entity, SizeComponent::new(IVector2(64, 32)))?;
-    ecs.add_component_to_entity(game_window_entity, PancursesWindowComponent::new(2))?;
+    let game_window_entity = create_window_entity(
+        &mut ecs,
+        "Game Window",
+        2,
+        IVector2::default(),
+        IVector2(64, 32),
+        Some(main_window_entity),
+    )?;
 
     // Create Test Player
-    let test_player_entity =
-        ecs.assemble_entity(assemblages[&EntityAssemblage::Player], "Test Player")?;
-    if let Ok(pancurses_control_component) =
-        ecs.get_entity_component::<PancursesControlComponent>(test_player_entity)
-    {
-        pancurses_control_component.window_id = 2;
-    }
+    let test_player_entity = assemblages[&EntityAssemblage::Player]
+        .create_and_assemble_entity(&mut ecs, "Test Player")?;
+    ecs.add_component_to_entity(
+        test_player_entity,
+        ParentEntityComponent::new(game_window_entity),
+    )?;
 
     // Create Test String
-    let test_string_entity = ecs.assemble_entity(
-        assemblages[&EntityAssemblage::StringControl],
-        "Test String Control",
-    )?;
-    ecs.add_component_to_entity(
-        test_string_entity,
-        ParentEntityComponent::new(test_player_entity),
-    )?;
-    ecs.add_component_to_entity(test_string_entity, GlobalPositionComponent::default())?;
+    let test_string_entity = assemblages[&EntityAssemblage::StringControl]
+        .create_and_assemble_entity(&mut ecs, "Test String Control")?;
     if let Ok(position_component) =
         ecs.get_entity_component::<PositionComponent>(test_string_entity)
     {
@@ -166,17 +148,15 @@ fn main_internal() -> Result<(), String> {
     if let Ok(string_component) = ecs.get_entity_component::<StringComponent>(test_string_entity) {
         string_component.data = "Testing One Two Three".into();
     }
-    if let Ok(pancurses_control_component) =
-        ecs.get_entity_component::<PancursesControlComponent>(test_string_entity)
-    {
-        pancurses_control_component.window_id = 2;
-    }
+    ecs.add_component_to_entity(
+        test_string_entity,
+        ParentEntityComponent::new(test_player_entity),
+    )?;
+    ecs.add_component_to_entity(test_string_entity, GlobalPositionComponent::default())?;
 
     // Create Test Rect
-    let test_rect_entity = ecs.assemble_entity(
-        assemblages[&EntityAssemblage::RectControl],
-        "Test Rect Control",
-    )?;
+    let test_rect_entity = assemblages[&EntityAssemblage::RectControl]
+        .create_and_assemble_entity(&mut ecs, "Test Rect Control")?;
     if let Ok(position_component) = ecs.get_entity_component::<PositionComponent>(test_rect_entity)
     {
         position_component.data = IVector2(1, 5);
@@ -184,50 +164,53 @@ fn main_internal() -> Result<(), String> {
     if let Ok(size_component) = ecs.get_entity_component::<SizeComponent>(test_rect_entity) {
         size_component.data = IVector2(20, 5);
     }
-    if let Ok(pancurses_control_component) =
-        ecs.get_entity_component::<PancursesControlComponent>(test_rect_entity)
-    {
-        pancurses_control_component.window_id = 2;
-    }
+    ecs.add_component_to_entity(
+        test_rect_entity,
+        ParentEntityComponent::new(test_player_entity),
+    )?;
+    ecs.add_component_to_entity(test_rect_entity, GlobalPositionComponent::default())?;
 
     // Create Debug Window
-    let debug_window_entity = ecs.create_entity("Debug Window");
-    ecs.add_component_to_entity(debug_window_entity, PositionComponent::new(IVector2(64, 0)))?;
-    ecs.add_component_to_entity(debug_window_entity, SizeComponent::new(IVector2(64, 32)))?;
-    ecs.add_component_to_entity(debug_window_entity, PancursesWindowComponent::new(1))?;
-
-    let debug_window_border_entity = ecs.assemble_entity(
-        assemblages[&EntityAssemblage::BorderControl],
-        "Debug Window Border",
+    let debug_window_entity = create_window_entity(
+        &mut ecs,
+        "Debug Window",
+        1,
+        IVector2(64, 0),
+        IVector2(64, 32),
+        Some(main_window_entity),
     )?;
-    if let Ok(pancurses_control_component) =
-        ecs.get_entity_component::<PancursesControlComponent>(debug_window_border_entity)
-    {
-        pancurses_control_component.window_id = 1;
-    }
+
+    let debug_window_border_entity = assemblages[&EntityAssemblage::BorderControl]
+        .create_and_assemble_entity(&mut ecs, "Debug Window Border")?;
     if let Ok(size_component) =
         ecs.get_entity_component::<SizeComponent>(debug_window_border_entity)
     {
         size_component.data = IVector2(64, 32);
     }
+    ecs.add_component_to_entity(
+        debug_window_border_entity,
+        ParentEntityComponent::new(debug_window_entity),
+    )?;
 
     // Create Debug Window Title
-    create_string_control(
+    let debug_title_entity = create_string_control(
         &mut ecs,
-        assemblages[&EntityAssemblage::StringControl],
+        &assemblages[&EntityAssemblage::StringControl],
         "Debug Title",
         "Debug",
-        1,
         (1, 1),
+    )?;
+    ecs.add_component_to_entity(
+        debug_title_entity,
+        ParentEntityComponent::new(debug_window_entity),
     )?;
 
     // Create Debug Window String List
     let debug_list_entity = create_string_control(
         &mut ecs,
-        assemblages[&EntityAssemblage::StringControl],
+        &assemblages[&EntityAssemblage::StringControl],
         "Debug List",
         "List",
-        1,
         (1, 2),
     )?;
 
@@ -243,119 +226,116 @@ fn main_internal() -> Result<(), String> {
         ),
     )?;
     ecs.add_component_to_entity(debug_list_entity, PancursesInputBufferComponent::default())?;
-    ecs.add_component_to_entity(debug_list_entity, IntRangeComponent::new(0..5))?;
+    ecs.add_component_to_entity(debug_list_entity, IntRangeComponent::new(0..4))?;
+    ecs.add_component_to_entity(
+        debug_list_entity,
+        ParentEntityComponent::new(debug_window_entity),
+    )?;
 
     // Create systems
-    let mut pancurses_input_system = PancursesInputSystem::new();
+    let mut pancurses_window_system = PancursesWindowSystem::new();
+    let mut pancurses_input_system = PancursesInputSystem::new(1);
     let mut ui_tab_input_system = PancursesPrevNextInputSystem::new();
     let mut input_velocity_system = InputVelocitySystem::new();
     let mut position_integrator_system = PositionIntegratorSystem::new();
     let mut global_position_system = GlobalPositionSystem::new();
     let mut debug_tab_system = DebugTabSystem::new();
     let mut ecs_debug_system = ECSDebugSystem::new();
-    let mut pancurses_renderer_system = PancursesRendererSystem::new(1);
+    let mut pancurses_renderer_system = PancursesRendererSystem::new();
 
-    let mut systems: Vec<(&str, &mut dyn SystemTrait<SingleThreadedECS>)> = vec![
-        ("UI Tab Input System", &mut ui_tab_input_system),
-        ("Input Velocity System", &mut input_velocity_system),
-        (
-            "Position Integrator System",
-            &mut position_integrator_system,
-        ),
-        ("Global Position System", &mut global_position_system),
-        ("Debug Tab System", &mut debug_tab_system),
-        ("ECS Debug System", &mut ecs_debug_system),
-    ];
+    let mut system_runner = SystemRunner::<SingleThreadedECS>::new(&mut ecs);
+    system_runner.register_system("Pancurses Window", &mut pancurses_window_system);
+    system_runner.register_system("Pancurses Input", &mut pancurses_input_system);
+    system_runner.register_system("UI Tab Input", &mut ui_tab_input_system);
+    system_runner.register_system("Input Velocity", &mut input_velocity_system);
+    system_runner.register_system("Position Integrator", &mut position_integrator_system);
+    system_runner.register_system("Global Position", &mut global_position_system);
+    system_runner.register_system("Debug Tab", &mut debug_tab_system);
+    system_runner.register_system("ECS Debug", &mut ecs_debug_system);
+    system_runner.register_system("Pancurses Renderer", &mut pancurses_renderer_system);
 
     // Main loop
     loop {
         let main_loop_profiler = Profiler::start("Main Loop");
 
-        let profiler = Profiler::start("\tProcess Input");
-        let input_buffer = pancurses_renderer_system.get_input();
-
-        for input in &input_buffer {
-            if let pancurses::Input::Character('\u{1b}') = input {
-                return Ok(());
-            }
+        if let Ok(SystemEvent::Quit) = system_runner.run() {
+            return Ok(());
         }
 
-        pancurses_input_system.set_input_buffer(&input_buffer);
-
-        profiler.finish();
-
-        pancurses_input_system.run(&mut ecs)?;
-
-        for (system_name, system) in &mut systems {
-            let profiler = Profiler::start(&format!("\tRun {}", system_name));
-            system.run(&mut ecs)?;
-            profiler.finish();
+        // Sleep if framerate target is exceeded - prevents deadlock when pancurses stops being able to poll input after window close
+        let delta = main_loop_profiler.finish();
+        let target = Duration::from_secs_f32(1.0 / 60.0);
+        if delta < target {
+            let delta = target - delta;
+            std::thread::sleep(delta);
         }
-
-        let profiler = Profiler::start("\tRun Pancurses Renderer System");
-        pancurses_renderer_system.run(&mut ecs)?;
-        profiler.finish();
-
-        main_loop_profiler.finish();
     }
 }
 
-fn register_assemblages(ecs: &mut impl ECS) -> HashMap<EntityAssemblage, AssemblageID> {
-    vec![
-        (
-            EntityAssemblage::Player,
-            ecs.build_assemblage(
-                "Player Entity",
-                "Controllable ASCII character with position and velocity",
-            )
-            .component(PancursesControlComponent::new(0, ControlData::String))
-            .component(CharComponent::new('@'))
-            .component(PancursesInputBufferComponent::default())
-            .component(PositionComponent::new(IVector2(1, 1)))
-            .component(VelocityComponent::new(IVector2(1, 1)))
+fn setup_assemblages(
+    ecs: &mut impl EntityComponentSystem,
+) -> HashMap<EntityAssemblage, Assemblage> {
+    let mut assemblages: HashMap<EntityAssemblage, Assemblage> = HashMap::new();
+
+    assemblages.insert(
+        EntityAssemblage::Player,
+        Assemblage::build(
+            ecs,
+            "Player Entity",
+            "Controllable ASCII character with position and velocity",
+        )
+        .add_component(PancursesControlComponent::new(ControlData::String))
+        .add_component(PancursesColorPairComponent::new(PancursesColorPair::new(
+            PancursesColor::new(1000, 600, 1000),
+            PancursesColor::new(1000, 1000, 1000),
+        )))
+        .add_component(CharComponent::new('@'))
+        .add_component(PancursesInputBufferComponent::default())
+        .add_component(PositionComponent::new(IVector2(1, 1)))
+        .add_component(VelocityComponent::new(IVector2(1, 1)))
+        .finish(),
+    );
+
+    assemblages.insert(
+        EntityAssemblage::StringControl,
+        Assemblage::build(ecs, "String Entity", "ASCII string control")
+            .add_component(PancursesControlComponent::new(ControlData::String))
+            .add_component(StringComponent::default())
+            .add_component(PositionComponent::default())
             .finish(),
-        ),
-        (
-            EntityAssemblage::StringControl,
-            ecs.build_assemblage("String Entity", "ASCII string control")
-                .component(PancursesControlComponent::new(0, ControlData::String))
-                .component(StringComponent::default())
-                .component(PositionComponent::default())
-                .finish(),
-        ),
-        (
-            EntityAssemblage::RectControl,
-            ecs.build_assemblage("Rect Entity", "ASCII Rectangle control")
-                .component(PancursesControlComponent::new(
-                    0,
-                    ControlData::Rect { filled: true },
-                ))
-                .component(PositionComponent::default())
-                .component(SizeComponent::default())
-                .component(CharComponent::default())
-                .component(PancursesColorPairComponent::new(PancursesColorPair::new(
-                    PancursesColor::new(0, 0, 0),
-                    PancursesColor::new(753, 753, 753),
-                )))
-                .finish(),
-        ),
-        (
-            EntityAssemblage::BorderControl,
-            ecs.build_assemblage("Border Entity", "ASCII Border control")
-                .component(PancursesControlComponent::new(
-                    0,
-                    ControlData::Rect { filled: false },
-                ))
-                .component(PositionComponent::default())
-                .component(SizeComponent::default())
-                .component(CharComponent::default())
-                .component(PancursesColorPairComponent::new(PancursesColorPair::new(
-                    PancursesColor::new(0, 0, 0),
-                    PancursesColor::new(753, 753, 753),
-                )))
-                .finish(),
-        ),
-    ]
-    .into_iter()
-    .collect()
+    );
+
+    assemblages.insert(
+        EntityAssemblage::RectControl,
+        Assemblage::build(ecs, "Rect Entity", "ASCII Rectangle control")
+            .add_component(PancursesControlComponent::new(ControlData::Rect {
+                filled: true,
+            }))
+            .add_component(PositionComponent::default())
+            .add_component(SizeComponent::default())
+            .add_component(CharComponent::default())
+            .add_component(PancursesColorPairComponent::new(PancursesColorPair::new(
+                PancursesColor::new(0, 0, 0),
+                PancursesColor::new(753, 753, 753),
+            )))
+            .finish(),
+    );
+
+    assemblages.insert(
+        EntityAssemblage::BorderControl,
+        Assemblage::build(ecs, "Border Entity", "ASCII Border control")
+            .add_component(PancursesControlComponent::new(ControlData::Rect {
+                filled: false,
+            }))
+            .add_component(PositionComponent::default())
+            .add_component(SizeComponent::default())
+            .add_component(CharComponent::default())
+            .add_component(PancursesColorPairComponent::new(PancursesColorPair::new(
+                PancursesColor::new(0, 0, 0),
+                PancursesColor::new(753, 753, 753),
+            )))
+            .finish(),
+    );
+
+    assemblages
 }

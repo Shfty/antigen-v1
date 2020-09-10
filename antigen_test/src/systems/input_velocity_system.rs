@@ -23,7 +23,7 @@ impl<T> SystemTrait<T> for InputVelocitySystem where T: EntityComponentDatabase 
 
         for entity_id in entities {
             let pancurses_input_buffer_component =
-                db.get_entity_component::<PancursesInputBufferComponent>(entity_id)?;
+                db.get_entity_component_mut::<PancursesInputBufferComponent>(entity_id)?;
 
             let mut move_input: (i64, i64) = (0, 0);
             while let Some(input) = pancurses_input_buffer_component.input_buffer.pop() {
@@ -39,7 +39,7 @@ impl<T> SystemTrait<T> for InputVelocitySystem where T: EntityComponentDatabase 
             move_input.0 = std::cmp::min(std::cmp::max(move_input.0, -1), 1);
             move_input.1 = std::cmp::min(std::cmp::max(move_input.1, -1), 1);
 
-            let velocity_component = db.get_entity_component::<VelocityComponent>(entity_id)?;
+            let velocity_component = db.get_entity_component_mut::<VelocityComponent>(entity_id)?;
             let IVector2(x_vel, y_vel) = &mut velocity_component.data;
             *x_vel = move_input.0;
             *y_vel = move_input.1;

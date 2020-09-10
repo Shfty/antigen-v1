@@ -2,20 +2,21 @@ use crate::{
     components::pancurses_color_set_component::PancursesColorSetComponent,
     components::{
         pancurses_color_pair_component::PancursesColorPairComponent,
-        pancurses_control_component::{ControlData, PancursesControlComponent},
+        control_component::ControlComponent,
         pancurses_window_component::PancursesWindowComponent,
     },
     pancurses_color::PancursesColorPair,
-};
+components::fill_component::FillComponent};
 use antigen::{
     components::ParentEntityComponent,
     components::{
         CharComponent, GlobalPositionComponent, PositionComponent, SizeComponent, StringComponent,
     },
+    ecs::EntityComponentDatabaseDebug,
     ecs::EntityID,
     ecs::{EntityComponentDatabase, SystemEvent, SystemTrait},
     primitive_types::IVector2,
-ecs::EntityComponentDatabaseDebug};
+};
 use pancurses::{ToChtype, Window};
 use std::collections::{HashMap, HashSet};
 
@@ -166,10 +167,12 @@ enum RenderData {
     Rect(i64, i64, i64, i64, char, i16, bool),
 }
 
-impl<T> SystemTrait<T> for PancursesRendererSystem where T: EntityComponentDatabase + EntityComponentDatabaseDebug
+impl<T> SystemTrait<T> for PancursesRendererSystem
+where
+    T: EntityComponentDatabase + EntityComponentDatabaseDebug,
 {
     fn run(&mut self, db: &mut T) -> Result<SystemEvent, String> {
-        // Get window entities, update internal window state
+        // Get window entities
         let mut window_entities = db.get_entities_by_predicate(|entity_id| {
             db.entity_has_component::<PancursesWindowComponent>(entity_id)
                 && db.entity_has_component::<SizeComponent>(entity_id)
@@ -200,18 +203,18 @@ impl<T> SystemTrait<T> for PancursesRendererSystem where T: EntityComponentDatab
         let mut string_data: HashMap<EntityID, HashSet<RenderData>> = HashMap::new();
         let mut rect_data: HashMap<EntityID, HashSet<RenderData>> = HashMap::new();
 
-        let control_entities = db.get_entities_by_predicate(|entity_id| {
-            db.entity_has_component::<PancursesControlComponent>(entity_id)
-                && db.entity_has_component::<ParentEntityComponent>(entity_id)
-                && db.entity_has_component::<PositionComponent>(entity_id)
-        });
-
         let color_set_entities = db.get_entities_by_predicate(|entity_id| {
             db.entity_has_component::<PancursesColorSetComponent>(entity_id)
         });
         let color_set_entity = color_set_entities
             .get(0)
             .expect("Color set entity does not exist");
+
+        let control_entities = db.get_entities_by_predicate(|entity_id| {
+            db.entity_has_component::<ControlComponent>(entity_id)
+                && db.entity_has_component::<ParentEntityComponent>(entity_id)
+                && db.entity_has_component::<PositionComponent>(entity_id)
+        });
 
         for entity_id in control_entities {
             let IVector2(x, y) = if let Ok(global_position_component) =
@@ -225,14 +228,14 @@ impl<T> SystemTrait<T> for PancursesRendererSystem where T: EntityComponentDatab
                 }
             };
 
-            let color_pair =
-                match db.get_entity_component::<PancursesColorPairComponent>(entity_id) {
-                    Ok(pancurses_color_pair_component) => pancurses_color_pair_component.data,
-                    Err(_) => PancursesColorPair::default(),
-                };
+            let color_pair = match db.get_entity_component::<PancursesColorPairComponent>(entity_id)
+            {
+                Ok(pancurses_color_pair_component) => pancurses_color_pair_component.data,
+                Err(_) => PancursesColorPair::default(),
+            };
 
             let color_set_component =
-                db.get_entity_component::<PancursesColorSetComponent>(*color_set_entity)?;
+                db.get_entity_component_mut::<PancursesColorSetComponent>(*color_set_entity)?;
             let color_pair_idx = color_set_component.get_color_pair_idx(color_pair);
 
             // Search up parent chain for window component
@@ -278,47 +281,42 @@ impl<T> SystemTrait<T> for PancursesRendererSystem where T: EntityComponentDatab
             let window_strings = string_data.get_mut(&parent_id).unwrap();
             let window_rects = rect_data.get_mut(&parent_id).unwrap();
 
-            // Extract render data from control component
-            let control_component =
-                match db.get_entity_component::<PancursesControlComponent>(entity_id) {
-                    Ok(control_component) => control_component,
-                    Err(err) => return Err(err),
+            // Extract render data from component
+            if db.entity_has_component::<SizeComponent>(&entity_id) {
+                //let filled = *filled;
+                let filled = db.entity_has_component::<FillComponent>(&entity_id);
+
+                let char = match db.get_entity_component::<CharComponent>(entity_id) {
+                    Ok(char_component) => char_component.data,
+                    Err(_) => ' ',
                 };
 
-            match &control_component.control_data {
-                ControlData::String => {
-                    let string = if let Ok(string_component) =
-                        db.get_entity_component::<StringComponent>(entity_id)
-                    {
-                        string_component.data.clone()
-                    } else if let Ok(char_component) =
-                        db.get_entity_component::<CharComponent>(entity_id)
-                    {
-                        char_component.data.to_string()
-                    } else {
-                        return Err("No valid string component".into());
-                    };
+                let size_component = db.get_entity_component::<SizeComponent>(entity_id)?;
+                let IVector2(w, h) = size_component.data;
+                window_rects.insert(RenderData::Rect(x, y, w, h, char, color_pair_idx, filled));
+            }
+            else if db.entity_has_component::<StringComponent>(&entity_id)
+                || db.entity_has_component::<CharComponent>(&entity_id)
+            {
+                let string = if let Ok(string_component) =
+                    db.get_entity_component::<StringComponent>(entity_id)
+                {
+                    string_component.data.clone()
+                } else if let Ok(char_component) =
+                    db.get_entity_component::<CharComponent>(entity_id)
+                {
+                    char_component.data.to_string()
+                } else {
+                    return Err("No valid string component".into());
+                };
 
-                    for (i, string) in string.split('\n').enumerate() {
-                        window_strings.insert(RenderData::String(
-                            x,
-                            y + i as i64,
-                            string.to_string(),
-                            color_pair_idx,
-                        ));
-                    }
-                }
-                ControlData::Rect { filled } => {
-                    let filled = *filled;
-
-                    let char = match db.get_entity_component::<CharComponent>(entity_id) {
-                        Ok(char_component) => char_component.data,
-                        Err(_) => ' ',
-                    };
-
-                    let size_component = db.get_entity_component::<SizeComponent>(entity_id)?;
-                    let IVector2(w, h) = size_component.data;
-                    window_rects.insert(RenderData::Rect(x, y, w, h, char, color_pair_idx, filled));
+                for (i, string) in string.split('\n').enumerate() {
+                    window_strings.insert(RenderData::String(
+                        x,
+                        y + i as i64,
+                        string.to_string(),
+                        color_pair_idx,
+                    ));
                 }
             }
         }

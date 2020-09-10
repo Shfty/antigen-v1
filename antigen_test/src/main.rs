@@ -5,11 +5,13 @@ mod systems;
 use std::{collections::HashMap, time::Duration};
 
 use antigen::{
+    components::DebugEntityListComponent,
+    components::DebugExcludeComponent,
+    components::StringListComponent,
     components::{
         CharComponent, GlobalPositionComponent, IntRangeComponent, ParentEntityComponent,
         PositionComponent, SizeComponent, StringComponent, VelocityComponent,
     },
-    components::{DebugData, ECSDebugComponent},
     ecs::entity_component_database::SingleThreadedDatabase,
     ecs::system_runner::SingleThreadedSystemRunner,
     ecs::SystemRunner,
@@ -20,22 +22,24 @@ use antigen::{
 };
 
 use components::{
-    pancurses_color_pair_component::PancursesColorPairComponent,
-    pancurses_control_component::{ControlData, PancursesControlComponent},
+    control_component::ControlComponent, fill_component::FillComponent,
+    list_component::ListComponent, pancurses_color_pair_component::PancursesColorPairComponent,
     pancurses_input_buffer_component::PancursesInputBufferComponent,
-    pancurses_prev_next_input_component::PancursesPrevNextInputComponent,
+    pancurses_input_axis_component::PancursesInputAxisComponent,
     pancurses_window_component::PancursesWindowComponent,
 };
 use pancurses_color::{PancursesColor, PancursesColorPair};
 use systems::{
-    DebugTabSystem, InputVelocitySystem, PancursesInputSystem, PancursesPrevNextInputSystem,
+    InputVelocitySystem, ListSystem, PancursesInputSystem, PancursesInputAxisSystem,
     PancursesRendererSystem, PancursesWindowSystem,
 };
 
-// TODO: Pancurses-compatible UI controls
-//       - List
-//       - List item
-// TODO: Debug menu
+// TODO: Update an 'InspectedEntityComponent' based on the selected entity list index
+// TODO: Use the InspectedEntityComponent to drive the entity component list
+// TODO: UI Anchor System
+// TODO: Mouse input
+// TODO: Scene tree mode for entity list window
+// TODO: Component list mode for entity component window
 // TODO: Profiler singleton (system?)
 // TODO: Profiler menu
 
@@ -45,6 +49,7 @@ enum EntityAssemblage {
     StringControl = 1,
     RectControl = 2,
     BorderControl = 3,
+    DebugExclude = 4,
 }
 
 // Main Logic
@@ -64,13 +69,10 @@ fn create_string_control(
 ) -> Result<EntityID, String> {
     let entity_id = string_assemblage.create_and_assemble_entity(db, label)?;
 
-    let debug_title_component = db.get_entity_component::<PancursesControlComponent>(entity_id)?;
-    debug_title_component.control_data = ControlData::String;
-
-    let string_component = db.get_entity_component::<StringComponent>(entity_id)?;
+    let string_component = db.get_entity_component_mut::<StringComponent>(entity_id)?;
     string_component.data = text.into();
 
-    let position_component = db.get_entity_component::<PositionComponent>(entity_id)?;
+    let position_component = db.get_entity_component_mut::<PositionComponent>(entity_id)?;
     let IVector2(pos_x, pos_y) = &mut position_component.data;
     *pos_x = x;
     *pos_y = y;
@@ -99,14 +101,195 @@ fn create_window_entity(
     Ok(entity_id)
 }
 
-fn main_internal() -> Result<(), String> {
-    let mut ecs = SingleThreadedDatabase::new();
+fn create_game_window(
+    db: &mut impl EntityComponentDatabase,
+    assemblages: &HashMap<EntityAssemblage, Assemblage>,
+    parent_window_entity: EntityID,
+) -> Result<EntityID, String> {
+    // Create Game Window
+    let game_window_entity = create_window_entity(
+        db,
+        "Game Window",
+        2,
+        IVector2(32, 0),
+        IVector2(64, 32),
+        Some(parent_window_entity),
+    )?;
 
-    let assemblages = setup_assemblages(&mut ecs);
+    // Create Test Player
+    let test_player_entity =
+        assemblages[&EntityAssemblage::Player].create_and_assemble_entity(db, "Test Player")?;
+    db.add_component_to_entity(
+        test_player_entity,
+        ParentEntityComponent::new(game_window_entity),
+    )?;
+
+    // Create Test String
+    let test_string_entity = assemblages[&EntityAssemblage::StringControl]
+        .create_and_assemble_entity(db, "Test String Control")?;
+    if let Ok(position_component) =
+        db.get_entity_component_mut::<PositionComponent>(test_string_entity)
+    {
+        position_component.data = IVector2(1, 1);
+    }
+    if let Ok(string_component) = db.get_entity_component_mut::<StringComponent>(test_string_entity)
+    {
+        string_component.data = "Testing One Two Three".into();
+    }
+    db.add_component_to_entity(
+        test_string_entity,
+        ParentEntityComponent::new(test_player_entity),
+    )?;
+    db.add_component_to_entity(test_string_entity, GlobalPositionComponent::default())?;
+
+    // Create Test Rect
+    let test_rect_entity = assemblages[&EntityAssemblage::RectControl]
+        .create_and_assemble_entity(db, "Test Rect Control")?;
+    if let Ok(position_component) =
+        db.get_entity_component_mut::<PositionComponent>(test_rect_entity)
+    {
+        position_component.data = IVector2(1, 5);
+    }
+    if let Ok(size_component) = db.get_entity_component_mut::<SizeComponent>(test_rect_entity) {
+        size_component.data = IVector2(20, 5);
+    }
+    db.add_component_to_entity(
+        test_rect_entity,
+        ParentEntityComponent::new(test_player_entity),
+    )?;
+    db.add_component_to_entity(test_rect_entity, GlobalPositionComponent::default())?;
+
+    Ok(game_window_entity)
+}
+
+fn create_entity_list_window(
+    db: &mut impl EntityComponentDatabase,
+    assemblages: &HashMap<EntityAssemblage, Assemblage>,
+    parent_window_entity: EntityID,
+) -> Result<EntityID, String> {
+    let entity_list_window_entity = create_window_entity(
+        db,
+        "Entity List Window",
+        1,
+        IVector2(0, 0),
+        IVector2(32, 32),
+        Some(parent_window_entity),
+    )?;
+
+    let entity_list_border_entity = assemblages[&EntityAssemblage::BorderControl]
+        .create_and_assemble_entity(db, "Entity List Border")?;
+    if let Ok(size_component) =
+        db.get_entity_component_mut::<SizeComponent>(entity_list_border_entity)
+    {
+        size_component.data = IVector2(32, 32);
+    }
+    db.add_component_to_entity(
+        entity_list_border_entity,
+        ParentEntityComponent::new(entity_list_window_entity),
+    )?;
+
+    // Create Debug Window Title
+    let entity_list_title_entity = create_string_control(
+        db,
+        &assemblages[&EntityAssemblage::StringControl],
+        "Entity List Title",
+        "Entities\n========",
+        (1, 1),
+    )?;
+    db.add_component_to_entity(
+        entity_list_title_entity,
+        ParentEntityComponent::new(entity_list_window_entity),
+    )?;
+
+    let debug_exclude_assemblage = Assemblage::build(
+        db,
+        "Debug Exclude",
+        "Assemblage to exclude entities from debug visualization",
+    )
+    .add_component(DebugExcludeComponent)
+    .finish();
+
+    let debug_list_entity = db.create_entity("Entity List");
+    db.add_component_to_entity(
+        debug_list_entity,
+        ListComponent::new(Some(debug_list_entity), Some(debug_exclude_assemblage)),
+    )?;
+    db.add_component_to_entity(debug_list_entity, PancursesInputBufferComponent::default())?;
+    db.add_component_to_entity(
+        debug_list_entity,
+        PancursesInputAxisComponent::new(
+            pancurses::Input::KeyPPage,
+            pancurses::Input::KeyNPage,
+        ),
+    )?;
+    db.add_component_to_entity(debug_list_entity, IntRangeComponent::default())?;
+    db.add_component_to_entity(debug_list_entity, PositionComponent::new(IVector2(1, 3)))?;
+    db.add_component_to_entity(
+        debug_list_entity,
+        ParentEntityComponent::new(entity_list_window_entity),
+    )?;
+    db.add_component_to_entity::<DebugEntityListComponent>(
+        debug_list_entity,
+        DebugEntityListComponent,
+    )?;
+    db.add_component_to_entity::<StringListComponent>(
+        debug_list_entity,
+        StringListComponent::default(),
+    )?;
+
+    Ok(entity_list_window_entity)
+}
+
+fn create_component_list_window(
+    db: &mut impl EntityComponentDatabase,
+    assemblages: &HashMap<EntityAssemblage, Assemblage>,
+    parent_window_entity: EntityID,
+) -> Result<EntityID, String> {
+    let component_list_window_entity = create_window_entity(
+        db,
+        "Component List Window",
+        1,
+        IVector2(96, 0),
+        IVector2(32, 32),
+        Some(parent_window_entity),
+    )?;
+
+    let component_list_border_entity = assemblages[&EntityAssemblage::BorderControl]
+        .create_and_assemble_entity(db, "Component List Border")?;
+    if let Ok(size_component) =
+        db.get_entity_component_mut::<SizeComponent>(component_list_border_entity)
+    {
+        size_component.data = IVector2(32, 32);
+    }
+    db.add_component_to_entity(
+        component_list_border_entity,
+        ParentEntityComponent::new(component_list_window_entity),
+    )?;
+
+    // Create Debug Window Title
+    let entity_list_title_entity = create_string_control(
+        db,
+        &assemblages[&EntityAssemblage::StringControl],
+        "Component List Title",
+        "Entity Components\n=================",
+        (1, 1),
+    )?;
+    db.add_component_to_entity(
+        entity_list_title_entity,
+        ParentEntityComponent::new(component_list_window_entity),
+    )?;
+
+    Ok(component_list_window_entity)
+}
+
+fn main_internal() -> Result<(), String> {
+    let mut db = SingleThreadedDatabase::new();
+
+    let assemblages = setup_assemblages(&mut db);
 
     // Create Main Window
     let main_window_entity = create_window_entity(
-        &mut ecs,
+        &mut db,
         "Main Window",
         0,
         IVector2::default(),
@@ -114,139 +297,33 @@ fn main_internal() -> Result<(), String> {
         None,
     )?;
 
-    // Create Game Window
-    let game_window_entity = create_window_entity(
-        &mut ecs,
-        "Game Window",
-        2,
-        IVector2::default(),
-        IVector2(64, 32),
-        Some(main_window_entity),
-    )?;
-
-    // Create Test Player
-    let test_player_entity = assemblages[&EntityAssemblage::Player]
-        .create_and_assemble_entity(&mut ecs, "Test Player")?;
-    ecs.add_component_to_entity(
-        test_player_entity,
-        ParentEntityComponent::new(game_window_entity),
-    )?;
-
-    // Create Test String
-    let test_string_entity = assemblages[&EntityAssemblage::StringControl]
-        .create_and_assemble_entity(&mut ecs, "Test String Control")?;
-    if let Ok(position_component) =
-        ecs.get_entity_component::<PositionComponent>(test_string_entity)
-    {
-        position_component.data = IVector2(1, 1);
-    }
-    if let Ok(string_component) = ecs.get_entity_component::<StringComponent>(test_string_entity) {
-        string_component.data = "Testing One Two Three".into();
-    }
-    ecs.add_component_to_entity(
-        test_string_entity,
-        ParentEntityComponent::new(test_player_entity),
-    )?;
-    ecs.add_component_to_entity(test_string_entity, GlobalPositionComponent::default())?;
-
-    // Create Test Rect
-    let test_rect_entity = assemblages[&EntityAssemblage::RectControl]
-        .create_and_assemble_entity(&mut ecs, "Test Rect Control")?;
-    if let Ok(position_component) = ecs.get_entity_component::<PositionComponent>(test_rect_entity)
-    {
-        position_component.data = IVector2(1, 5);
-    }
-    if let Ok(size_component) = ecs.get_entity_component::<SizeComponent>(test_rect_entity) {
-        size_component.data = IVector2(20, 5);
-    }
-    ecs.add_component_to_entity(
-        test_rect_entity,
-        ParentEntityComponent::new(test_player_entity),
-    )?;
-    ecs.add_component_to_entity(test_rect_entity, GlobalPositionComponent::default())?;
-
-    // Create Debug Window
-    let debug_window_entity = create_window_entity(
-        &mut ecs,
-        "Debug Window",
-        1,
-        IVector2(64, 0),
-        IVector2(64, 32),
-        Some(main_window_entity),
-    )?;
-
-    let debug_window_border_entity = assemblages[&EntityAssemblage::BorderControl]
-        .create_and_assemble_entity(&mut ecs, "Debug Window Border")?;
-    if let Ok(size_component) =
-        ecs.get_entity_component::<SizeComponent>(debug_window_border_entity)
-    {
-        size_component.data = IVector2(64, 32);
-    }
-    ecs.add_component_to_entity(
-        debug_window_border_entity,
-        ParentEntityComponent::new(debug_window_entity),
-    )?;
-
-    // Create Debug Window Title
-    let debug_title_entity = create_string_control(
-        &mut ecs,
-        &assemblages[&EntityAssemblage::StringControl],
-        "Debug Title",
-        "Debug",
-        (1, 1),
-    )?;
-    ecs.add_component_to_entity(
-        debug_title_entity,
-        ParentEntityComponent::new(debug_window_entity),
-    )?;
-
-    // Create Debug Window String List
-    let debug_list_entity = create_string_control(
-        &mut ecs,
-        &assemblages[&EntityAssemblage::StringControl],
-        "Debug List",
-        "List",
-        (1, 2),
-    )?;
-
-    ecs.add_component_to_entity(
-        debug_list_entity,
-        ECSDebugComponent::new(DebugData::Components),
-    )?;
-    ecs.add_component_to_entity(
-        debug_list_entity,
-        PancursesPrevNextInputComponent::new(
-            pancurses::Input::KeyPPage,
-            pancurses::Input::KeyNPage,
-        ),
-    )?;
-    ecs.add_component_to_entity(debug_list_entity, PancursesInputBufferComponent::default())?;
-    ecs.add_component_to_entity(debug_list_entity, IntRangeComponent::new(0..4))?;
-    ecs.add_component_to_entity(
-        debug_list_entity,
-        ParentEntityComponent::new(debug_window_entity),
-    )?;
+    create_game_window(&mut db, &assemblages, main_window_entity)?;
+    create_entity_list_window(&mut db, &assemblages, main_window_entity)?;
+    create_component_list_window(&mut db, &assemblages, main_window_entity)?;
 
     // Create systems
     let mut pancurses_window_system = PancursesWindowSystem::new();
     let mut pancurses_input_system = PancursesInputSystem::new(1);
-    let mut ui_tab_input_system = PancursesPrevNextInputSystem::new();
+    let mut pancurses_prev_next_input_system = PancursesInputAxisSystem::new();
+    let mut list_system = ListSystem::new();
     let mut input_velocity_system = InputVelocitySystem::new();
     let mut position_integrator_system = PositionIntegratorSystem::new();
     let mut global_position_system = GlobalPositionSystem::new();
-    let mut debug_tab_system = DebugTabSystem::new();
     let mut ecs_debug_system = ECSDebugSystem::new();
     let mut pancurses_renderer_system = PancursesRendererSystem::new();
 
-    let mut system_runner = SingleThreadedSystemRunner::<SingleThreadedDatabase>::new(&mut ecs);
+    let mut system_runner = SingleThreadedSystemRunner::<SingleThreadedDatabase>::new(&mut db);
     system_runner.register_system("Pancurses Window", &mut pancurses_window_system);
     system_runner.register_system("Pancurses Input", &mut pancurses_input_system);
-    system_runner.register_system("UI Tab Input", &mut ui_tab_input_system);
+    system_runner.register_system(
+        "Pancurses Prev Next Input",
+        &mut pancurses_prev_next_input_system,
+    );
+    system_runner.register_system("ECS Debug", &mut ecs_debug_system);
+    system_runner.register_system("List", &mut list_system);
     system_runner.register_system("Input Velocity", &mut input_velocity_system);
     system_runner.register_system("Position Integrator", &mut position_integrator_system);
     system_runner.register_system("Global Position", &mut global_position_system);
-    system_runner.register_system("Debug Tab", &mut debug_tab_system);
-    system_runner.register_system("ECS Debug", &mut ecs_debug_system);
     system_runner.register_system("Pancurses Renderer", &mut pancurses_renderer_system);
 
     // Main loop
@@ -279,7 +356,7 @@ fn setup_assemblages(
             "Player Entity",
             "Controllable ASCII character with position and velocity",
         )
-        .add_component(PancursesControlComponent::new(ControlData::String))
+        .add_component(ControlComponent)
         .add_component(PancursesColorPairComponent::new(PancursesColorPair::new(
             PancursesColor::new(1000, 600, 1000),
             PancursesColor::new(1000, 1000, 1000),
@@ -294,7 +371,7 @@ fn setup_assemblages(
     assemblages.insert(
         EntityAssemblage::StringControl,
         Assemblage::build(db, "String Entity", "ASCII string control")
-            .add_component(PancursesControlComponent::new(ControlData::String))
+            .add_component(ControlComponent)
             .add_component(StringComponent::default())
             .add_component(PositionComponent::default())
             .finish(),
@@ -303,12 +380,11 @@ fn setup_assemblages(
     assemblages.insert(
         EntityAssemblage::RectControl,
         Assemblage::build(db, "Rect Entity", "ASCII Rectangle control")
-            .add_component(PancursesControlComponent::new(ControlData::Rect {
-                filled: true,
-            }))
+            .add_component(ControlComponent)
             .add_component(PositionComponent::default())
             .add_component(SizeComponent::default())
             .add_component(CharComponent::default())
+            .add_component(FillComponent)
             .add_component(PancursesColorPairComponent::new(PancursesColorPair::new(
                 PancursesColor::new(0, 0, 0),
                 PancursesColor::new(753, 753, 753),
@@ -319,9 +395,7 @@ fn setup_assemblages(
     assemblages.insert(
         EntityAssemblage::BorderControl,
         Assemblage::build(db, "Border Entity", "ASCII Border control")
-            .add_component(PancursesControlComponent::new(ControlData::Rect {
-                filled: false,
-            }))
+            .add_component(ControlComponent)
             .add_component(PositionComponent::default())
             .add_component(SizeComponent::default())
             .add_component(CharComponent::default())
@@ -330,6 +404,17 @@ fn setup_assemblages(
                 PancursesColor::new(753, 753, 753),
             )))
             .finish(),
+    );
+
+    assemblages.insert(
+        EntityAssemblage::DebugExclude,
+        Assemblage::build(
+            db,
+            "Debug Exclude",
+            "Assemblage to exclude entities from debug visualization",
+        )
+        .add_component(DebugExcludeComponent)
+        .finish(),
     );
 
     assemblages

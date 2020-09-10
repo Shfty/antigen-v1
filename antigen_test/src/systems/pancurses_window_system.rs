@@ -8,11 +8,13 @@ use crate::{
 };
 use antigen::{
     components::ParentEntityComponent,
+    components::StringComponent,
     components::{CharComponent, PositionComponent, SizeComponent},
+    ecs::EntityComponentDatabaseDebug,
     ecs::EntityID,
     ecs::{EntityComponentDatabase, SystemEvent, SystemTrait},
     primitive_types::IVector2,
-ecs::EntityComponentDatabaseDebug};
+};
 use pancurses::ToChtype;
 use std::collections::HashMap;
 
@@ -31,33 +33,32 @@ impl PancursesWindowSystem {
 
     fn try_create_window(
         &mut self,
-        ecs: &mut impl EntityComponentDatabase,
+        db: &mut impl EntityComponentDatabase,
         entity_id: EntityID,
         parent_window_entity_id: Option<EntityID>,
     ) -> Result<(), String> {
         let pancurses_window_component =
-            ecs.get_entity_component::<PancursesWindowComponent>(entity_id)?;
+            db.get_entity_component::<PancursesWindowComponent>(entity_id)?;
 
         if pancurses_window_component.window.is_some() {
             return Ok(());
         }
 
-        let IVector2(pos_x, pos_y) = match ecs.get_entity_component::<PositionComponent>(entity_id)
-        {
+        let IVector2(pos_x, pos_y) = match db.get_entity_component::<PositionComponent>(entity_id) {
             Ok(position_component) => position_component.data,
             Err(_) => IVector2(0, 0),
         };
 
-        let size_component = ecs.get_entity_component::<SizeComponent>(entity_id)?;
+        let size_component = db.get_entity_component::<SizeComponent>(entity_id)?;
         let IVector2(width, height) = size_component.data;
 
-        let background_char = match ecs.get_entity_component::<CharComponent>(entity_id) {
+        let background_char = match db.get_entity_component::<CharComponent>(entity_id) {
             Ok(char_component) => char_component.data,
             Err(_) => ' ',
         };
 
         let background_color_pair =
-            match ecs.get_entity_component::<PancursesColorPairComponent>(entity_id) {
+            match db.get_entity_component::<PancursesColorPairComponent>(entity_id) {
                 Ok(pancurses_color_pair_component) => pancurses_color_pair_component.data,
                 Err(_) => PancursesColorPair::default(),
             };
@@ -65,7 +66,7 @@ impl PancursesWindowSystem {
         let window = match parent_window_entity_id {
             Some(parent_window_entity_id) => {
                 let parent_window_component =
-                    ecs.get_entity_component::<PancursesWindowComponent>(parent_window_entity_id)?;
+                    db.get_entity_component::<PancursesWindowComponent>(parent_window_entity_id)?;
                 if let Some(parent_window) = &parent_window_component.window {
                     parent_window
                         .derwin(height as i32, width as i32, pos_y as i32, pos_x as i32)
@@ -75,8 +76,14 @@ impl PancursesWindowSystem {
                 }
             }
             None => {
+                let title = match db.get_entity_component::<StringComponent>(entity_id) {
+                    Ok(string_component) => &string_component.data,
+                    Err(_) => "Antigen",
+                };
+
                 let window = pancurses::initscr();
                 pancurses::resize_term(height as i32, width as i32);
+                pancurses::set_title(&title);
                 pancurses::curs_set(0);
                 pancurses::noecho();
                 pancurses::start_color();
@@ -93,8 +100,8 @@ impl PancursesWindowSystem {
                     .into_iter()
                     .collect();
 
-                let color_entity = ecs.create_entity("Pancurses Colors");
-                ecs.add_component_to_entity(
+                let color_entity = db.create_entity("Pancurses Colors");
+                db.add_component_to_entity(
                     color_entity,
                     PancursesColorSetComponent::new(colors, color_pairs),
                 )?;
@@ -106,13 +113,13 @@ impl PancursesWindowSystem {
         window.keypad(true);
         window.nodelay(true);
 
-        let pancurses_color_set_entities = ecs.get_entities_by_predicate(|entity_id| {
-            ecs.entity_has_component::<PancursesColorSetComponent>(entity_id)
+        let pancurses_color_set_entities = db.get_entities_by_predicate(|entity_id| {
+            db.entity_has_component::<PancursesColorSetComponent>(entity_id)
         });
         assert!(pancurses_color_set_entities.len() <= 1);
         let background_color_pair = if let Some(entity_id) = pancurses_color_set_entities.get(0) {
             let pancurses_color_set_component =
-                ecs.get_entity_component::<PancursesColorSetComponent>(*entity_id)?;
+                db.get_entity_component_mut::<PancursesColorSetComponent>(*entity_id)?;
             pancurses_color_set_component.get_color_pair_idx(background_color_pair)
         } else {
             return Err("No pancurses color set entity".into());
@@ -122,7 +129,8 @@ impl PancursesWindowSystem {
             background_char.to_chtype() | pancurses::COLOR_PAIR(background_color_pair as u64),
         );
 
-        let window_component = ecs.get_entity_component::<PancursesWindowComponent>(entity_id)?;
+        let window_component =
+            db.get_entity_component_mut::<PancursesWindowComponent>(entity_id)?;
         window_component.window = Some(window);
 
         Ok(())
@@ -140,7 +148,9 @@ impl PancursesWindowSystem {
         */
 }
 
-impl<T> SystemTrait<T> for PancursesWindowSystem where T: EntityComponentDatabase + EntityComponentDatabaseDebug
+impl<T> SystemTrait<T> for PancursesWindowSystem
+where
+    T: EntityComponentDatabase + EntityComponentDatabaseDebug,
 {
     fn run(&mut self, db: &mut T) -> Result<SystemEvent, String> {
         // Get window entities, update internal window state
@@ -166,11 +176,11 @@ impl<T> SystemTrait<T> for PancursesWindowSystem where T: EntityComponentDatabas
         for entity_id in &window_entities {
             let entity_id = *entity_id;
 
-            let parent_entity_id =
-                match db.get_entity_component::<ParentEntityComponent>(entity_id) {
-                    Ok(parent_entity_component) => Some(parent_entity_component.parent_id),
-                    Err(_) => None,
-                };
+            let parent_entity_id = match db.get_entity_component::<ParentEntityComponent>(entity_id)
+            {
+                Ok(parent_entity_component) => Some(parent_entity_component.parent_id),
+                Err(_) => None,
+            };
 
             self.try_create_window(db, entity_id, parent_entity_id)?;
         }

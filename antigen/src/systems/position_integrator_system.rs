@@ -31,7 +31,7 @@ impl<T> SystemTrait<T> for PositionIntegratorSystem where T: EntityComponentData
 
             let IVector2(x_vel, y_vel) = velocity_component.data;
 
-            let position_component = db.get_entity_component::<PositionComponent>(entity_id)?;
+            let position_component = db.get_entity_component_mut::<PositionComponent>(entity_id)?;
 
             let IVector2(x, y) = &mut position_component.data;
 

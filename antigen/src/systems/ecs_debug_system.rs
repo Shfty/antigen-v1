@@ -1,6 +1,10 @@
-use crate::components::{DebugData, ECSDebugComponent, IntRangeComponent, StringComponent};
-use crate::ecs::{
-    EntityComponentDatabaseDebug, SystemEvent, {EntityComponentDatabase, SystemTrait},
+use crate::{components::DebugEntityListComponent, ecs::EntityID};
+use crate::{
+    components::DebugExcludeComponent,
+    components::StringListComponent,
+    ecs::{
+        EntityComponentDatabaseDebug, SystemEvent, {EntityComponentDatabase, SystemTrait},
+    },
 };
 
 #[derive(Debug)]
@@ -26,39 +30,32 @@ where
     where
         T: EntityComponentDatabase + EntityComponentDatabaseDebug,
     {
-        let entities = db.get_entities_by_predicate(|entity_id| {
-            db.entity_has_component::<ECSDebugComponent>(entity_id)
-                && db.entity_has_component::<StringComponent>(entity_id)
-                && db.entity_has_component::<IntRangeComponent>(entity_id)
+        let entity_debug_entities = db.get_entities_by_predicate(|entity_id| {
+            db.entity_has_component::<DebugEntityListComponent>(entity_id)
+                && db.entity_has_component::<StringListComponent>(entity_id)
         });
 
-        for entity_id in entities {
-            let ecs_debug_component = db.get_entity_component::<ECSDebugComponent>(entity_id)?;
-            let debug_data = ecs_debug_component.debug_data;
+        for entity_id in entity_debug_entities {
+            let mut entities: Vec<EntityID> = db
+                .get_entities()
+                .into_iter()
+                .filter(|entity_id| !db.entity_has_component::<DebugExcludeComponent>(entity_id))
+                .copied()
+                .collect();
 
-            let ecs_string = match debug_data {
-                DebugData::Entities => db
-                    .get_entities()
-                    .iter()
-                    .copied()
-                    .map(|entity_id| db.get_entity_label(*entity_id))
-                    .fold("Entities:\n".to_string(), |acc, next| acc + next + "\n"),
-                DebugData::Components => db
-                    .get_components()
-                    .iter()
-                    .map(|(_, component_interface)| &component_interface.official_name)
-                    .fold("Components:\n".to_string(), |acc, next| acc + next + "\n"),
-                DebugData::ComponentData => {
-                    format!("Component Data: {:#?}", db.get_component_data())
-                }
-                DebugData::EntityComponents => {
-                    format!("Entity Components: {:#?}", db.get_entity_components())
-                }
-            };
+            entities.sort();
 
-            let string_component = db.get_entity_component::<StringComponent>(entity_id)?;
+            let entities: Vec<String> = entities
+                .into_iter()
+                .map(|entity_id| {
+                    entity_id.to_string() + ": " + &db.get_entity_label(entity_id).to_string()
+                })
+                .collect();
 
-            string_component.data = ecs_string.clone();
+            let debug_entity_list_component =
+                db.get_entity_component_mut::<StringListComponent>(entity_id)?;
+
+            debug_entity_list_component.data = entities;
         }
 
         Ok(SystemEvent::None)

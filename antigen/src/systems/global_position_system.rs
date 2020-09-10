@@ -39,6 +39,10 @@ impl<T> SystemTrait<T> for GlobalPositionSystem where T: EntityComponentDatabase
                     db.get_entity_component::<PositionComponent>(candidate_id)?;
                 global_position += parent_position_component.data;
 
+                if db.get_entity_component::<GlobalPositionComponent>(candidate_id).is_err() {
+                    break;
+                }
+
                 match db.get_entity_component::<ParentEntityComponent>(candidate_id) {
                     Ok(parent_entity_component) => candidate_id = parent_entity_component.parent_id,
                     Err(_) => break,
@@ -46,7 +50,7 @@ impl<T> SystemTrait<T> for GlobalPositionSystem where T: EntityComponentDatabase
             }
 
             let global_position_component =
-                db.get_entity_component::<GlobalPositionComponent>(entity_id)?;
+                db.get_entity_component_mut::<GlobalPositionComponent>(entity_id)?;
             global_position_component.data = global_position;
         }
 

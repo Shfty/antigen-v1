@@ -54,6 +54,8 @@ impl<T> SystemTrait<T> for PancursesInputSystem where T: EntityComponentDatabase
             if let pancurses::Input::Character('\u{1b}') = input {
                 return Ok(SystemEvent::Quit);
             }
+
+            // TODO: Remove after window teardown is implemented
             if let pancurses::Input::Character(' ') = input {
                 let window_entities = db.get_entities_by_predicate(|entity_id| {
                     db.entity_has_component::<PancursesWindowComponent>(entity_id)
@@ -75,9 +77,11 @@ impl<T> SystemTrait<T> for PancursesInputSystem where T: EntityComponentDatabase
 
         for entity_id in entities {
             let pancurses_input_buffer_component =
-                db.get_entity_component::<PancursesInputBufferComponent>(entity_id)?;
+                db.get_entity_component_mut::<PancursesInputBufferComponent>(entity_id)?;
 
-            pancurses_input_buffer_component.input_buffer = self.input_buffer.clone();
+            for input in &self.input_buffer {
+                pancurses_input_buffer_component.input_buffer.push(*input);
+            }
         }
 
         Ok(SystemEvent::None)

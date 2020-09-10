@@ -3,11 +3,15 @@ use std::{
     collections::{HashMap, HashSet},
 };
 
-use crate::ecs::{AssemblageID, component::ComponentInterface, component::ComponentID, component::ComponentData, entity::EntityDebug, component::get_component_id};
+use crate::ecs::{
+    component::get_component_id, component::ComponentData, component::ComponentID,
+    component::ComponentInterface, entity::EntityDebug, AssemblageID,
+};
 
 use super::{
-    ComponentDataID, ComponentMetadataTrait, ComponentTrait, EntityComponentDatabase, EntityID,
-EntityComponentDatabaseDebug};
+    ComponentDataID, ComponentMetadataTrait, ComponentTrait, EntityComponentDatabase,
+    EntityComponentDatabaseDebug, EntityID,
+};
 
 #[derive(Debug)]
 pub struct SingleThreadedDatabase {
@@ -26,6 +30,24 @@ pub struct SingleThreadedDatabase {
 impl<'a> SingleThreadedDatabase {
     pub fn new() -> Self {
         SingleThreadedDatabase::default()
+    }
+
+    fn get_entity_component_data_id<T>(
+        &self,
+        entity_id: EntityID,
+    ) -> Result<ComponentDataID, String>
+    where
+        T: ComponentTrait + 'static,
+    {
+        let entity_components = match self.entity_components.get(&entity_id) {
+            Some(entity_components) => entity_components,
+            None => return Err("No such entity".into()),
+        };
+
+        match entity_components.get(&get_component_id::<T>()) {
+            Some(component_data_id) => Ok(*component_data_id),
+            None => Err("No such component".into()),
+        }
     }
 }
 
@@ -164,18 +186,29 @@ impl EntityComponentDatabase for SingleThreadedDatabase {
     }
 
     fn get_entity_component<T: ComponentTrait + 'static>(
+        &self,
+        entity_id: EntityID,
+    ) -> Result<&T, String> {
+        let component_data_id = self.get_entity_component_data_id::<T>(entity_id)?;
+
+        let component_data = match self.component_data.get(&component_data_id) {
+            Some(component_data) => component_data,
+            None => return Err("No such component data".into()),
+        };
+
+        let component_data = match component_data.as_any().downcast_ref::<T>() {
+            Some(component_data) => component_data,
+            None => return Err("Component type mismatch".into()),
+        };
+
+        Ok(component_data)
+    }
+
+    fn get_entity_component_mut<T: ComponentTrait + 'static>(
         &mut self,
         entity_id: EntityID,
     ) -> Result<&mut T, String> {
-        let entity_components = match self.entity_components.get(&entity_id) {
-            Some(entity_components) => entity_components,
-            None => return Err("No such entity".into()),
-        };
-
-        let component_data_id = match entity_components.get(&get_component_id::<T>()) {
-            Some(component_data_id) => *component_data_id,
-            None => return Err("No such component".into()),
-        };
+        let component_data_id = self.get_entity_component_data_id::<T>(entity_id)?;
 
         let component_data = match self.component_data.get_mut(&component_data_id) {
             Some(component_data) => component_data,

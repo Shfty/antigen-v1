@@ -32,7 +32,7 @@ pub trait EntityComponentDatabase {
             Box::new(component_data),
         )?;
 
-        let component = self.get_entity_component::<T>(entity_id)?;
+        let component = self.get_entity_component_mut::<T>(entity_id)?;
         let component = match component.as_mut_any().downcast_mut::<T>() {
             Some(component) => component,
             None => return Err("Component type mismatch".into()),
@@ -66,6 +66,11 @@ pub trait EntityComponentDatabase {
     fn entity_has_component<T: ComponentTrait + 'static>(&self, entity_id: &EntityID) -> bool;
 
     fn get_entity_component<T: ComponentTrait + 'static>(
+        &self,
+        entity_id: EntityID,
+    ) -> Result<&T, String>;
+
+    fn get_entity_component_mut<T: ComponentTrait + 'static>(
         &mut self,
         entity_id: EntityID,
     ) -> Result<&mut T, String>;

@@ -3,6 +3,7 @@ use std::fmt::Debug;
 
 pub type CharComponent = PrimitiveComponent<char>;
 pub type StringComponent = PrimitiveComponent<String>;
+pub type StringListComponent = PrimitiveComponent<Vec<String>>;
 
 #[derive(Debug, Copy, Clone)]
 pub struct PrimitiveComponent<T>

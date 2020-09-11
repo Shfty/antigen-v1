@@ -1,11 +1,13 @@
 use crate::components::{
     pancurses_input_buffer_component::PancursesInputBufferComponent,
+    pancurses_mouse_component::PancursesMouseComponent,
     pancurses_window_component::PancursesWindowComponent,
 };
 use antigen::{
     components::ParentEntityComponent,
+    ecs::EntityComponentDatabaseDebug,
     ecs::{EntityComponentDatabase, SystemEvent, SystemTrait},
-ecs::EntityComponentDatabaseDebug};
+};
 
 #[derive(Debug)]
 pub struct PancursesInputSystem {
@@ -22,7 +24,9 @@ impl PancursesInputSystem {
     }
 }
 
-impl<T> SystemTrait<T> for PancursesInputSystem where T: EntityComponentDatabase + EntityComponentDatabaseDebug
+impl<T> SystemTrait<T> for PancursesInputSystem
+where
+    T: EntityComponentDatabase + EntityComponentDatabaseDebug,
 {
     fn run(&mut self, db: &mut T) -> Result<SystemEvent, String> {
         self.input_buffer.clear();
@@ -50,23 +54,28 @@ impl<T> SystemTrait<T> for PancursesInputSystem where T: EntityComponentDatabase
             pancurses::flushinp();
         }
 
+        let pancurses_mouse_entities = db.get_entities_by_predicate(|entity_id| {
+            db.entity_has_component::<PancursesMouseComponent>(entity_id)
+        });
+        assert!(pancurses_mouse_entities.len() <= 1);
+
         for input in &self.input_buffer {
             if let pancurses::Input::Character('\u{1b}') = input {
                 return Ok(SystemEvent::Quit);
             }
 
-            // TODO: Remove after window teardown is implemented
-            if let pancurses::Input::Character(' ') = input {
-                let window_entities = db.get_entities_by_predicate(|entity_id| {
-                    db.entity_has_component::<PancursesWindowComponent>(entity_id)
-                });
+            if let pancurses::Input::KeyMouse = input {
+                if let Ok(mouse_event) = pancurses::getmouse() {
+                    let pancurses_mouse_component =
+                        if let Some(entity_id) = pancurses_mouse_entities.get(0) {
+                            db.get_entity_component_mut::<PancursesMouseComponent>(*entity_id)?
+                        } else {
+                            return Err("No pancurses mouse entity".into());
+                        };
 
-                for entity_id in window_entities {
-                    let pancurses_window_component =
-                        db.get_entity_component::<PancursesWindowComponent>(entity_id)?;
-                    if pancurses_window_component.window_id == 0 {
-                        db.remove_component_from_entity::<PancursesWindowComponent>(entity_id)?;
-                    }
+                    pancurses_mouse_component.position.0 = mouse_event.x as i64;
+                    pancurses_mouse_component.position.1 = mouse_event.y as i64;
+                    pancurses_mouse_component.button_mask = mouse_event.bstate as i64;
                 }
             }
         }

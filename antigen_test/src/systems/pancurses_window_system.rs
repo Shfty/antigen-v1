@@ -1,5 +1,6 @@
 use crate::{
     components::pancurses_color_set_component::PancursesColorSetComponent,
+    components::pancurses_mouse_component::PancursesMouseComponent,
     components::{
         pancurses_color_pair_component::PancursesColorPairComponent,
         pancurses_window_component::PancursesWindowComponent,
@@ -9,6 +10,7 @@ use crate::{
 use antigen::{
     components::ParentEntityComponent,
     components::StringComponent,
+    components::WindowComponent,
     components::{CharComponent, PositionComponent, SizeComponent},
     ecs::EntityComponentDatabaseDebug,
     ecs::EntityID,
@@ -82,6 +84,10 @@ impl PancursesWindowSystem {
                 };
 
                 let window = pancurses::initscr();
+                pancurses::mousemask(
+                    pancurses::ALL_MOUSE_EVENTS | pancurses::REPORT_MOUSE_POSITION,
+                    std::ptr::null_mut(),
+                );
                 pancurses::resize_term(height as i32, width as i32);
                 pancurses::set_title(&title);
                 pancurses::curs_set(0);
@@ -106,12 +112,16 @@ impl PancursesWindowSystem {
                     PancursesColorSetComponent::new(colors, color_pairs),
                 )?;
 
+                let mouse_entity = db.create_entity("Pancurses Mouse");
+                db.add_component_to_entity(mouse_entity, PancursesMouseComponent::new())?;
+
                 window
             }
         };
 
         window.keypad(true);
         window.nodelay(true);
+        window.timeout(0);
 
         let pancurses_color_set_entities = db.get_entities_by_predicate(|entity_id| {
             db.entity_has_component::<PancursesColorSetComponent>(entity_id)
@@ -154,35 +164,26 @@ where
 {
     fn run(&mut self, db: &mut T) -> Result<SystemEvent, String> {
         // Get window entities, update internal window state
-        let mut window_entities = db.get_entities_by_predicate(|entity_id| {
-            db.entity_has_component::<PancursesWindowComponent>(entity_id)
+        let window_entities = db.get_entities_by_predicate(|entity_id| {
+            db.entity_has_component::<WindowComponent>(entity_id)
+                && db.entity_has_component::<PancursesWindowComponent>(entity_id)
                 && db.entity_has_component::<SizeComponent>(entity_id)
         });
 
-        window_entities.sort_by(|lhs, rhs| {
-            let lhs_window_component = db
-                .get_entity_component::<PancursesWindowComponent>(*lhs)
-                .unwrap();
-            let lhs_window_id = lhs_window_component.window_id;
+        let (root_window_entities, sub_window_entities): (Vec<EntityID>, Vec<EntityID>) =
+            window_entities.into_iter().partition(|entity_id| {
+                !db.entity_has_component::<ParentEntityComponent>(entity_id)
+            });
 
-            let rhs_window_component = db
-                .get_entity_component::<PancursesWindowComponent>(*rhs)
-                .unwrap();
-            let rhs_window_id = rhs_window_component.window_id;
+        for entity_id in root_window_entities {
+            self.try_create_window(db, entity_id, None)?;
+        }
 
-            lhs_window_id.cmp(&rhs_window_id)
-        });
-
-        for entity_id in &window_entities {
-            let entity_id = *entity_id;
-
-            let parent_entity_id = match db.get_entity_component::<ParentEntityComponent>(entity_id)
-            {
-                Ok(parent_entity_component) => Some(parent_entity_component.parent_id),
-                Err(_) => None,
-            };
-
-            self.try_create_window(db, entity_id, parent_entity_id)?;
+        for entity_id in sub_window_entities {
+            let parent_entity_component =
+                db.get_entity_component::<ParentEntityComponent>(entity_id)?;
+            let parent_id = parent_entity_component.parent_id;
+            self.try_create_window(db, entity_id, Some(parent_id))?;
         }
 
         /*

@@ -1,4 +1,5 @@
 mod debug_entity_list_component;
+mod debug_entity_component_list_component;
 mod global_position_component;
 mod int_range_component;
 mod parent_entity_component;
@@ -8,8 +9,11 @@ mod size_component;
 mod timer_component;
 mod velocity_component;
 mod debug_exclude_component;
+mod entity_inspector_component;
+mod window_component;
 
 pub use debug_entity_list_component::DebugEntityListComponent;
+pub use debug_entity_component_list_component::DebugEntityComponentListComponent;
 pub use global_position_component::GlobalPositionComponent;
 pub use int_range_component::IntRangeComponent;
 pub use parent_entity_component::ParentEntityComponent;
@@ -21,3 +25,5 @@ pub use size_component::SizeComponent;
 pub use timer_component::TimerComponent;
 pub use velocity_component::VelocityComponent;
 pub use debug_exclude_component::DebugExcludeComponent;
+pub use entity_inspector_component::EntityInspectorComponent;
+pub use window_component::WindowComponent;

@@ -7,7 +7,9 @@ pub mod entity_component_database;
 pub mod system_runner;
 
 pub use assemblage::{Assemblage, AssemblageID};
-pub use component::{ComponentDataID, ComponentMetadataTrait, ComponentTrait};
+pub use component::{
+    ComponentData, ComponentDataID, ComponentID, ComponentMetadataTrait, ComponentTrait,
+};
 pub use entity::EntityID;
 pub use entity_component_database::{EntityComponentDatabase, EntityComponentDatabaseDebug};
 pub use system::{SystemEvent, SystemTrait};

@@ -3,16 +3,19 @@ use antigen::ecs::{Assemblage, ComponentMetadataTrait, ComponentTrait, EntityID}
 #[derive(Debug, Clone)]
 pub struct ListComponent {
     pub string_list_entity: Option<EntityID>,
+    pub list_index_entity: Option<EntityID>,
     pub string_entity_assemblage: Option<Assemblage>,
 }
 
 impl ListComponent {
     pub fn new(
         string_list_entity: Option<EntityID>,
+        list_index_entity: Option<EntityID>,
         string_entity_assemblage: Option<Assemblage>,
     ) -> Self {
         ListComponent {
             string_list_entity,
+            list_index_entity,
             string_entity_assemblage,
         }
     }
@@ -20,7 +23,7 @@ impl ListComponent {
 
 impl Default for ListComponent {
     fn default() -> Self {
-        ListComponent::new(None, None)
+        ListComponent::new(None, None, None)
     }
 }
 

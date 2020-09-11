@@ -1,14 +1,16 @@
 use crate::{
+    components::fill_component::FillComponent,
     components::pancurses_color_set_component::PancursesColorSetComponent,
     components::{
-        pancurses_color_pair_component::PancursesColorPairComponent,
         control_component::ControlComponent,
+        pancurses_color_pair_component::PancursesColorPairComponent,
         pancurses_window_component::PancursesWindowComponent,
     },
     pancurses_color::PancursesColorPair,
-components::fill_component::FillComponent};
+};
 use antigen::{
     components::ParentEntityComponent,
+    components::WindowComponent,
     components::{
         CharComponent, GlobalPositionComponent, PositionComponent, SizeComponent, StringComponent,
     },
@@ -173,23 +175,10 @@ where
 {
     fn run(&mut self, db: &mut T) -> Result<SystemEvent, String> {
         // Get window entities
-        let mut window_entities = db.get_entities_by_predicate(|entity_id| {
-            db.entity_has_component::<PancursesWindowComponent>(entity_id)
+        let window_entities = db.get_entities_by_predicate(|entity_id| {
+            db.entity_has_component::<WindowComponent>(entity_id)
+                && db.entity_has_component::<PancursesWindowComponent>(entity_id)
                 && db.entity_has_component::<SizeComponent>(entity_id)
-        });
-
-        window_entities.sort_by(|lhs, rhs| {
-            let lhs_window_component = db
-                .get_entity_component::<PancursesWindowComponent>(*lhs)
-                .unwrap();
-            let lhs_window_id = lhs_window_component.window_id;
-
-            let rhs_window_component = db
-                .get_entity_component::<PancursesWindowComponent>(*rhs)
-                .unwrap();
-            let rhs_window_id = rhs_window_component.window_id;
-
-            lhs_window_id.cmp(&rhs_window_id)
         });
 
         let mut window_sizes: Vec<IVector2> = Vec::new();
@@ -294,8 +283,7 @@ where
                 let size_component = db.get_entity_component::<SizeComponent>(entity_id)?;
                 let IVector2(w, h) = size_component.data;
                 window_rects.insert(RenderData::Rect(x, y, w, h, char, color_pair_idx, filled));
-            }
-            else if db.entity_has_component::<StringComponent>(&entity_id)
+            } else if db.entity_has_component::<StringComponent>(&entity_id)
                 || db.entity_has_component::<CharComponent>(&entity_id)
             {
                 let string = if let Ok(string_component) =
@@ -322,27 +310,25 @@ where
         }
 
         // Render window contents
-        let mut root_window_entity = None;
+        let (root_window_entities, sub_window_entities): (Vec<EntityID>, Vec<EntityID>) =
+            window_entities.iter().copied().partition(|entity_id| {
+                db.get_entity_component::<ParentEntityComponent>(*entity_id)
+                    .is_err()
+            });
 
-        for (entity_id, IVector2(width, height)) in window_entities.iter().zip(window_sizes.iter())
+        for entity_id in root_window_entities
+            .iter()
+            .copied()
+            .chain(sub_window_entities.into_iter())
         {
-            let parent_entity_id =
-                match db.get_entity_component::<ParentEntityComponent>(*entity_id) {
-                    Ok(parent_entity_component) => Some(parent_entity_component.parent_id),
-                    Err(_) => None,
-                };
+            let size_component = db.get_entity_component::<SizeComponent>(entity_id).unwrap();
+            let IVector2(width, height) = size_component.data;
 
-            if parent_entity_id.is_none() {
-                root_window_entity = Some(*entity_id);
-            }
-
-            let window_component =
-                db.get_entity_component::<PancursesWindowComponent>(*entity_id)?;
+            let window_component = db
+                .get_entity_component::<PancursesWindowComponent>(entity_id)
+                .unwrap();
             if let Some(window) = &window_component.window {
                 window.erase();
-
-                let width = *width;
-                let height = *height;
 
                 if let Some(rect_data) = rect_data.get(&entity_id) {
                     self.render_rects(window, width, height, rect_data);
@@ -355,7 +341,7 @@ where
         }
 
         // Present
-        if let Some(entity_id) = root_window_entity {
+        for entity_id in root_window_entities {
             let window_component =
                 db.get_entity_component::<PancursesWindowComponent>(entity_id)?;
             if let Some(window) = &window_component.window {

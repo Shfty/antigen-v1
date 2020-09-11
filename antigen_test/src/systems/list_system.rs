@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
+    components::local_mouse_position_component::LocalMousePositionComponent,
     components::{
         control_component::ControlComponent, list_component::ListComponent,
         pancurses_color_pair_component::PancursesColorPairComponent,
@@ -14,6 +15,7 @@ use antigen::{
     components::IntRangeComponent,
     components::ParentEntityComponent,
     components::PositionComponent,
+    components::SizeComponent,
     components::StringComponent,
     components::StringListComponent,
     ecs::EntityComponentDatabaseDebug,
@@ -44,23 +46,45 @@ where
         let list_control_entities = db.get_entities_by_predicate(|entity_id| {
             db.entity_has_component::<ListComponent>(entity_id)
                 && db.entity_has_component::<PositionComponent>(entity_id)
+                && db.entity_has_component::<SizeComponent>(entity_id)
                 && db.entity_has_component::<ParentEntityComponent>(entity_id)
         });
 
         for list_control_entity in list_control_entities {
-            let string_list_entity =
+            let (string_list_entity, list_index_entity) =
                 match db.get_entity_component::<ListComponent>(list_control_entity) {
-                    Ok(pancurses_list_control_component) => {
-                        pancurses_list_control_component.string_list_entity
-                    }
+                    Ok(pancurses_list_control_component) => (
+                        pancurses_list_control_component.string_list_entity,
+                        pancurses_list_control_component.list_index_entity,
+                    ),
                     Err(err) => return Err(err),
                 };
 
             if let Some(string_list_entity) = string_list_entity {
+                let IVector2(width, height) =
+                    match db.get_entity_component::<SizeComponent>(list_control_entity) {
+                        Ok(size_component) => size_component.data,
+                        Err(err) => return Err(err),
+                    };
+
                 // If we have a string list entity, fetch its strings
-                let string_list =
+                let string_list: Vec<String> =
                     match db.get_entity_component::<StringListComponent>(string_list_entity) {
-                        Ok(string_list_component) => string_list_component.data.clone(),
+                        Ok(string_list_component) => string_list_component
+                            .data
+                            .iter()
+                            .flat_map(|string| {
+                                let substrings: Vec<String> = string
+                                    .split('\n')
+                                    .map(|string| {
+                                        &string[..std::cmp::min(width, string.len() as i64) as usize]
+                                    })
+                                    .map(std::string::ToString::to_string)
+                                    .collect();
+                                substrings
+                            })
+                            .take(height as usize)
+                            .collect(),
                         Err(err) => return Err(err),
                     };
 
@@ -109,32 +133,53 @@ where
 
                 // Create or update string components for this set of strings
                 while string_entities.len() > string_list.len() {
-                    string_entities.pop();
+                    if let Some(string_entity) = string_entities.pop() {
+                        db.destroy_entity(string_entity)?;
+                    }
                 }
+
+                let local_mouse_position = match db
+                    .get_entity_component::<LocalMousePositionComponent>(list_control_entity)
+                {
+                    Ok(local_mouse_position_component) => Some(local_mouse_position_component.data),
+                    Err(_) => None,
+                };
 
                 for (i, (entity_id, string)) in string_entities.iter().zip(&string_list).enumerate()
                 {
-                    // Update each string entity's text as needed
+                    // Update each string entity's position
                     match db.get_entity_component_mut::<PositionComponent>(*entity_id) {
                         Ok(position_component) => position_component.data = IVector2(0, i as i64),
                         Err(err) => return Err(err),
                     }
 
-                    // Update each string entity's text as needed
+                    // Update each string entity's text
                     match db.get_entity_component_mut::<StringComponent>(*entity_id) {
                         Ok(string_component) => string_component.data = string.clone(),
                         Err(err) => return Err(err),
                     }
 
-                    let focused_item = match db
-                        .get_entity_component_mut::<IntRangeComponent>(list_control_entity)
-                    {
-                        Ok(int_range_component) => {
-                            let len = string_list.len();
-                            int_range_component.range = 0..(len as i64);
-                            Some(int_range_component.index)
+                    // Update color pair based on focused item
+                    let focused_item = match list_index_entity {
+                        Some(list_index_entity) => {
+                            match db
+                                .get_entity_component_mut::<IntRangeComponent>(list_index_entity)
+                            {
+                                Ok(int_range_component) => {
+                                    let len = string_list.len();
+                                    int_range_component.range = 0..(len as i64);
+                                    if let Some(IVector2(mouse_x, mouse_y)) = local_mouse_position {
+                                        let range_x = 0i64..width;
+                                        if range_x.contains(&mouse_x) && mouse_y == i as i64 {
+                                            int_range_component.index = i as i64;
+                                        }
+                                    }
+                                    Some(int_range_component.index)
+                                }
+                                Err(_) => None,
+                            }
                         }
-                        Err(_) => None,
+                        None => None,
                     };
 
                     let pancurses_color_pair_component =

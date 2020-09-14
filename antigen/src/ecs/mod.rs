@@ -29,6 +29,7 @@ pub struct EntityComponentSystem<'a> {
 }
 
 impl<'a> EntityComponentSystem<'a> {
+    /*
     fn new() -> Self {
         EntityComponentSystem {
             component_storage: HeapComponentStorage::new(),
@@ -36,6 +37,7 @@ impl<'a> EntityComponentSystem<'a> {
             system_runner: SystemRunner::new(),
         }
     }
+    */
 
     // Methods to keep
     fn is_valid_entity(&self, entity_id: &EntityID) -> bool {
@@ -46,6 +48,19 @@ impl<'a> EntityComponentSystem<'a> {
         self.entity_component_directory.is_valid_component::<T>()
     }
 
+    fn create_entity(&mut self, debug_label: Option<&str>) -> Result<EntityID, String> {
+        self.entity_component_directory.create_entity(debug_label)
+    }
+
+    fn destroy_entity(&mut self, entity_id: EntityID) -> Result<(), String> {
+        self.entity_component_directory.destroy_entity(entity_id)
+    }
+
+    fn run(&mut self) -> Result<(), SystemError> {
+        self.system_runner.run(&mut self.entity_component_directory)
+    }
+
+    // Methods to audit
     fn register_component<T: ComponentTrait + ComponentDebugTrait + Default + 'static>(
         &mut self,
     ) -> Result<ComponentID, String> {
@@ -76,14 +91,6 @@ impl<'a> EntityComponentSystem<'a> {
     ) {
         self.entity_component_directory
             .register_component_create_callback(callback)
-    }
-
-    fn create_entity(&mut self, debug_label: Option<&str>) -> Result<EntityID, String> {
-        self.entity_component_directory.create_entity(debug_label)
-    }
-
-    fn destroy_entity(&mut self, entity_id: EntityID) -> Result<(), String> {
-        self.entity_component_directory.destroy_entity(entity_id)
     }
 
     fn add_registered_component_to_entity(
@@ -192,9 +199,5 @@ impl<'a> EntityComponentSystem<'a> {
         system: &'a mut dyn SystemTrait<SingleThreadedDatabase<'a>>,
     ) {
         self.system_runner.register_system(name, system)
-    }
-
-    fn run(&mut self) -> Result<(), SystemError> {
-        self.system_runner.run(&mut self.entity_component_directory)
     }
 }

@@ -1,8 +1,5 @@
-use crate::{components::{PositionComponent, VelocityComponent}, ecs::EntityComponentDatabaseDebug};
-use crate::{
-    ecs::{SystemTrait, EntityComponentDatabase, SystemEvent},
-    primitive_types::IVector2,
-};
+use crate::components::{PositionComponent, VelocityComponent};
+use crate::ecs::{EntityComponentDatabase, SystemError, SystemTrait};
 
 #[derive(Debug)]
 pub struct PositionIntegratorSystem;
@@ -19,26 +16,28 @@ impl PositionIntegratorSystem {
     }
 }
 
-impl<T> SystemTrait<T> for PositionIntegratorSystem where T: EntityComponentDatabase + EntityComponentDatabaseDebug {
-    fn run(&mut self, db: &mut T) -> Result<SystemEvent, String> where T: EntityComponentDatabase + EntityComponentDatabaseDebug {
+impl<T> SystemTrait<T> for PositionIntegratorSystem
+where
+    T: EntityComponentDatabase,
+{
+    fn run(&mut self, db: &mut T) -> Result<(), SystemError>
+    where
+        T: EntityComponentDatabase,
+    {
         let entities = db.get_entities_by_predicate(|entity_id| {
             db.entity_has_component::<PositionComponent>(entity_id)
                 && db.entity_has_component::<VelocityComponent>(entity_id)
         });
 
         for entity_id in entities {
-            let velocity_component = db.get_entity_component::<VelocityComponent>(entity_id)?;
-
-            let IVector2(x_vel, y_vel) = velocity_component.data;
+            let velocity = db
+                .get_entity_component::<VelocityComponent>(entity_id)?
+                .get_velocity();
 
             let position_component = db.get_entity_component_mut::<PositionComponent>(entity_id)?;
-
-            let IVector2(x, y) = &mut position_component.data;
-
-            *x += x_vel;
-            *y += y_vel;
+            position_component.set_position(position_component.get_position() + velocity);
         }
 
-        Ok(SystemEvent::None)
+        Ok(())
     }
 }

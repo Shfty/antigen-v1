@@ -1,18 +1,18 @@
-use antigen::ecs::{ComponentTrait, ComponentMetadataTrait};
+use antigen::ecs::{ComponentTrait, ComponentDebugTrait};
 
 // TODO: Refactor into PancursesFillColorComponent
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct FillComponent;
 
 impl ComponentTrait for FillComponent {}
 
-impl ComponentMetadataTrait for FillComponent {
-    fn get_name() -> &'static str {
-        "Fill"
+impl ComponentDebugTrait for FillComponent {
+    fn get_name() -> String {
+        "Fill".into()
     }
 
-    fn get_description() -> &'static str {
-        "Fill flag for primitive shape rendering"
+    fn get_description() -> String {
+        "Fill flag for primitive shape rendering".into()
     }
 }

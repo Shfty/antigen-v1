@@ -1,15 +1,29 @@
-use crate::ecs::{ComponentMetadataTrait, ComponentTrait};
+use crate::ecs::{ComponentDebugTrait, ComponentTrait};
 use std::ops::Range;
 
 #[derive(Debug, Clone)]
 pub struct IntRangeComponent {
-    pub index: i64,
-    pub range: Range<i64>,
+    index: i64,
+    range: Range<i64>,
 }
 
 impl IntRangeComponent {
     pub fn new(range: Range<i64>) -> Self {
         IntRangeComponent { index: 0, range }
+    }
+
+    pub fn get_index(&self) -> i64 {
+        self.index
+    }
+
+    pub fn set_index(&mut self, index: i64) -> &mut Self {
+        self.index = std::cmp::min(std::cmp::max(index, self.range.start), self.range.end - 1);
+        self
+    }
+
+    pub fn set_range(&mut self, range: Range<i64>) -> &mut Self {
+        self.range = range;
+        self
     }
 }
 
@@ -21,12 +35,12 @@ impl Default for IntRangeComponent {
 
 impl ComponentTrait for IntRangeComponent {}
 
-impl ComponentMetadataTrait for IntRangeComponent {
-    fn get_name() -> &'static str {
-        "Int Range"
+impl ComponentDebugTrait for IntRangeComponent {
+    fn get_name() -> String {
+        "Int Range".into()
     }
 
-    fn get_description() -> &'static str {
-        "Integer clamped to a range"
+    fn get_description() -> String {
+        "Integer clamped to a range".into()
     }
 }

@@ -5,8 +5,7 @@ use crate::components::{
 };
 use antigen::{
     components::ParentEntityComponent,
-    ecs::EntityComponentDatabaseDebug,
-    ecs::{EntityComponentDatabase, SystemEvent, SystemTrait},
+    ecs::{EntityComponentDatabase, SystemError, SystemTrait},
 };
 
 #[derive(Debug)]
@@ -26,9 +25,9 @@ impl PancursesInputSystem {
 
 impl<T> SystemTrait<T> for PancursesInputSystem
 where
-    T: EntityComponentDatabase + EntityComponentDatabaseDebug,
+    T: EntityComponentDatabase,
 {
-    fn run(&mut self, db: &mut T) -> Result<SystemEvent, String> {
+    fn run(&mut self, db: &mut T) -> Result<(), SystemError> {
         self.input_buffer.clear();
 
         let window_entities = db.get_entities_by_predicate(|entity_id| {
@@ -41,11 +40,12 @@ where
         if let Some(entity_id) = window_entities.get(0) {
             let window_component =
                 db.get_entity_component::<PancursesWindowComponent>(*entity_id)?;
-            if let Some(window) = &window_component.window {
-                for _ in 0..self.input_buffer_size {
-                    if let Some(input) = window.getch() {
-                        self.input_buffer.push(input);
-                    } else {
+            if let Some(window) = window_component.get_window() {
+                let mut i = self.input_buffer_size;
+                while let Some(input) = window.getch() {
+                    self.input_buffer.push(input);
+                    i -= 1;
+                    if i <= 0 {
                         break;
                     }
                 }
@@ -59,27 +59,36 @@ where
         });
         assert!(pancurses_mouse_entities.len() <= 1);
 
+        // Check for special inputs
         for input in &self.input_buffer {
             if let pancurses::Input::Character('\u{1b}') = input {
-                return Ok(SystemEvent::Quit);
+                return Err(SystemError::Quit);
             }
 
-            if let pancurses::Input::KeyMouse = input {
-                if let Ok(mouse_event) = pancurses::getmouse() {
-                    let pancurses_mouse_component =
-                        if let Some(entity_id) = pancurses_mouse_entities.get(0) {
-                            db.get_entity_component_mut::<PancursesMouseComponent>(*entity_id)?
-                        } else {
-                            return Err("No pancurses mouse entity".into());
-                        };
-
-                    pancurses_mouse_component.position.0 = mouse_event.x as i64;
-                    pancurses_mouse_component.position.1 = mouse_event.y as i64;
-                    pancurses_mouse_component.button_mask = mouse_event.bstate as i64;
-                }
+            if let pancurses::Input::KeyResize = input {
+                pancurses::resize_term(0, 0);
             }
         }
 
+        // Check for mouse input
+        if let Ok(mouse_event) = pancurses::getmouse() {
+            let pancurses_mouse_component = if let Some(entity_id) = pancurses_mouse_entities.get(0)
+            {
+                db.get_entity_component_mut::<PancursesMouseComponent>(*entity_id)?
+            } else {
+                return Err("No pancurses mouse entity".into());
+            };
+
+            if mouse_event.x > -1 {
+                pancurses_mouse_component.set_mouse_x(mouse_event.x as i64);
+            }
+            if mouse_event.y > -1 {
+                pancurses_mouse_component.set_mouse_y(mouse_event.y as i64);
+            }
+            pancurses_mouse_component.set_button_mask(mouse_event.bstate as i64);
+        }
+
+        // Update entity input buffers
         let entities = db.get_entities_by_predicate(|entity_id| {
             db.entity_has_component::<PancursesInputBufferComponent>(entity_id)
         });
@@ -88,11 +97,13 @@ where
             let pancurses_input_buffer_component =
                 db.get_entity_component_mut::<PancursesInputBufferComponent>(entity_id)?;
 
+            pancurses_input_buffer_component.clear();
+
             for input in &self.input_buffer {
-                pancurses_input_buffer_component.input_buffer.push(*input);
+                pancurses_input_buffer_component.push(*input);
             }
         }
 
-        Ok(SystemEvent::None)
+        Ok(())
     }
 }

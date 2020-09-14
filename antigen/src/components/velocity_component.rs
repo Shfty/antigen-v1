@@ -1,13 +1,22 @@
-use crate::{primitive_types::IVector2, ecs::{ComponentMetadataTrait, ComponentTrait}};
+use crate::{primitive_types::IVector2, ecs::{ComponentDebugTrait, ComponentTrait}};
 
 #[derive(Debug, Copy, Clone)]
 pub struct VelocityComponent {
-    pub data: IVector2
+    data: IVector2
 }
 
 impl VelocityComponent {
     pub fn new(data: IVector2) -> Self {
         VelocityComponent { data }
+    }
+
+    pub fn get_velocity(&self) -> IVector2 {
+        self.data
+    }
+
+    pub fn set_velocity(&mut self, velocity: IVector2) -> &mut Self {
+        self.data = velocity;
+        self
     }
 }
 
@@ -19,12 +28,12 @@ impl Default for VelocityComponent {
 
 impl ComponentTrait for VelocityComponent {}
 
-impl ComponentMetadataTrait for VelocityComponent {
-    fn get_name() -> &'static str {
-        "Velocity"
+impl ComponentDebugTrait for VelocityComponent {
+    fn get_name() -> String {
+        "Velocity".into()
     }
 
-    fn get_description() -> &'static str {
-        "2D cartesian velocity"
+    fn get_description() -> String {
+        "2D cartesian velocity".into()
     }
 }

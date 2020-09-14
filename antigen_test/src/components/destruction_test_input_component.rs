@@ -1,24 +1,28 @@
-use antigen::ecs::{ComponentMetadataTrait, ComponentTrait};
+use antigen::ecs::{ComponentDebugTrait, ComponentTrait};
 
 #[derive(Debug, Default, Copy, Clone)]
 pub struct DestructionTestInputComponent {
-    pub input_char: char,
+    input_char: char,
 }
 
 impl DestructionTestInputComponent {
     pub fn new(input_char: char) -> Self {
         DestructionTestInputComponent { input_char }
     }
+
+    pub fn get_input_char(&self) -> char {
+        self.input_char
+    }
 }
 
 impl ComponentTrait for DestructionTestInputComponent {}
 
-impl ComponentMetadataTrait for DestructionTestInputComponent {
-    fn get_name() -> &'static str {
-        "Destruction Test Input"
+impl ComponentDebugTrait for DestructionTestInputComponent {
+    fn get_name() -> String {
+        "Destruction Test Input".into()
     }
 
-    fn get_description() -> &'static str {
-        "Component to tag a component for destruction testing"
+    fn get_description() -> String {
+        "Component to tag a component for destruction testing".into()
     }
 }

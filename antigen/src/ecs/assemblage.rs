@@ -1,7 +1,8 @@
 use super::{
-    component::{get_component_id, ComponentData, ComponentID},
-    ComponentMetadataTrait, ComponentTrait, EntityID,
-entity_component_database::EntityComponentDatabase};
+    component::{ComponentID},
+    entity_component_database::EntityComponentDatabase,
+    ComponentDebugTrait, ComponentTrait, EntityID,
+};
 use crate::primitive_types::UID;
 use std::{
     collections::HashMap,
@@ -33,7 +34,7 @@ where
 {
     db: &'a mut T,
     assemblage: Assemblage,
-    component_data: HashMap<ComponentID, ComponentData>,
+    component_data: HashMap<ComponentID, Box<dyn ComponentTrait>>,
 }
 
 impl<'a, T> AssemblageBuilder<'a, T>
@@ -44,21 +45,21 @@ where
         AssemblageBuilder {
             db,
             assemblage,
-            component_data: HashMap::new()
+            component_data: HashMap::new(),
         }
     }
 
-    pub fn add_component<C>(mut self, component: C) -> Self
+    pub fn add_component<C>(mut self, component: C) -> Result<Self, String>
     where
-        C: ComponentTrait + ComponentMetadataTrait + 'static,
+        C: ComponentTrait + ComponentDebugTrait + 'static,
     {
-        if !self.db.is_component_registered::<C>() {
-            self.db.register_component::<C>();
+        if !self.db.is_valid_component::<C>() {
+            self.db.register_component::<C>()?;
         }
 
         self.component_data
-            .insert(get_component_id::<C>(), Box::new(component));
-        self
+            .insert(ComponentID::get::<C>(), Box::new(component));
+        Ok(self)
     }
 
     pub fn finish(mut self) -> Assemblage {
@@ -71,7 +72,7 @@ where
 pub struct Assemblage {
     pub name: String,
     pub description: String,
-    component_data: HashMap<ComponentID, ComponentData>,
+    component_data: HashMap<ComponentID, Box<dyn ComponentTrait>>,
 }
 
 impl Assemblage {
@@ -83,16 +84,19 @@ impl Assemblage {
         }
     }
 
-    pub fn build<'a, T>(db: &'a mut T, name: &str, description: &str) -> AssemblageBuilder<'a, T> where T: EntityComponentDatabase {
+    pub fn build<'a, T>(db: &'a mut T, name: &str, description: &str) -> AssemblageBuilder<'a, T>
+    where
+        T: EntityComponentDatabase,
+    {
         AssemblageBuilder::new(db, Assemblage::new(name, description))
     }
 
     pub fn create_and_assemble_entity(
         &self,
         db: &mut impl EntityComponentDatabase,
-        label: &str,
+        debug_label: Option<&str>,
     ) -> Result<EntityID, String> {
-        let entity_id = db.create_entity(label);
+        let entity_id = db.create_entity(debug_label)?;
         self.assemble_entity(db, entity_id)
     }
 

@@ -1,16 +1,25 @@
 use crate::{
-    ecs::{ComponentMetadataTrait, ComponentTrait},
+    ecs::{ComponentDebugTrait, ComponentTrait},
     primitive_types::IVector2,
 };
 
 #[derive(Debug, Copy, Clone)]
 pub struct GlobalPositionComponent {
-    pub data: IVector2,
+    data: IVector2,
 }
 
 impl GlobalPositionComponent {
     pub fn new(data: IVector2) -> Self {
         GlobalPositionComponent { data }
+    }
+
+    pub fn get_global_position(&self) -> IVector2 {
+        self.data
+    }
+
+    pub fn set_global_position(&mut self, global_position: IVector2) -> &mut Self {
+        self.data = global_position;
+        self
     }
 }
 
@@ -22,12 +31,12 @@ impl Default for GlobalPositionComponent {
 
 impl ComponentTrait for GlobalPositionComponent {}
 
-impl ComponentMetadataTrait for GlobalPositionComponent {
-    fn get_name() -> &'static str {
-        "Global Position"
+impl ComponentDebugTrait for GlobalPositionComponent {
+    fn get_name() -> String {
+        "Global Position".into()
     }
 
-    fn get_description() -> &'static str {
-        "Hierarchical 2D Cartesian Position"
+    fn get_description() -> String {
+        "Hierarchical 2D Cartesian Position".into()
     }
 }

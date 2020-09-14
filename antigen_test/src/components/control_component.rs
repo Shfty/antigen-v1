@@ -1,16 +1,16 @@
-use antigen::ecs::{ComponentMetadataTrait, ComponentTrait};
+use antigen::ecs::{ComponentDebugTrait, ComponentTrait};
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Default, Clone, Eq, PartialEq)]
 pub struct ControlComponent;
 
 impl ComponentTrait for ControlComponent {}
 
-impl ComponentMetadataTrait for ControlComponent {
-    fn get_name() -> &'static str {
-        "Control"
+impl ComponentDebugTrait for ControlComponent {
+    fn get_name() -> String {
+        "Control".into()
     }
 
-    fn get_description() -> &'static str {
-        "Tags an entity for rendering by UI systems"
+    fn get_description() -> String {
+        "Tags an entity for rendering by UI systems".into()
     }
 }

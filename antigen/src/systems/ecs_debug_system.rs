@@ -1,122 +1,200 @@
-use std::collections::HashMap;
+use std::{fmt::Debug, marker::PhantomData};
 
 use crate::{
-    components::DebugEntityComponentListComponent, components::DebugEntityListComponent,
-    components::EntityInspectorComponent, components::IntRangeComponent, ecs::ComponentData,
-    ecs::ComponentDataID, ecs::ComponentID, ecs::EntityID,
+    components::ComponentDebugComponent, components::ComponentInspectorComponent,
+    components::DebugComponentDataListComponent, components::DebugComponentListComponent,
+    components::DebugEntityListComponent, components::DebugExcludeComponent,
+    components::EntityDebugComponent, components::EntityInspectorComponent,
+    components::IntRangeComponent, ecs::ComponentID, ecs::ComponentTrait,
+    ecs::EntityID,
 };
 use crate::{
-    components::DebugExcludeComponent,
     components::StringListComponent,
     ecs::{
-        EntityComponentDatabaseDebug, SystemEvent, {EntityComponentDatabase, SystemTrait},
+        SystemError, {EntityComponentDatabase, SystemTrait},
     },
 };
 
 #[derive(Debug)]
-pub struct ECSDebugSystem;
-
-impl Default for ECSDebugSystem {
-    fn default() -> Self {
-        ECSDebugSystem
-    }
+pub struct ECSDebugSystem<T> {
+    phantom: PhantomData<T>,
 }
 
-impl ECSDebugSystem {
-    pub fn new() -> Self {
-        ECSDebugSystem::default()
-    }
-}
-
-impl<T> SystemTrait<T> for ECSDebugSystem
+impl<T> ECSDebugSystem<T>
 where
-    T: EntityComponentDatabase + EntityComponentDatabaseDebug,
+    T: EntityComponentDatabase,
 {
-    fn run(&mut self, db: &mut T) -> Result<SystemEvent, String>
-    where
-        T: EntityComponentDatabase + EntityComponentDatabaseDebug,
-    {
+    pub fn new(db: &mut impl EntityComponentDatabase) -> Self {
+        fn entity_created<T>(db: &mut T, entity_id: EntityID, debug_label: Option<&str>)
+        where
+            T: EntityComponentDatabase,
         {
-            // Populate entity list
-            let entity_debug_entities = db.get_entities_by_predicate(|entity_id| {
+            if let Some(debug_label) = debug_label {
+                if let Some(entity_debug_entity) = db.get_entity_by_predicate(|entity_id| {
+                    db.entity_has_component::<EntityDebugComponent>(entity_id)
+                }) {
+                    if let Ok(entity_debug_component) =
+                        db.get_entity_component_mut::<EntityDebugComponent>(entity_debug_entity)
+                    {
+                        entity_debug_component.register_entity(entity_id, debug_label.into());
+                    }
+                }
+            }
+        };
+
+        fn component_created<T>(
+            db: &mut T,
+            component_id: ComponentID,
+            label: &str,
+            description: &str,
+        ) where
+            T: EntityComponentDatabase,
+        {
+            if let Some(component_debug_entity) = db.get_entity_by_predicate(|entity_id| {
+                db.entity_has_component::<ComponentDebugComponent>(entity_id)
+            }) {
+                if let Ok(component_debug_component) =
+                    db.get_entity_component_mut::<ComponentDebugComponent>(component_debug_entity)
+                {
+                    component_debug_component.register_component(component_id, label.into(), description.into());
+                }
+            }
+        }
+
+        db.register_entity_create_callback(entity_created);
+        db.register_component_create_callback(component_created);
+
+        ECSDebugSystem {
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<T> SystemTrait<T> for ECSDebugSystem<T>
+where
+    T: EntityComponentDatabase,
+{
+    fn run(&mut self, db: &mut T) -> Result<(), SystemError>
+    where
+        T: EntityComponentDatabase,
+    {
+        let mut entities: Vec<EntityID> = db.get_entities_by_predicate(|entity_id| {
+            !db.entity_has_component::<DebugExcludeComponent>(entity_id)
+        });
+        entities.sort();
+
+        if let Some(entity_debug_entity) = db.get_entity_by_predicate(|entity_id| {
+            db.entity_has_component::<EntityDebugComponent>(entity_id)
+        }) {
+            let entity_debug_component =
+                match db.get_entity_component::<EntityDebugComponent>(entity_debug_entity) {
+                    Ok(entity_debug_component) => entity_debug_component,
+                    Err(err) => return Err(err.into()),
+                };
+
+            let entity_strings: Vec<String> = entities
+                .iter()
+                .map(|entity_id| {
+                    let label = entity_debug_component.get_label(entity_id);
+                    format!("{}:\t{}", entity_id, label)
+                })
+                .collect();
+
+            // Populate strings for debug entity list entities
+            let debug_entity_list_entities = db.get_entities_by_predicate(|entity_id| {
                 db.entity_has_component::<DebugEntityListComponent>(entity_id)
                     && db.entity_has_component::<StringListComponent>(entity_id)
             });
 
-            for entity_id in entity_debug_entities {
-                let mut entities: Vec<EntityID> = db
-                    .get_entities()
-                    .into_iter()
-                    .filter(|entity_id| {
-                        !db.entity_has_component::<DebugExcludeComponent>(entity_id)
-                    })
-                    .copied()
-                    .collect();
-
-                entities.sort();
-
-                let entities: Vec<String> = entities
-                    .into_iter()
-                    .map(|entity_id| {
-                        entity_id.to_string() + ": " + &db.get_entity_label(entity_id).to_string()
-                    })
-                    .collect();
-
-                let debug_entity_list_component =
-                    db.get_entity_component_mut::<StringListComponent>(entity_id)?;
-
-                debug_entity_list_component.data = entities;
+            for entity_id in debug_entity_list_entities {
+                db.get_entity_component_mut::<StringListComponent>(entity_id)?
+                    .set_data(entity_strings.clone());
             }
         }
 
-        let inspector_entities = db.get_entities_by_predicate(|entity_id| {
+        // Populate entity components list
+        let entity_inspector_entity = db.get_entity_by_predicate(|entity_id| {
             db.entity_has_component::<EntityInspectorComponent>(entity_id)
         });
-        assert!(inspector_entities.len() == 1);
-        let inspector_entity = inspector_entities[0];
-        let int_range_component = db.get_entity_component::<IntRangeComponent>(inspector_entity)?;
-        let inspected_entity = int_range_component.index;
 
-        if inspected_entity >= 0 {
-            // Populate entity component
-            let entity_component_debug_entities = db.get_entities_by_predicate(|entity_id| {
-                db.entity_has_component::<DebugEntityComponentListComponent>(entity_id)
-                    && db.entity_has_component::<StringListComponent>(entity_id)
-            });
+        // Populate strings for debug entity list entities
+        let debug_component_list_entities = db.get_entities_by_predicate(|entity_id| {
+            db.entity_has_component::<DebugComponentListComponent>(entity_id)
+                && db.entity_has_component::<StringListComponent>(entity_id)
+        });
 
-            let mut entity_components = db.get_entity_components();
-            entity_components
-                .sort_by(|(lhs_entity_id, _), (rhs_entity_id, _)| lhs_entity_id.cmp(rhs_entity_id));
-            let (_, entity_components) = &entity_components[inspected_entity as usize];
-            let entity_components: HashMap<&ComponentID, &ComponentDataID> = entity_components.iter().copied().collect();
+        if let Some(entity_inspector_entity) = entity_inspector_entity {
+            let int_range_component =
+                db.get_entity_component::<IntRangeComponent>(entity_inspector_entity)?;
 
-            let component_data: HashMap<&ComponentDataID, &ComponentData> =
-                db.get_component_data().into_iter().collect();
+            if let Some(inspected_entity) = entities.get(int_range_component.get_index() as usize) {
+                let component_debug_entity = db.get_entity_by_predicate(|entity_id| {
+                    db.entity_has_component::<ComponentDebugComponent>(entity_id)
+                });
 
-            let component_data: HashMap<&ComponentDataID, &ComponentData> = component_data
-                .into_iter()
-                .filter(|(component_data_id, _)| {
-                    entity_components
-                        .values()
-                        .any(|candidate_id|**candidate_id == **component_data_id)
-                })
-                .collect();
+                if let Some(component_debug_entity) = component_debug_entity {
+                    let mut components = db.get_components_by_predicate(|component_id| {
+                        db.entity_has_component_by_id(inspected_entity, component_id)
+                    });
 
-            let mut components: Vec<String> = component_data
-                .into_iter()
-                .map(|(ComponentDataID(component_data_id), component_data)| format!("{}: {:#?}\n", component_data_id, component_data))
-                .collect();
+                    let component_debug_component =
+                        db.get_entity_component::<ComponentDebugComponent>(component_debug_entity)?;
 
-            components.sort();
+                    components.sort_by(|lhs, rhs| {
+                        let lhs_label = component_debug_component.get_label(lhs);
+                        let rhs_label = component_debug_component.get_label(rhs);
 
-            for entity_id in entity_component_debug_entities {
-                let debug_entity_list_component =
-                    db.get_entity_component_mut::<StringListComponent>(entity_id)?;
+                        lhs_label.cmp(&rhs_label)
+                    });
 
-                debug_entity_list_component.data = components.clone();
+                    let component_strings: Vec<String> = components
+                        .iter()
+                        .map(|component_id| component_debug_component.get_label(component_id))
+                        .collect();
+
+                    for entity_id in debug_component_list_entities {
+                        db.get_entity_component_mut::<StringListComponent>(entity_id)?
+                            .set_data(component_strings.clone());
+                    }
+
+                    let component_inspector_entity = db.get_entity_by_predicate(|entity_id| {
+                        db.entity_has_component::<ComponentInspectorComponent>(entity_id)
+                    });
+
+                    if let Some(component_inspector_entity) = component_inspector_entity {
+                        let int_range_component = db.get_entity_component::<IntRangeComponent>(
+                            component_inspector_entity,
+                        )?;
+
+                        if let Some(inspected_component) =
+                            components.get(int_range_component.get_index() as usize)
+                        {
+                            let component_data_id = db.get_entity_component_data_id(
+                                inspected_entity,
+                                inspected_component,
+                            )?;
+
+                            let component_data = db.get_component_data(&component_data_id)?;
+                            let component_data_string =
+                                format!("{}: {:#?}", component_data_id, component_data);
+
+                            let entity_component_debug_entities =
+                                db.get_entities_by_predicate(|entity_id| {
+                                    db.entity_has_component::<DebugComponentDataListComponent>(
+                                        entity_id,
+                                    ) && db.entity_has_component::<StringListComponent>(entity_id)
+                                });
+
+                            for entity_id in entity_component_debug_entities {
+                                db.get_entity_component_mut::<StringListComponent>(entity_id)?
+                                    .set_data(vec![component_data_string.clone()]);
+                            }
+                        }
+                    }
+                }
             }
         }
 
-        Ok(SystemEvent::None)
+        Ok(())
     }
 }

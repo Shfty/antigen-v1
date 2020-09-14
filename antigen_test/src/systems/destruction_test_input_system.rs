@@ -1,6 +1,5 @@
 use antigen::{
-    ecs::EntityComponentDatabaseDebug,
-    ecs::SystemEvent,
+    ecs::SystemError,
     ecs::{EntityComponentDatabase, SystemTrait},
 };
 
@@ -20,29 +19,32 @@ impl DestructionTestInputSystem {
 
 impl<T> SystemTrait<T> for DestructionTestInputSystem
 where
-    T: EntityComponentDatabase + EntityComponentDatabaseDebug,
+    T: EntityComponentDatabase,
 {
-    fn run(&mut self, db: &mut T) -> Result<SystemEvent, String>
+    fn run(&mut self, db: &mut T) -> Result<(), SystemError>
     where
-        T: EntityComponentDatabase + EntityComponentDatabaseDebug,
+        T: EntityComponentDatabase,
     {
         let destruction_test_components = db.get_entities_by_predicate(|entity_id| {
             db.entity_has_component::<DestructionTestInputComponent>(entity_id)
         });
 
         for entity_id in destruction_test_components {
-            let input_buffer_component =
-                db.get_entity_component::<PancursesInputBufferComponent>(entity_id)?;
-                
-            let mut input_buffer = input_buffer_component.input_buffer.clone();
-
-            while let Some(input) = input_buffer.pop() {
-                if input == pancurses::Input::Character(' ') {
+            while let Some(input) = db
+                .get_entity_component_mut::<PancursesInputBufferComponent>(entity_id)?
+                .pop()
+            {
+                if input
+                    == pancurses::Input::Character(
+                        db.get_entity_component::<DestructionTestInputComponent>(entity_id)?
+                            .get_input_char(),
+                    )
+                {
                     db.destroy_entity(entity_id)?;
                 }
             }
         }
 
-        Ok(SystemEvent::None)
+        Ok(())
     }
 }

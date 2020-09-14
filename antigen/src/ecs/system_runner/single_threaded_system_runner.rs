@@ -1,5 +1,5 @@
 use crate::{
-    ecs::{EntityComponentDatabase, EntityComponentDatabaseDebug, SystemEvent, SystemTrait},
+    ecs::{EntityComponentDatabase, SystemError, SystemTrait},
     profiler::Profiler,
 };
 
@@ -7,7 +7,7 @@ use super::SystemRunner;
 
 pub struct SingleThreadedSystemRunner<'a, T>
 where
-    T: EntityComponentDatabase + EntityComponentDatabaseDebug,
+    T: EntityComponentDatabase,
 {
     db: &'a mut T,
     system_names: Vec<String>,
@@ -16,7 +16,7 @@ where
 
 impl<'a, T> SystemRunner<'a, T> for SingleThreadedSystemRunner<'a, T>
 where
-    T: EntityComponentDatabase + EntityComponentDatabaseDebug,
+    T: EntityComponentDatabase,
 {
     fn new(db: &'a mut T) -> SingleThreadedSystemRunner<'a, T> {
         SingleThreadedSystemRunner {
@@ -31,15 +31,15 @@ where
         self.systems.push(system);
     }
 
-    fn run(&mut self) -> Result<SystemEvent, String> {
+    fn run(&mut self) -> Result<(), SystemError> {
         for (name, system) in self.system_names.iter().zip(self.systems.iter_mut()) {
             let profiler = Profiler::start(&format!("\tRun {} system", name));
-            if let Ok(SystemEvent::Quit) = system.run(self.db) {
-                return Ok(SystemEvent::Quit);
+            if let Err(SystemError::Quit) = system.run(self.db) {
+                return Err(SystemError::Quit);
             };
             profiler.finish();
         }
 
-        Ok(SystemEvent::None)
+        Ok(())
     }
 }

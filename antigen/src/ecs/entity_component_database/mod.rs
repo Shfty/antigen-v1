@@ -1,34 +1,37 @@
 use super::{
-    component::{get_component_id, ComponentData, ComponentID, ComponentInterface},
-    ComponentMetadataTrait, ComponentTrait, EntityID,
-ComponentDataID};
+    component::ComponentID, ComponentDataID, ComponentDebugTrait, ComponentTrait, EntityID,
+EntityCreateCallback, ComponentCreateCallback};
 
 mod single_threaded_database;
 
 pub use single_threaded_database::SingleThreadedDatabase;
 
 pub trait EntityComponentDatabase {
-    fn is_component_registered<T: ComponentTrait + 'static>(&self) -> bool;
+    fn is_valid_entity(&self, entity_id: &EntityID) -> bool;
+    fn is_valid_component<T: ComponentTrait + 'static>(&self) -> bool;
 
-    fn register_component<T: ComponentTrait + ComponentMetadataTrait + 'static>(
+    fn register_component<T: ComponentTrait + ComponentDebugTrait + 'static>(
         &mut self,
-    ) -> ComponentID;
+    ) -> Result<ComponentID, String>;
 
-    fn create_entity(&mut self, label: &str) -> EntityID;
+    fn register_entity_create_callback(&mut self, callback: EntityCreateCallback<Self>);
+    fn register_component_create_callback(&mut self, callback: ComponentCreateCallback<Self>);
+
+    fn create_entity(&mut self, debug_label: Option<&str>) -> Result<EntityID, String>;
     fn destroy_entity(&mut self, entity_id: EntityID) -> Result<(), String>;
 
-    fn add_component_to_entity<T: ComponentTrait + ComponentMetadataTrait + 'static>(
+    fn add_component_to_entity<T: ComponentTrait + ComponentDebugTrait + 'static>(
         &mut self,
         entity_id: EntityID,
         component_data: T,
     ) -> Result<&mut T, String> {
-        if !self.is_component_registered::<T>() {
-            self.register_component::<T>();
+        if !self.is_valid_component::<T>() {
+            self.register_component::<T>()?;
         }
 
         self.add_registered_component_to_entity(
             entity_id,
-            get_component_id::<T>(),
+            ComponentID::get::<T>(),
             Box::new(component_data),
         )?;
 
@@ -41,11 +44,11 @@ pub trait EntityComponentDatabase {
         Ok(component)
     }
 
-    fn remove_component_from_entity<T: ComponentTrait + ComponentMetadataTrait + 'static>(
+    fn remove_component_from_entity<T: ComponentTrait + ComponentDebugTrait + 'static>(
         &mut self,
         entity_id: EntityID,
     ) -> Result<(), String> {
-        self.remove_registered_component_from_entity(entity_id, get_component_id::<T>())
+        self.remove_registered_component_from_entity(entity_id, ComponentID::get::<T>())
     }
 
     fn remove_registered_component_from_entity(
@@ -58,28 +61,40 @@ pub trait EntityComponentDatabase {
         &mut self,
         entity_id: EntityID,
         component_id: ComponentID,
-        component_data: ComponentData,
+        component_data: Box<dyn ComponentTrait>,
     ) -> Result<ComponentDataID, String>;
 
+    fn get_entity_by_predicate(&self, predicate: impl Fn(&EntityID) -> bool) -> Option<EntityID>;
     fn get_entities_by_predicate(&self, predicate: impl Fn(&EntityID) -> bool) -> Vec<EntityID>;
 
-    fn entity_has_component<T: ComponentTrait + 'static>(&self, entity_id: &EntityID) -> bool;
+    fn get_components_by_predicate(
+        &self,
+        predicate: impl Fn(&ComponentID) -> bool,
+    ) -> Vec<ComponentID>;
+
+    fn entity_has_component_by_id(&self, entity_id: &EntityID, component_id: &ComponentID) -> bool;
+    fn entity_has_component<T: ComponentTrait + 'static>(&self, entity_id: &EntityID) -> bool {
+        self.entity_has_component_by_id(entity_id, &ComponentID::get::<T>())
+    }
 
     fn get_entity_component<T: ComponentTrait + 'static>(
         &self,
         entity_id: EntityID,
     ) -> Result<&T, String>;
 
+    fn get_entity_component_data_id(
+        &self,
+        entity_id: &EntityID,
+        component_id: &ComponentID,
+    ) -> Result<ComponentDataID, String>;
+
     fn get_entity_component_mut<T: ComponentTrait + 'static>(
         &mut self,
         entity_id: EntityID,
     ) -> Result<&mut T, String>;
-}
 
-pub trait EntityComponentDatabaseDebug {
-    fn get_entity_label(&self, entity_id: EntityID) -> &str;
-    fn get_entities(&self) -> Vec<&EntityID>;
-    fn get_components(&self) -> Vec<(&ComponentID, &ComponentInterface)>;
-    fn get_component_data(&self) -> Vec<(&ComponentDataID, &ComponentData)>;
-    fn get_entity_components(&self) -> Vec<(&EntityID, Vec<(&ComponentID, &ComponentDataID)>)>;
+    fn get_component_data(
+        &self,
+        component_data_id: &ComponentDataID,
+    ) -> Result<&dyn ComponentTrait, String>;
 }

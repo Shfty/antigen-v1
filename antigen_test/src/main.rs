@@ -514,7 +514,7 @@ fn main_internal() -> Result<(), SystemError> {
     create_component_data_list_window(&mut db, &assemblages, main_window_entity)?;
 
     // Create systems
-    let mut system_runner = SingleThreadedSystemRunner::<SingleThreadedDatabase>::new(&mut db);
+    let mut system_runner = SingleThreadedSystemRunner::<SingleThreadedDatabase>::new();
     system_runner.register_system("Pancurses Window", &mut pancurses_window_system);
     system_runner.register_system("Pancurses Input", &mut pancurses_input_system);
     system_runner.register_system(
@@ -537,9 +537,7 @@ fn main_internal() -> Result<(), SystemError> {
     loop {
         let main_loop_profiler = Profiler::start("Main Loop");
 
-        if let Err(err) = system_runner.run() {
-            return Err(err);
-        }
+        system_runner.run(&mut db)?;
 
         // Sleep if framerate target is exceeded - prevents deadlock when pancurses stops being able to poll input after window close
         let delta = main_loop_profiler.finish();

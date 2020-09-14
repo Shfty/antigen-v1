@@ -9,7 +9,6 @@ pub struct SingleThreadedSystemRunner<'a, T>
 where
     T: EntityComponentDatabase,
 {
-    db: &'a mut T,
     system_names: Vec<String>,
     systems: Vec<&'a mut dyn SystemTrait<T>>,
 }
@@ -18,9 +17,8 @@ impl<'a, T> SystemRunner<'a, T> for SingleThreadedSystemRunner<'a, T>
 where
     T: EntityComponentDatabase,
 {
-    fn new(db: &'a mut T) -> SingleThreadedSystemRunner<'a, T> {
+    fn new() -> SingleThreadedSystemRunner<'a, T> {
         SingleThreadedSystemRunner {
-            db,
             system_names: Vec::new(),
             systems: Vec::new(),
         }
@@ -31,12 +29,10 @@ where
         self.systems.push(system);
     }
 
-    fn run(&mut self) -> Result<(), SystemError> {
+    fn run(&mut self, db: &mut T) -> Result<(), SystemError> {
         for (name, system) in self.system_names.iter().zip(self.systems.iter_mut()) {
             let profiler = Profiler::start(&format!("\tRun {} system", name));
-            if let Err(SystemError::Quit) = system.run(self.db) {
-                return Err(SystemError::Quit);
-            };
+            system.run(db)?;
             profiler.finish();
         }
 

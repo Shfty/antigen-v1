@@ -1,9 +1,9 @@
-use antigen::ecs::{ComponentMetadataTrait, ComponentTrait};
+use antigen::ecs::{ComponentDebugTrait, ComponentTrait};
 use pancurses::Input;
 
 #[derive(Debug, Clone)]
 pub struct PancursesInputBufferComponent {
-    pub input_buffer: Vec<Input>,
+    input_buffer: Vec<Input>,
 }
 
 impl PancursesInputBufferComponent {
@@ -11,6 +11,20 @@ impl PancursesInputBufferComponent {
         PancursesInputBufferComponent {
             input_buffer: Vec::new()
         }
+    }
+
+    pub fn push(&mut self, input: Input) -> &mut Self {
+        self.input_buffer.push(input);
+        self
+    }
+
+    pub fn pop(&mut self) -> Option<Input> {
+        self.input_buffer.pop()
+    }
+
+    pub fn clear(&mut self) -> &mut Self {
+        self.input_buffer.clear();
+        self
     }
 }
 
@@ -22,12 +36,12 @@ impl Default for PancursesInputBufferComponent {
 
 impl ComponentTrait for PancursesInputBufferComponent {}
 
-impl ComponentMetadataTrait for PancursesInputBufferComponent {
-    fn get_name() -> &'static str {
-        "Pancurses Input Buffer"
+impl ComponentDebugTrait for PancursesInputBufferComponent {
+    fn get_name() -> String {
+        "Pancurses Input Buffer".into()
     }
 
-    fn get_description() -> &'static str {
-        "Buffer for receiving input events"
+    fn get_description() -> String {
+        "Buffer for receiving input events".into()
     }
 }

@@ -1,11 +1,11 @@
 use crate::components::{
-    pancurses_input_buffer_component::PancursesInputBufferComponent,
     pancurses_input_axis_component::PancursesInputAxisComponent,
+    pancurses_input_buffer_component::PancursesInputBufferComponent,
 };
 use antigen::{
     components::IntRangeComponent,
-    ecs::{SystemTrait, EntityComponentDatabase, SystemEvent},
-ecs::EntityComponentDatabaseDebug};
+    ecs::{EntityComponentDatabase, SystemError, SystemTrait},
+};
 
 #[derive(Debug)]
 pub struct PancursesInputAxisSystem;
@@ -16,8 +16,11 @@ impl PancursesInputAxisSystem {
     }
 }
 
-impl<T> SystemTrait<T> for PancursesInputAxisSystem where T: EntityComponentDatabase + EntityComponentDatabaseDebug {
-    fn run(&mut self, db: &mut T) -> Result<SystemEvent, String> {
+impl<T> SystemTrait<T> for PancursesInputAxisSystem
+where
+    T: EntityComponentDatabase,
+{
+    fn run(&mut self, db: &mut T) -> Result<(), SystemError> {
         let entities = db.get_entities_by_predicate(|entity_id| {
             db.entity_has_component::<PancursesInputAxisComponent>(entity_id)
                 && db.entity_has_component::<PancursesInputBufferComponent>(entity_id)
@@ -28,8 +31,8 @@ impl<T> SystemTrait<T> for PancursesInputAxisSystem where T: EntityComponentData
             let pancurses_prev_next_input_component =
                 db.get_entity_component::<PancursesInputAxisComponent>(entity_id)?;
             let (prev_input, next_input) = (
-                pancurses_prev_next_input_component.negative_input,
-                pancurses_prev_next_input_component.positive_input,
+                pancurses_prev_next_input_component.get_negative_input(),
+                pancurses_prev_next_input_component.get_positive_input(),
             );
 
             let pancurses_input_buffer_component =
@@ -37,27 +40,22 @@ impl<T> SystemTrait<T> for PancursesInputAxisSystem where T: EntityComponentData
 
             let mut offset: i64 = 0;
 
-            while let Some(input) = pancurses_input_buffer_component.input_buffer.pop() {
+            while let Some(input) = pancurses_input_buffer_component.pop() {
                 if input == prev_input {
                     offset -= 1;
                 } else if input == next_input {
                     offset += 1;
                 } else {
-                    return Ok(SystemEvent::None);
+                    return Ok(());
                 }
             }
 
             let ui_tab_input_component =
                 db.get_entity_component_mut::<IntRangeComponent>(entity_id)?;
 
-            let new_index = (ui_tab_input_component.index as i64) + offset;
-
-            ui_tab_input_component.index = std::cmp::min(
-                std::cmp::max(new_index, ui_tab_input_component.range.start),
-                ui_tab_input_component.range.end - 1,
-            );
+            ui_tab_input_component.set_index(ui_tab_input_component.get_index() + offset);
         }
 
-        Ok(SystemEvent::None)
+        Ok(())
     }
 }

@@ -1,15 +1,15 @@
 use std::collections::HashMap;
 
-use antigen::ecs::{ComponentMetadataTrait, ComponentTrait};
+use antigen::ecs::{ComponentDebugTrait, ComponentTrait};
 
 use crate::pancurses_color::{PancursesColor, PancursesColorPair};
 
 #[derive(Debug, Clone)]
 pub struct PancursesColorSetComponent {
-    pub color_head: i16,
-    pub colors: HashMap<PancursesColor, i16>,
-    pub color_pair_head: i16,
-    pub color_pairs: HashMap<PancursesColorPair, i16>,
+    color_head: i16,
+    color_pair_head: i16,
+    colors: HashMap<PancursesColor, i16>,
+    color_pairs: HashMap<PancursesColorPair, i16>,
 }
 
 impl PancursesColorSetComponent {
@@ -19,16 +19,13 @@ impl PancursesColorSetComponent {
     ) -> Self {
         PancursesColorSetComponent {
             color_head: colors.len() as i16,
-            colors,
             color_pair_head: color_pairs.len() as i16,
+            colors,
             color_pairs,
         }
     }
 
-    pub fn get_color_idx(
-        &mut self,
-        color: PancursesColor,
-    ) -> i16 {
+    pub fn get_color_idx(&mut self, color: PancursesColor) -> i16 {
         match self.colors.get(&color) {
             Some(color) => *color,
             None => {
@@ -41,11 +38,8 @@ impl PancursesColorSetComponent {
         }
     }
 
-    pub fn get_color_pair_idx(
-        &mut self,
-        color_pair: PancursesColorPair,
-    ) -> i16 {
-        match self.color_pairs.get(&color_pair) {
+    pub fn get_color_pair_idx(&mut self, color_pair: &PancursesColorPair) -> i16 {
+        match self.color_pairs.get(color_pair) {
             Some(color_pair) => *color_pair,
             None => {
                 let idx = self.color_pair_head;
@@ -54,7 +48,7 @@ impl PancursesColorSetComponent {
                     self.get_color_idx(color_pair.foreground),
                     self.get_color_idx(color_pair.background),
                 );
-                self.color_pairs.insert(color_pair, idx);
+                self.color_pairs.insert(*color_pair, idx);
                 self.color_pair_head += 1;
                 idx
             }
@@ -70,12 +64,12 @@ impl Default for PancursesColorSetComponent {
 
 impl ComponentTrait for PancursesColorSetComponent {}
 
-impl ComponentMetadataTrait for PancursesColorSetComponent {
-    fn get_name() -> &'static str {
-        "Pancurses Color Set"
+impl ComponentDebugTrait for PancursesColorSetComponent {
+    fn get_name() -> String {
+        "Pancurses Color Set".into()
     }
 
-    fn get_description() -> &'static str {
-        "Color set data for the Pancurses renderer"
+    fn get_description() -> String {
+        "Color set data for the Pancurses renderer".into()
     }
 }

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::{
     components::fill_component::FillComponent,
     components::pancurses_color_set_component::PancursesColorSetComponent,
@@ -9,18 +11,18 @@ use crate::{
     pancurses_color::PancursesColorPair,
 };
 use antigen::{
+    components::ChildEntitiesComponent,
     components::ParentEntityComponent,
     components::WindowComponent,
+    components::ZIndexComponent,
     components::{
         CharComponent, GlobalPositionComponent, PositionComponent, SizeComponent, StringComponent,
     },
-    ecs::EntityComponentDatabaseDebug,
     ecs::EntityID,
-    ecs::{EntityComponentDatabase, SystemEvent, SystemTrait},
+    ecs::{EntityComponentDatabase, SystemError, SystemTrait},
     primitive_types::IVector2,
 };
 use pancurses::{ToChtype, Window};
-use std::collections::{HashMap, HashSet};
 
 #[derive(Debug)]
 pub struct PancursesRendererSystem;
@@ -30,211 +32,250 @@ impl PancursesRendererSystem {
         PancursesRendererSystem
     }
 
-    fn render_strings(
+    fn render_string(
         &self,
         window: &Window,
-        width: i64,
-        height: i64,
-        strings: &HashSet<RenderData>,
+        window_size: IVector2,
+        position: IVector2,
+        string: &str,
+        color_pair: i16,
     ) {
-        strings
-            .iter()
-            .flat_map(|render_data| {
-                if let RenderData::String(x, y, str, color) = render_data {
-                    let len = str.len() as i64;
+        let IVector2(window_width, window_height) = window_size;
+        let IVector2(x, y) = position;
 
-                    let mut new_x = *x;
-                    let mut new_str = str.clone();
-                    if *x < -len {
-                        new_str.clear();
-                    } else if *x < 0 {
-                        new_x = 0;
-                        new_str = str[(len - (len + x)) as usize..].into();
-                    }
+        let len = string.len() as i64;
 
-                    if new_x > width {
-                        new_str.clear();
-                    } else if new_x > width - new_str.len() as i64 {
-                        new_str = new_str[..(width - new_x) as usize].into();
-                    }
+        let mut new_x = x;
+        let mut new_str = string.to_string();
+        if x < -len {
+            new_str.clear();
+        } else if x < 0 {
+            new_x = 0;
+            new_str = string[(len - (len + x)) as usize..].into();
+        }
 
-                    return Some((new_x, *y, new_str, *color));
-                }
+        if new_x > window_width {
+            new_str.clear();
+        } else if new_x > window_width - new_str.len() as i64 {
+            new_str = new_str[..(window_width - new_x) as usize].into();
+        }
 
-                None
-            })
-            .filter(|(_, y, str, _)| {
-                let len = str.len() as i64;
-                len > 0 && *y >= 0 && *y < height
-            })
-            .for_each(|(x, y, string, color_pair)| {
-                let mut y = y as i32;
+        let len = new_str.len() as i64;
+        if len <= 0 || y < 0 || y >= window_height {
+            return;
+        }
+
+        let mut y = y as i32;
+        window.mv(y, x as i32);
+        for char in new_str.chars() {
+            if char == '\n' {
+                y += 1;
                 window.mv(y, x as i32);
-                for char in string.chars() {
-                    if char == '\n' {
-                        y += 1;
-                        window.mv(y, x as i32);
-                    } else {
-                        window.addch(char.to_chtype() | pancurses::COLOR_PAIR(color_pair as u64));
-                    }
-                }
-            });
+            } else {
+                window.addch(char.to_chtype() | pancurses::COLOR_PAIR(color_pair as u64));
+            }
+        }
     }
 
-    fn render_rects(&self, window: &Window, width: i64, height: i64, rects: &HashSet<RenderData>) {
-        rects.iter().for_each(|render_data| {
-            if let RenderData::Rect(x, y, w, h, char, color_pair, filled) = render_data {
-                let mut w = *w;
-                let width_delta = (x + w) - width;
-                if width_delta > 0 {
-                    w -= width_delta;
-                }
+    fn render_rect(
+        &self,
+        window: &Window,
+        window_size: IVector2,
+        position: IVector2,
+        size: IVector2,
+        background_char: char,
+        color_pair: i16,
+        filled: bool,
+    ) {
+        let IVector2(window_width, window_height) = window_size;
+        let IVector2(pos_x, pos_y) = position;
+        let IVector2(width, height) = size;
 
-                let mut h = *h;
-                let height_delta = (y + h) - height;
-                if height_delta > 0 {
-                    h -= height_delta;
-                }
+        let mut w = width;
+        let width_delta = (pos_x + w) - window_width;
+        if width_delta > 0 {
+            w -= width_delta;
+        }
 
-                let mut x = *x;
-                if x < 0 {
-                    w += x;
-                    x = 0;
-                }
+        let mut h = height;
+        let height_delta = (pos_y + h) - window_height;
+        if height_delta > 0 {
+            h -= height_delta;
+        }
 
-                let mut y = *y;
-                if y < 0 {
-                    h += y;
-                    y = 0;
-                }
+        let mut x = pos_x;
+        if x < 0 {
+            w += x;
+            x = 0;
+        }
 
-                let char = *char;
-                let color_pair = *color_pair;
+        let mut y = pos_y;
+        if y < 0 {
+            h += y;
+            y = 0;
+        }
 
-                if w == 0 || h == 0 {
-                    return;
-                }
+        if w == 0 || h == 0 {
+            return;
+        }
 
-                if *filled {
-                    if w >= h {
-                        for y in y..y + h {
-                            window.mv(y as i32, x as i32);
-                            window.hline(
-                                char.to_chtype() | pancurses::COLOR_PAIR(color_pair as u64),
-                                w as i32,
-                            );
-                        }
-                    } else {
-                        for x in x..x + w {
-                            window.mv(y as i32, x as i32);
-                            window.vline(
-                                char.to_chtype() | pancurses::COLOR_PAIR(color_pair as u64),
-                                h as i32,
-                            );
-                        }
-                    }
-                } else {
+        let background_char = background_char.to_chtype();
+        if filled {
+            if w >= h {
+                for y in y..y + h {
                     window.mv(y as i32, x as i32);
                     window.hline(
-                        char.to_chtype() | pancurses::COLOR_PAIR(color_pair as u64),
+                        background_char | pancurses::COLOR_PAIR(color_pair as u64),
                         w as i32,
                     );
-
-                    window.mv((y + h - 1) as i32, x as i32);
-                    window.hline(
-                        char.to_chtype() | pancurses::COLOR_PAIR(color_pair as u64),
-                        w as i32,
-                    );
-
-                    window.mv((y + 1) as i32, x as i32);
+                }
+            } else {
+                for x in x..x + w {
+                    window.mv(y as i32, x as i32);
                     window.vline(
-                        char.to_chtype() | pancurses::COLOR_PAIR(color_pair as u64),
-                        (h - 2) as i32,
-                    );
-
-                    window.mv((y + 1) as i32, (x + w - 1) as i32);
-                    window.vline(
-                        char.to_chtype() | pancurses::COLOR_PAIR(color_pair as u64),
-                        (h - 2) as i32,
+                        background_char | pancurses::COLOR_PAIR(color_pair as u64),
+                        h as i32,
                     );
                 }
             }
-        });
-    }
-}
+        } else {
+            window.mv(y as i32, x as i32);
+            window.hline(
+                background_char | pancurses::COLOR_PAIR(color_pair as u64),
+                w as i32,
+            );
 
-#[derive(Debug, Eq, PartialEq, Hash)]
-enum RenderData {
-    String(i64, i64, String, i16),
-    Rect(i64, i64, i64, i64, char, i16, bool),
+            window.mv((y + h - 1) as i32, x as i32);
+            window.hline(
+                background_char | pancurses::COLOR_PAIR(color_pair as u64),
+                w as i32,
+            );
+
+            window.mv((y + 1) as i32, x as i32);
+            window.vline(
+                background_char | pancurses::COLOR_PAIR(color_pair as u64),
+                (h - 2) as i32,
+            );
+
+            window.mv((y + 1) as i32, (x + w - 1) as i32);
+            window.vline(
+                background_char | pancurses::COLOR_PAIR(color_pair as u64),
+                (h - 2) as i32,
+            );
+        }
+    }
 }
 
 impl<T> SystemTrait<T> for PancursesRendererSystem
 where
-    T: EntityComponentDatabase + EntityComponentDatabaseDebug,
+    T: EntityComponentDatabase,
 {
-    fn run(&mut self, db: &mut T) -> Result<SystemEvent, String> {
-        // Get window entities
-        let window_entities = db.get_entities_by_predicate(|entity_id| {
-            db.entity_has_component::<WindowComponent>(entity_id)
-                && db.entity_has_component::<PancursesWindowComponent>(entity_id)
-                && db.entity_has_component::<SizeComponent>(entity_id)
-        });
-
-        let mut window_sizes: Vec<IVector2> = Vec::new();
-        for entity_id in &window_entities {
-            let size_component = db.get_entity_component::<SizeComponent>(*entity_id)?;
-            let size = size_component.data;
-            window_sizes.push(size);
-        }
-
-        // Gather string and rect data for rendering
-        let mut string_data: HashMap<EntityID, HashSet<RenderData>> = HashMap::new();
-        let mut rect_data: HashMap<EntityID, HashSet<RenderData>> = HashMap::new();
-
+    fn run(&mut self, db: &mut T) -> Result<(), SystemError> {
+        // Fetch color set entity
         let color_set_entities = db.get_entities_by_predicate(|entity_id| {
             db.entity_has_component::<PancursesColorSetComponent>(entity_id)
         });
+
         let color_set_entity = color_set_entities
             .get(0)
             .expect("Color set entity does not exist");
 
+        // Fetch control entities
         let control_entities = db.get_entities_by_predicate(|entity_id| {
             db.entity_has_component::<ControlComponent>(entity_id)
                 && db.entity_has_component::<ParentEntityComponent>(entity_id)
                 && db.entity_has_component::<PositionComponent>(entity_id)
         });
 
-        for entity_id in control_entities {
-            let IVector2(x, y) = if let Ok(global_position_component) =
-                db.get_entity_component::<GlobalPositionComponent>(entity_id)
-            {
-                global_position_component.data
-            } else {
-                match db.get_entity_component::<PositionComponent>(entity_id) {
-                    Ok(position_component) => position_component.data,
-                    Err(err) => return Err(err),
+        // Filter out non-root controls and sort
+        let mut root_controls: Vec<EntityID> = control_entities
+            .iter()
+            .filter(|entity_id| {
+                let parent_entity_component =
+                    match db.get_entity_component::<ParentEntityComponent>(**entity_id) {
+                        Ok(parent_entity_component) => parent_entity_component,
+                        Err(_) => return false,
+                    };
+
+                let parent_id = parent_entity_component.get_parent_id();
+                !db.entity_has_component::<ControlComponent>(&parent_id)
+            })
+            .copied()
+            .collect();
+
+        root_controls.sort();
+
+        // Recursively traverse parent-child tree and populate Z-ordered list of controls
+        let mut z_layers: HashMap<i64, Vec<EntityID>> = HashMap::new();
+
+        fn populate_z_layers(
+            db: &impl EntityComponentDatabase,
+            entity_id: EntityID,
+            z_layers: &mut HashMap<i64, Vec<EntityID>>,
+            z_index: i64,
+        ) -> Result<(), String> {
+            let z_index = match db.get_entity_component::<ZIndexComponent>(entity_id) {
+                Ok(z_index_component) => z_index_component.get_z(),
+                Err(_) => z_index,
+            };
+
+            let z_layer = match z_layers.get_mut(&z_index) {
+                Some(z_layer) => z_layer,
+                None => {
+                    z_layers.insert(z_index, Vec::new());
+                    z_layers.get_mut(&z_index).unwrap()
                 }
             };
 
-            let color_pair = match db.get_entity_component::<PancursesColorPairComponent>(entity_id)
+            z_layer.push(entity_id);
+
+            if let Ok(child_entities_component) =
+                db.get_entity_component::<ChildEntitiesComponent>(entity_id)
             {
-                Ok(pancurses_color_pair_component) => pancurses_color_pair_component.data,
-                Err(_) => PancursesColorPair::default(),
-            };
+                for child_id in child_entities_component.get_child_ids() {
+                    populate_z_layers(db, *child_id, z_layers, z_index)?;
+                }
+            }
 
-            let color_set_component =
-                db.get_entity_component_mut::<PancursesColorSetComponent>(*color_set_entity)?;
-            let color_pair_idx = color_set_component.get_color_pair_idx(color_pair);
+            Ok(())
+        };
 
+        for entity_id in root_controls {
+            populate_z_layers(db, entity_id, &mut z_layers, 0)?;
+        }
+
+        let mut control_entities: Vec<EntityID> = Vec::new();
+        let mut layer_keys: Vec<i64> = z_layers.keys().copied().collect();
+        layer_keys.sort();
+        for i in layer_keys {
+            let z_layer = z_layers.get_mut(&i).unwrap();
+            control_entities.append(z_layer);
+        }
+
+        // Fetch window entities
+        let window_entities = db.get_entities_by_predicate(|entity_id| {
+            db.entity_has_component::<WindowComponent>(entity_id)
+                && db.entity_has_component::<PancursesWindowComponent>(entity_id)
+                && db.entity_has_component::<SizeComponent>(entity_id)
+        });
+
+        // Erase existing framebuffer
+        for entity_id in &window_entities {
+            db.get_entity_component::<PancursesWindowComponent>(*entity_id)?
+                .get_window()
+                .map(|window| window.erase());
+        }
+
+        // Render Entities
+        for entity_id in control_entities {
             // Search up parent chain for window component
             let parent_entity_component =
                 match db.get_entity_component::<ParentEntityComponent>(entity_id) {
                     Ok(parent_entity_component) => parent_entity_component,
-                    Err(err) => return Err(err),
+                    Err(err) => return Err(err.into()),
                 };
 
-            let mut candidate_id = parent_entity_component.parent_id;
+            let mut candidate_id = parent_entity_component.get_parent_id();
             let mut parent_id: Option<EntityID> = None;
 
             loop {
@@ -247,7 +288,7 @@ where
                 }
 
                 match db.get_entity_component::<ParentEntityComponent>(candidate_id) {
-                    Ok(parent_entity_component) => candidate_id = parent_entity_component.parent_id,
+                    Ok(parent_entity_component) => candidate_id = parent_entity_component.get_parent_id(),
                     Err(_) => break,
                 }
             }
@@ -258,97 +299,92 @@ where
                 None => continue,
             };
 
-            // Create render data storage for this entity
-            if string_data.get(&parent_id).is_none() {
-                string_data.insert(parent_id, HashSet::new());
-            }
-
-            if rect_data.get(&parent_id).is_none() {
-                rect_data.insert(parent_id, HashSet::new());
-            }
-
-            let window_strings = string_data.get_mut(&parent_id).unwrap();
-            let window_rects = rect_data.get_mut(&parent_id).unwrap();
-
-            // Extract render data from component
-            if db.entity_has_component::<SizeComponent>(&entity_id) {
-                //let filled = *filled;
-                let filled = db.entity_has_component::<FillComponent>(&entity_id);
-
-                let char = match db.get_entity_component::<CharComponent>(entity_id) {
-                    Ok(char_component) => char_component.data,
-                    Err(_) => ' ',
-                };
-
-                let size_component = db.get_entity_component::<SizeComponent>(entity_id)?;
-                let IVector2(w, h) = size_component.data;
-                window_rects.insert(RenderData::Rect(x, y, w, h, char, color_pair_idx, filled));
-            } else if db.entity_has_component::<StringComponent>(&entity_id)
-                || db.entity_has_component::<CharComponent>(&entity_id)
+            // Get Position
+            let IVector2(x, y) = if let Ok(global_position_component) =
+                db.get_entity_component::<GlobalPositionComponent>(entity_id)
             {
-                let string = if let Ok(string_component) =
-                    db.get_entity_component::<StringComponent>(entity_id)
-                {
-                    string_component.data.clone()
-                } else if let Ok(char_component) =
-                    db.get_entity_component::<CharComponent>(entity_id)
-                {
-                    char_component.data.to_string()
-                } else {
-                    return Err("No valid string component".into());
-                };
-
-                for (i, string) in string.split('\n').enumerate() {
-                    window_strings.insert(RenderData::String(
-                        x,
-                        y + i as i64,
-                        string.to_string(),
-                        color_pair_idx,
-                    ));
+                global_position_component.get_global_position()
+            } else {
+                match db.get_entity_component::<PositionComponent>(entity_id) {
+                    Ok(position_component) => position_component.get_position(),
+                    Err(err) => return Err(err.into()),
                 }
-            }
-        }
+            };
 
-        // Render window contents
-        let (root_window_entities, sub_window_entities): (Vec<EntityID>, Vec<EntityID>) =
-            window_entities.iter().copied().partition(|entity_id| {
-                db.get_entity_component::<ParentEntityComponent>(*entity_id)
-                    .is_err()
-            });
+            // Get Color
+            let color_pair = match db.get_entity_component::<PancursesColorPairComponent>(entity_id)
+            {
+                Ok(pancurses_color_pair_component) => *pancurses_color_pair_component.get_data(),
+                Err(_) => PancursesColorPair::default(),
+            };
 
-        for entity_id in root_window_entities
-            .iter()
-            .copied()
-            .chain(sub_window_entities.into_iter())
-        {
-            let size_component = db.get_entity_component::<SizeComponent>(entity_id).unwrap();
-            let IVector2(width, height) = size_component.data;
+            let color_pair_idx = db
+                .get_entity_component_mut::<PancursesColorSetComponent>(*color_set_entity)?
+                .get_color_pair_idx(&color_pair);
 
-            let window_component = db
-                .get_entity_component::<PancursesWindowComponent>(entity_id)
-                .unwrap();
-            if let Some(window) = &window_component.window {
-                window.erase();
-
-                if let Some(rect_data) = rect_data.get(&entity_id) {
-                    self.render_rects(window, width, height, rect_data);
-                }
-
-                if let Some(string_data) = string_data.get(&entity_id) {
-                    self.render_strings(window, width, height, string_data);
-                }
-            }
-        }
-
-        // Present
-        for entity_id in root_window_entities {
             let window_component =
-                db.get_entity_component::<PancursesWindowComponent>(entity_id)?;
-            if let Some(window) = &window_component.window {
-                window.refresh();
+                db.get_entity_component::<PancursesWindowComponent>(parent_id)?;
+
+            if let Some(window) = window_component.get_window() {
+                let (window_height, window_width) = window.get_max_yx();
+                let (window_width, window_height) = (window_width as i64, window_height as i64);
+
+                if db.entity_has_component::<SizeComponent>(&entity_id) {
+                    //let filled = *filled;
+                    let filled = db.entity_has_component::<FillComponent>(&entity_id);
+
+                    let background_char = match db.get_entity_component::<CharComponent>(entity_id)
+                    {
+                        Ok(char_component) => *char_component.get_data(),
+                        Err(_) => ' ',
+                    };
+
+                    let IVector2(width, height) = db
+                        .get_entity_component::<SizeComponent>(entity_id)?
+                        .get_size();
+                    self.render_rect(
+                        window,
+                        IVector2(window_width, window_height),
+                        IVector2(x, y),
+                        IVector2(width, height),
+                        background_char,
+                        color_pair_idx,
+                        filled,
+                    );
+                } else if db.entity_has_component::<StringComponent>(&entity_id)
+                    || db.entity_has_component::<CharComponent>(&entity_id)
+                {
+                    let string = if let Ok(string_component) =
+                        db.get_entity_component::<StringComponent>(entity_id)
+                    {
+                        string_component.get_data().clone()
+                    } else if let Ok(char_component) =
+                        db.get_entity_component::<CharComponent>(entity_id)
+                    {
+                        char_component.get_data().to_string()
+                    } else {
+                        return Err("No valid string component".into());
+                    };
+
+                    for (i, string) in string.split('\n').enumerate() {
+                        self.render_string(
+                            window,
+                            IVector2(window_width, window_height),
+                            IVector2(x, y + i as i64),
+                            string,
+                            color_pair_idx,
+                        )
+                    }
+                }
             }
         }
 
-        Ok(SystemEvent::None)
+        for entity_id in &window_entities {
+            db.get_entity_component::<PancursesWindowComponent>(*entity_id)?
+                .get_window()
+                .map(|window| window.refresh());
+        }
+
+        Ok(())
     }
 }

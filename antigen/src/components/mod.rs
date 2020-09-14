@@ -1,29 +1,33 @@
-mod debug_entity_list_component;
-mod debug_entity_component_list_component;
+mod anchors_component;
+mod debug;
 mod global_position_component;
 mod int_range_component;
-mod parent_entity_component;
+mod margins_component;
 mod position_component;
 mod primitive_components;
+mod scene_tree;
 mod size_component;
 mod timer_component;
 mod velocity_component;
-mod debug_exclude_component;
-mod entity_inspector_component;
 mod window_component;
+mod z_index_component;
 
-pub use debug_entity_list_component::DebugEntityListComponent;
-pub use debug_entity_component_list_component::DebugEntityComponentListComponent;
+pub use anchors_component::AnchorsComponent;
+pub use debug::{
+    ComponentDebugComponent, ComponentInspectorComponent, DebugComponentDataListComponent,
+    DebugComponentListComponent, DebugEntityListComponent, EntityDebugComponent,
+    EntityInspectorComponent, DebugExcludeComponent
+};
 pub use global_position_component::GlobalPositionComponent;
 pub use int_range_component::IntRangeComponent;
-pub use parent_entity_component::ParentEntityComponent;
+pub use margins_component::MarginsComponent;
 pub use position_component::PositionComponent;
 pub use primitive_components::{
     CharComponent, PrimitiveComponent, StringComponent, StringListComponent,
 };
+pub use scene_tree::{ChildEntitiesComponent, ParentEntityComponent};
 pub use size_component::SizeComponent;
 pub use timer_component::TimerComponent;
 pub use velocity_component::VelocityComponent;
-pub use debug_exclude_component::DebugExcludeComponent;
-pub use entity_inspector_component::EntityInspectorComponent;
 pub use window_component::WindowComponent;
+pub use z_index_component::ZIndexComponent;

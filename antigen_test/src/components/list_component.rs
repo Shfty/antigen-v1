@@ -1,10 +1,10 @@
-use antigen::ecs::{Assemblage, ComponentMetadataTrait, ComponentTrait, EntityID};
+use antigen::ecs::{Assemblage, ComponentDebugTrait, ComponentTrait, EntityID};
 
 #[derive(Debug, Clone)]
 pub struct ListComponent {
-    pub string_list_entity: Option<EntityID>,
-    pub list_index_entity: Option<EntityID>,
-    pub string_entity_assemblage: Option<Assemblage>,
+    string_list_entity: Option<EntityID>,
+    list_index_entity: Option<EntityID>,
+    string_entity_assemblage: Option<Assemblage>,
 }
 
 impl ListComponent {
@@ -19,6 +19,18 @@ impl ListComponent {
             string_entity_assemblage,
         }
     }
+
+    pub fn get_string_list_entity(&self) -> Option<EntityID> {
+        self.string_list_entity
+    }
+
+    pub fn get_list_index_entity(&self) -> Option<EntityID> {
+        self.list_index_entity
+    }
+
+    pub fn get_string_entity_assemblage(&self) -> Option<&Assemblage> {
+        self.string_entity_assemblage.as_ref()
+    }
 }
 
 impl Default for ListComponent {
@@ -29,12 +41,12 @@ impl Default for ListComponent {
 
 impl ComponentTrait for ListComponent {}
 
-impl ComponentMetadataTrait for ListComponent {
-    fn get_name() -> &'static str {
-        "List"
+impl ComponentDebugTrait for ListComponent {
+    fn get_name() -> String {
+        "List".into()
     }
 
-    fn get_description() -> &'static str {
-        "String list UI control with an assemblage for customizing items"
+    fn get_description() -> String {
+        "String list UI control with an assemblage for customizing items".into()
     }
 }

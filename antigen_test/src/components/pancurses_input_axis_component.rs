@@ -1,15 +1,26 @@
-use antigen::ecs::{ComponentMetadataTrait, ComponentTrait};
+use antigen::ecs::{ComponentDebugTrait, ComponentTrait};
 use pancurses::Input;
 
 #[derive(Debug, Clone)]
 pub struct PancursesInputAxisComponent {
-    pub negative_input: Input,
-    pub positive_input: Input,
+    negative_input: Input,
+    positive_input: Input,
 }
 
 impl PancursesInputAxisComponent {
     pub fn new(negative_input: Input, positive_input: Input) -> Self {
-        PancursesInputAxisComponent { negative_input, positive_input }
+        PancursesInputAxisComponent {
+            negative_input,
+            positive_input,
+        }
+    }
+
+    pub fn get_positive_input(&self) -> Input {
+        self.positive_input
+    }
+
+    pub fn get_negative_input(&self) -> Input {
+        self.negative_input
     }
 }
 
@@ -21,12 +32,12 @@ impl Default for PancursesInputAxisComponent {
 
 impl ComponentTrait for PancursesInputAxisComponent {}
 
-impl ComponentMetadataTrait for PancursesInputAxisComponent {
-    fn get_name() -> &'static str {
-        "Pancurses Input Axis"
+impl ComponentDebugTrait for PancursesInputAxisComponent {
+    fn get_name() -> String {
+        "Pancurses Input Axis".into()
     }
 
-    fn get_description() -> &'static str {
-        "1D prev/next input map"
+    fn get_description() -> String {
+        "1D prev/next input map".into()
     }
 }

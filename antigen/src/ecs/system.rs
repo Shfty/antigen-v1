@@ -2,17 +2,34 @@ use std::fmt::Debug;
 
 use crate::primitive_types::UID;
 
-use super::{EntityComponentDatabase, EntityComponentDatabaseDebug};
+use super::EntityComponentDatabase;
 
 #[derive(Debug, Copy, Clone, Hash, Ord, PartialOrd, Eq, PartialEq)]
 pub struct SystemID(pub UID);
 
-pub enum SystemEvent {
-    None,
-    Input,
+#[derive(Debug, Clone)]
+pub enum SystemError {
+    Err(String),
     Quit,
 }
 
-pub trait SystemTrait<T>: Debug where T: EntityComponentDatabase + EntityComponentDatabaseDebug {
-    fn run(&mut self, db: &mut T) -> Result<SystemEvent, String> where T: EntityComponentDatabase + EntityComponentDatabaseDebug;
+impl From<String> for SystemError {
+    fn from(string: String) -> Self {
+        SystemError::Err(string)
+    }
+}
+
+impl From<&str> for SystemError {
+    fn from(string: &str) -> Self {
+        SystemError::Err(string.into())
+    }
+}
+
+pub trait SystemTrait<T>
+where
+    T: EntityComponentDatabase,
+{
+    fn run(&mut self, db: &mut T) -> Result<(), SystemError>
+    where
+        T: EntityComponentDatabase;
 }

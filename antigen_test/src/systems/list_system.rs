@@ -18,9 +18,8 @@ use antigen::{
     components::SizeComponent,
     components::StringComponent,
     components::StringListComponent,
-    ecs::EntityComponentDatabaseDebug,
     ecs::EntityID,
-    ecs::{EntityComponentDatabase, SystemEvent, SystemTrait},
+    ecs::{EntityComponentDatabase, SystemError, SystemTrait},
     primitive_types::IVector2,
 };
 
@@ -40,9 +39,9 @@ impl ListSystem {
 
 impl<T> SystemTrait<T> for ListSystem
 where
-    T: EntityComponentDatabase + EntityComponentDatabaseDebug,
+    T: EntityComponentDatabase,
 {
-    fn run(&mut self, db: &mut T) -> Result<SystemEvent, String> {
+    fn run(&mut self, db: &mut T) -> Result<(), SystemError> {
         let list_control_entities = db.get_entities_by_predicate(|entity_id| {
             db.entity_has_component::<ListComponent>(entity_id)
                 && db.entity_has_component::<PositionComponent>(entity_id)
@@ -54,39 +53,37 @@ where
             let (string_list_entity, list_index_entity) =
                 match db.get_entity_component::<ListComponent>(list_control_entity) {
                     Ok(pancurses_list_control_component) => (
-                        pancurses_list_control_component.string_list_entity,
-                        pancurses_list_control_component.list_index_entity,
+                        pancurses_list_control_component.get_string_list_entity(),
+                        pancurses_list_control_component.get_list_index_entity(),
                     ),
-                    Err(err) => return Err(err),
+                    Err(err) => return Err(err.into()),
                 };
 
             if let Some(string_list_entity) = string_list_entity {
                 let IVector2(width, height) =
                     match db.get_entity_component::<SizeComponent>(list_control_entity) {
-                        Ok(size_component) => size_component.data,
-                        Err(err) => return Err(err),
+                        Ok(size_component) => size_component.get_size(),
+                        Err(err) => return Err(err.into()),
                     };
 
                 // If we have a string list entity, fetch its strings
-                let string_list: Vec<String> =
-                    match db.get_entity_component::<StringListComponent>(string_list_entity) {
-                        Ok(string_list_component) => string_list_component
-                            .data
-                            .iter()
-                            .flat_map(|string| {
-                                let substrings: Vec<String> = string
-                                    .split('\n')
-                                    .map(|string| {
-                                        &string[..std::cmp::min(width, string.len() as i64) as usize]
-                                    })
-                                    .map(std::string::ToString::to_string)
-                                    .collect();
-                                substrings
+                let string_list: Vec<Vec<String>> = db
+                    .get_entity_component::<StringListComponent>(string_list_entity)?
+                    .get_data()
+                    .iter()
+                    .map(|string| {
+                        let substrings: Vec<String> = string
+                            .split('\n')
+                            .map(|string| {
+                                &string[..std::cmp::min(width, string.len() as i64) as usize]
                             })
-                            .take(height as usize)
-                            .collect(),
-                        Err(err) => return Err(err),
-                    };
+                            .map(std::string::ToString::to_string)
+                            .collect();
+                        substrings
+                    })
+                    .collect();
+
+                let string_count: usize = string_list.iter().map(|strings| strings.len()).sum();
 
                 if self
                     .list_string_entities
@@ -102,9 +99,8 @@ where
                     .get_mut(&list_control_entity)
                     .unwrap();
 
-                while string_entities.len() < string_list.len() {
-                    // Create string entities for this list
-                    let string_entity = db.create_entity("List String Entity");
+                while string_entities.len() < string_count {
+                    let string_entity = db.create_entity(Some("List String Entity"))?;
                     db.add_component_to_entity(string_entity, ControlComponent)?;
                     db.add_component_to_entity(string_entity, PositionComponent::default())?;
                     db.add_component_to_entity(string_entity, GlobalPositionComponent::default())?;
@@ -117,22 +113,24 @@ where
                         string_entity,
                         PancursesColorPairComponent::new(PancursesColorPair::default()),
                     )?;
+
                     if db.entity_has_component::<DebugExcludeComponent>(&list_control_entity) {
                         db.add_component_to_entity(string_entity, DebugExcludeComponent)?;
                     }
 
-                    let list_control_component =
-                        db.get_entity_component::<ListComponent>(list_control_entity)?;
-                    if let Some(assemblage) =
-                        list_control_component.string_entity_assemblage.clone()
+                    if let Some(assemblage) = db
+                        .get_entity_component::<ListComponent>(list_control_entity)?
+                        .get_string_entity_assemblage()
+                        .cloned()
                     {
                         assemblage.assemble_entity(db, string_entity)?;
                     }
+
                     string_entities.push(string_entity);
                 }
 
                 // Create or update string components for this set of strings
-                while string_entities.len() > string_list.len() {
+                while string_entities.len() > string_count {
                     if let Some(string_entity) = string_entities.pop() {
                         db.destroy_entity(string_entity)?;
                     }
@@ -141,57 +139,72 @@ where
                 let local_mouse_position = match db
                     .get_entity_component::<LocalMousePositionComponent>(list_control_entity)
                 {
-                    Ok(local_mouse_position_component) => Some(local_mouse_position_component.data),
+                    Ok(local_mouse_position_component) => {
+                        Some(local_mouse_position_component.get_local_mouse_position())
+                    }
                     Err(_) => None,
                 };
 
-                for (i, (entity_id, string)) in string_entities.iter().zip(&string_list).enumerate()
-                {
-                    // Update each string entity's position
-                    match db.get_entity_component_mut::<PositionComponent>(*entity_id) {
-                        Ok(position_component) => position_component.data = IVector2(0, i as i64),
-                        Err(err) => return Err(err),
-                    }
+                let mut y = 0i64;
+                for (string_index, strings) in string_list.iter().enumerate() {
+                    let mut done = false;
+                    for string in strings {
+                        let string_entity = string_entities[y as usize];
 
-                    // Update each string entity's text
-                    match db.get_entity_component_mut::<StringComponent>(*entity_id) {
-                        Ok(string_component) => string_component.data = string.clone(),
-                        Err(err) => return Err(err),
-                    }
+                        // Update each string entity's position
+                        db.get_entity_component_mut::<PositionComponent>(string_entity)?
+                            .set_position(IVector2(0, y));
 
-                    // Update color pair based on focused item
-                    let focused_item = match list_index_entity {
-                        Some(list_index_entity) => {
-                            match db
-                                .get_entity_component_mut::<IntRangeComponent>(list_index_entity)
-                            {
-                                Ok(int_range_component) => {
-                                    let len = string_list.len();
-                                    int_range_component.range = 0..(len as i64);
-                                    if let Some(IVector2(mouse_x, mouse_y)) = local_mouse_position {
-                                        let range_x = 0i64..width;
-                                        if range_x.contains(&mouse_x) && mouse_y == i as i64 {
-                                            int_range_component.index = i as i64;
+                        // Update each string entity's text
+                        db.get_entity_component_mut::<StringComponent>(string_entity)?
+                            .set_data(string.clone());
+
+                        // Update color pair based on focused item
+                        let focused_item = match list_index_entity {
+                            Some(list_index_entity) => {
+                                match db.get_entity_component_mut::<IntRangeComponent>(
+                                    list_index_entity,
+                                ) {
+                                    Ok(int_range_component) => {
+                                        let len = string_list.len();
+                                        int_range_component.set_range(0..(len as i64));
+                                        if let Some(IVector2(mouse_x, mouse_y)) =
+                                            local_mouse_position
+                                        {
+                                            let range_x = 0i64..width;
+                                            if range_x.contains(&mouse_x) && mouse_y == y {
+                                                int_range_component.set_index(string_index as i64);
+                                            }
                                         }
+                                        Some(int_range_component.get_index())
                                     }
-                                    Some(int_range_component.index)
+                                    Err(_) => None,
                                 }
-                                Err(_) => None,
                             }
+                            None => None,
+                        };
+
+                        let data = if Some(string_index as i64) == focused_item {
+                            PancursesColorPair::new(
+                                PancursesColor::new(0, 0, 0),
+                                PancursesColor::new(1000, 1000, 1000),
+                            )
+                        } else {
+                            PancursesColorPair::default()
+                        };
+
+                        db.get_entity_component_mut::<PancursesColorPairComponent>(string_entity)?
+                            .set_data(data);
+
+                        y += 1;
+                        if y >= height {
+                            done = true;
+                            break;
                         }
-                        None => None,
-                    };
+                    }
 
-                    let pancurses_color_pair_component =
-                        db.get_entity_component_mut::<PancursesColorPairComponent>(*entity_id)?;
-
-                    if Some(i as i64) == focused_item {
-                        pancurses_color_pair_component.data = PancursesColorPair::new(
-                            PancursesColor::new(0, 0, 0),
-                            PancursesColor::new(1000, 1000, 1000),
-                        );
-                    } else {
-                        pancurses_color_pair_component.data = PancursesColorPair::default();
+                    if done {
+                        break;
                     }
                 }
             } else if self
@@ -208,6 +221,6 @@ where
             }
         }
 
-        Ok(SystemEvent::None)
+        Ok(())
     }
 }

@@ -1,8 +1,5 @@
-use crate::ecs::{EntityComponentDatabase, SystemEvent, SystemTrait};
-use crate::{
-    components::{GlobalPositionComponent, ParentEntityComponent, PositionComponent},
-    ecs::EntityComponentDatabaseDebug,
-};
+use crate::components::{GlobalPositionComponent, ParentEntityComponent, PositionComponent};
+use crate::ecs::{EntityComponentDatabase, SystemError, SystemTrait};
 
 #[derive(Debug)]
 pub struct GlobalPositionSystem;
@@ -21,11 +18,11 @@ impl GlobalPositionSystem {
 
 impl<T> SystemTrait<T> for GlobalPositionSystem
 where
-    T: EntityComponentDatabase + EntityComponentDatabaseDebug,
+    T: EntityComponentDatabase,
 {
-    fn run(&mut self, db: &mut T) -> Result<SystemEvent, String>
+    fn run(&mut self, db: &mut T) -> Result<(), SystemError>
     where
-        T: EntityComponentDatabase + EntityComponentDatabaseDebug,
+        T: EntityComponentDatabase,
     {
         let entities = db.get_entities_by_predicate(|entity_id| {
             db.entity_has_component::<PositionComponent>(entity_id)
@@ -34,18 +31,18 @@ where
         });
 
         for entity_id in entities {
-            let parent_entity_component =
-                db.get_entity_component::<ParentEntityComponent>(entity_id)?;
-            let parent_entity = parent_entity_component.parent_id;
+            let parent_entity = db
+                .get_entity_component::<ParentEntityComponent>(entity_id)?
+                .get_parent_id();
 
             let position_component = db.get_entity_component::<PositionComponent>(entity_id)?;
-            let mut global_position = position_component.data;
+            let mut global_position = position_component.get_position();
             let mut candidate_id = parent_entity;
 
             loop {
                 let parent_position_component =
                     db.get_entity_component::<PositionComponent>(candidate_id)?;
-                global_position += parent_position_component.data;
+                global_position += parent_position_component.get_position();
 
                 if db
                     .get_entity_component::<GlobalPositionComponent>(candidate_id)
@@ -55,16 +52,15 @@ where
                 }
 
                 match db.get_entity_component::<ParentEntityComponent>(candidate_id) {
-                    Ok(parent_entity_component) => candidate_id = parent_entity_component.parent_id,
+                    Ok(parent_entity_component) => candidate_id = parent_entity_component.get_parent_id(),
                     Err(_) => break,
                 }
             }
 
-            let global_position_component =
-                db.get_entity_component_mut::<GlobalPositionComponent>(entity_id)?;
-            global_position_component.data = global_position;
+            db.get_entity_component_mut::<GlobalPositionComponent>(entity_id)?
+                .set_global_position(global_position);
         }
 
-        Ok(SystemEvent::None)
+        Ok(())
     }
 }

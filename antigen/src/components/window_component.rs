@@ -1,16 +1,16 @@
-use crate::ecs::{ComponentMetadataTrait, ComponentTrait};
+use crate::ecs::{ComponentDebugTrait, ComponentTrait};
 
 #[derive(Debug, Default, Copy, Clone)]
 pub struct WindowComponent;
 
 impl ComponentTrait for WindowComponent {}
 
-impl ComponentMetadataTrait for WindowComponent {
-    fn get_name() -> &'static str {
-        "Window"
+impl ComponentDebugTrait for WindowComponent {
+    fn get_name() -> String {
+        "Window".into()
     }
 
-    fn get_description() -> &'static str {
-        "Represents a unique window"
+    fn get_description() -> String {
+        "Represents a unique window".into()
     }
 }

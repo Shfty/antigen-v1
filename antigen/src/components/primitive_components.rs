@@ -1,4 +1,4 @@
-use crate::ecs::{ComponentMetadataTrait, ComponentTrait};
+use crate::ecs::{ComponentDebugTrait, ComponentTrait};
 use std::fmt::Debug;
 
 pub type CharComponent = PrimitiveComponent<char>;
@@ -10,7 +10,7 @@ pub struct PrimitiveComponent<T>
 where
     T: Debug + Clone + 'static,
 {
-    pub data: T,
+    data: T,
 }
 
 impl<T> PrimitiveComponent<T>
@@ -19,6 +19,15 @@ where
 {
     pub fn new(data: T) -> Self {
         PrimitiveComponent { data }
+    }
+
+    pub fn get_data(&self) -> &T {
+        &self.data
+    }
+
+    pub fn set_data(&mut self, data: T) -> &mut Self {
+        self.data = data;
+        self
     }
 }
 
@@ -33,12 +42,12 @@ where
 
 impl<T> ComponentTrait for PrimitiveComponent<T> where T: Debug + Clone + 'static {}
 
-impl<T> ComponentMetadataTrait for PrimitiveComponent<T> where T: Debug + Clone + 'static {
-    fn get_name() -> &'static str {
-        "Primitive"
+impl<T> ComponentDebugTrait for PrimitiveComponent<T> where T: Debug + Clone + 'static {
+    fn get_name() -> String {
+        std::any::type_name::<T>().into()
     }
 
-    fn get_description() -> &'static str {
-        "Primitive Type Component"
+    fn get_description() -> String {
+        format!("Primitive component containing a {}", std::any::type_name::<T>())
     }
 }

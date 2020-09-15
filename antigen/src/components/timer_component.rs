@@ -1,4 +1,4 @@
-use crate::ecs::ComponentTrait;
+use crate::entity_component_system::ComponentTrait;
 
 #[derive(Debug, Copy, Clone)]
 pub struct TimerComponent {

@@ -1,4 +1,4 @@
-use antigen::ecs::{Assemblage, ComponentDebugTrait, ComponentTrait, EntityID};
+use antigen::entity_component_system::{Assemblage, ComponentDebugTrait, ComponentTrait, EntityID};
 
 #[derive(Debug, Clone)]
 pub struct ListComponent {

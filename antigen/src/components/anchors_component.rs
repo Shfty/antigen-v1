@@ -1,6 +1,6 @@
 use std::ops::{Range};
 
-use crate::ecs::{ComponentDebugTrait, ComponentTrait};
+use crate::entity_component_system::{ComponentDebugTrait, ComponentTrait};
 
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct AnchorsComponent {

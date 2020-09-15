@@ -1,4 +1,4 @@
-use crate::{primitive_types::IVector2, ecs::{ComponentDebugTrait, ComponentTrait}};
+use crate::{primitive_types::IVector2, entity_component_system::{ComponentDebugTrait, ComponentTrait}};
 
 #[derive(Debug, Copy, Clone)]
 pub struct VelocityComponent {

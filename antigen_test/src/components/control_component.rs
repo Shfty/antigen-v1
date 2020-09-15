@@ -1,4 +1,4 @@
-use antigen::ecs::{ComponentDebugTrait, ComponentTrait};
+use antigen::entity_component_system::{ComponentDebugTrait, ComponentTrait};
 
 #[derive(Debug, Default, Clone, Eq, PartialEq)]
 pub struct ControlComponent;

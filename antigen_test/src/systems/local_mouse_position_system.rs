@@ -3,9 +3,9 @@ use antigen::{
     components::ParentEntityComponent,
     components::PositionComponent,
     components::WindowComponent,
-    ecs::{EntityComponentDatabase, SystemError, SystemTrait},
+    entity_component_system::{EntityComponentDirectory, SystemError, SystemTrait},
     primitive_types::IVector2,
-};
+entity_component_system::entity_component_database::EntityComponentDatabase, entity_component_system::ComponentStorage};
 
 use crate::components::{
     local_mouse_position_component::LocalMousePositionComponent,
@@ -27,13 +27,15 @@ impl LocalMousePositionSystem {
     }
 }
 
-impl<T> SystemTrait<T> for LocalMousePositionSystem
+impl<S, D> SystemTrait<S, D> for LocalMousePositionSystem
 where
-    T: EntityComponentDatabase,
+    S: ComponentStorage,
+    D: EntityComponentDirectory,
 {
-    fn run(&mut self, db: &mut T) -> Result<(), SystemError>
+    fn run(&mut self, db: &mut EntityComponentDatabase<S, D>) -> Result<(), SystemError>
     where
-        T: EntityComponentDatabase,
+        S: ComponentStorage,
+        D: EntityComponentDirectory
     {
         let mouse_entities = db.get_entities_by_predicate(|entity_id| {
             db.entity_has_component::<PancursesMouseComponent>(entity_id)

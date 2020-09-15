@@ -1,5 +1,9 @@
-use crate::components::{GlobalPositionComponent, ParentEntityComponent, PositionComponent};
-use crate::ecs::{EntityComponentDatabase, SystemError, SystemTrait};
+use crate::entity_component_system::{EntityComponentDirectory, SystemError, SystemTrait};
+use crate::{
+    components::{GlobalPositionComponent, ParentEntityComponent, PositionComponent},
+    entity_component_system::entity_component_database::EntityComponentDatabase,
+    entity_component_system::ComponentStorage,
+};
 
 #[derive(Debug)]
 pub struct GlobalPositionSystem;
@@ -16,13 +20,15 @@ impl GlobalPositionSystem {
     }
 }
 
-impl<T> SystemTrait<T> for GlobalPositionSystem
+impl<S, D> SystemTrait<S, D> for GlobalPositionSystem
 where
-    T: EntityComponentDatabase,
+    S: ComponentStorage,
+    D: EntityComponentDirectory,
 {
-    fn run(&mut self, db: &mut T) -> Result<(), SystemError>
+    fn run(&mut self, db: &mut EntityComponentDatabase<S, D>) -> Result<(), SystemError>
     where
-        T: EntityComponentDatabase,
+        S: ComponentStorage,
+        D: EntityComponentDirectory,
     {
         let entities = db.get_entities_by_predicate(|entity_id| {
             db.entity_has_component::<PositionComponent>(entity_id)
@@ -52,7 +58,9 @@ where
                 }
 
                 match db.get_entity_component::<ParentEntityComponent>(candidate_id) {
-                    Ok(parent_entity_component) => candidate_id = parent_entity_component.get_parent_id(),
+                    Ok(parent_entity_component) => {
+                        candidate_id = parent_entity_component.get_parent_id()
+                    }
                     Err(_) => break,
                 }
             }

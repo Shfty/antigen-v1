@@ -18,8 +18,10 @@ use antigen::{
     components::SizeComponent,
     components::StringComponent,
     components::StringListComponent,
-    ecs::EntityID,
-    ecs::{EntityComponentDatabase, SystemError, SystemTrait},
+    entity_component_system::entity_component_database::EntityComponentDatabase,
+    entity_component_system::ComponentStorage,
+    entity_component_system::EntityID,
+    entity_component_system::{EntityComponentDirectory, SystemError, SystemTrait},
     primitive_types::IVector2,
 };
 
@@ -37,11 +39,16 @@ impl ListSystem {
     }
 }
 
-impl<T> SystemTrait<T> for ListSystem
+impl<S, D> SystemTrait<S, D> for ListSystem
 where
-    T: EntityComponentDatabase,
+    S: ComponentStorage,
+    D: EntityComponentDirectory,
 {
-    fn run(&mut self, db: &mut T) -> Result<(), SystemError> {
+    fn run<'a>(&mut self, db: &'a mut EntityComponentDatabase<S, D>) -> Result<(), SystemError>
+    where
+        S: ComponentStorage,
+        D: EntityComponentDirectory,
+    {
         let list_control_entities = db.get_entities_by_predicate(|entity_id| {
             db.entity_has_component::<ListComponent>(entity_id)
                 && db.entity_has_component::<PositionComponent>(entity_id)

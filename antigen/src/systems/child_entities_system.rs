@@ -1,8 +1,11 @@
-use crate::components::ParentEntityComponent;
 use crate::{
     components::ChildEntitiesComponent,
-    ecs::EntityID,
-    ecs::{EntityComponentDatabase, SystemError, SystemTrait},
+    entity_component_system::EntityID,
+    entity_component_system::{EntityComponentDirectory, SystemError, SystemTrait},
+};
+use crate::{
+    components::ParentEntityComponent, entity_component_system::entity_component_database::EntityComponentDatabase,
+    entity_component_system::ComponentStorage,
 };
 
 #[derive(Debug)]
@@ -20,13 +23,15 @@ impl ChildEntitiesSystem {
     }
 }
 
-impl<T> SystemTrait<T> for ChildEntitiesSystem
+impl<S, D> SystemTrait<S, D> for ChildEntitiesSystem
 where
-    T: EntityComponentDatabase,
+    S: ComponentStorage,
+    D: EntityComponentDirectory,
 {
-    fn run(&mut self, db: &mut T) -> Result<(), SystemError>
+    fn run(&mut self, db: &mut EntityComponentDatabase<S, D>) -> Result<(), SystemError>
     where
-        T: EntityComponentDatabase,
+        S: ComponentStorage,
+        D: EntityComponentDirectory,
     {
         // Add existing children to their parent entities' children component
         let entities_with_parents = db.get_entities_by_predicate(|entity_id| {

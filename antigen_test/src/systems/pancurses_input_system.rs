@@ -5,8 +5,8 @@ use crate::components::{
 };
 use antigen::{
     components::ParentEntityComponent,
-    ecs::{EntityComponentDatabase, SystemError, SystemTrait},
-};
+    entity_component_system::{EntityComponentDirectory, SystemError, SystemTrait},
+entity_component_system::ComponentStorage, entity_component_system::entity_component_database::EntityComponentDatabase};
 
 #[derive(Debug)]
 pub struct PancursesInputSystem {
@@ -23,11 +23,16 @@ impl PancursesInputSystem {
     }
 }
 
-impl<T> SystemTrait<T> for PancursesInputSystem
+impl<S, D> SystemTrait<S, D> for PancursesInputSystem
 where
-    T: EntityComponentDatabase,
+    S: ComponentStorage,
+    D: EntityComponentDirectory,
 {
-    fn run(&mut self, db: &mut T) -> Result<(), SystemError> {
+    fn run(&mut self, db: &mut EntityComponentDatabase<S, D>) -> Result<(), SystemError>
+    where
+        S: ComponentStorage,
+        D: EntityComponentDirectory
+    {
         self.input_buffer.clear();
 
         let window_entities = db.get_entities_by_predicate(|entity_id| {

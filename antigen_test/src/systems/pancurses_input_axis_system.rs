@@ -4,8 +4,8 @@ use crate::components::{
 };
 use antigen::{
     components::IntRangeComponent,
-    ecs::{EntityComponentDatabase, SystemError, SystemTrait},
-};
+    entity_component_system::{EntityComponentDirectory, SystemError, SystemTrait},
+entity_component_system::ComponentStorage, entity_component_system::entity_component_database::EntityComponentDatabase};
 
 #[derive(Debug)]
 pub struct PancursesInputAxisSystem;
@@ -16,11 +16,16 @@ impl PancursesInputAxisSystem {
     }
 }
 
-impl<T> SystemTrait<T> for PancursesInputAxisSystem
+impl<S, D> SystemTrait<S, D> for PancursesInputAxisSystem
 where
-    T: EntityComponentDatabase,
+    S: ComponentStorage,
+    D: EntityComponentDirectory,
 {
-    fn run(&mut self, db: &mut T) -> Result<(), SystemError> {
+    fn run(&mut self, db: &mut EntityComponentDatabase<S, D>) -> Result<(), SystemError>
+    where
+        S: ComponentStorage,
+        D: EntityComponentDirectory
+    {
         let entities = db.get_entities_by_predicate(|entity_id| {
             db.entity_has_component::<PancursesInputAxisComponent>(entity_id)
                 && db.entity_has_component::<PancursesInputBufferComponent>(entity_id)

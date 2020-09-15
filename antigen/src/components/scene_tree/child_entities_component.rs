@@ -1,4 +1,4 @@
-use crate::ecs::{ComponentDebugTrait, ComponentTrait, EntityID};
+use crate::entity_component_system::{ComponentDebugTrait, ComponentTrait, EntityID};
 
 #[derive(Debug, Clone)]
 pub struct ChildEntitiesComponent {

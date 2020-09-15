@@ -1,4 +1,4 @@
-use crate::ecs::{ComponentDebugTrait, ComponentTrait};
+use crate::entity_component_system::{ComponentDebugTrait, ComponentTrait};
 
 #[derive(Debug, Default, Copy, Clone)]
 pub struct WindowComponent;

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use antigen::ecs::{ComponentDebugTrait, ComponentTrait};
+use antigen::entity_component_system::{ComponentDebugTrait, ComponentTrait};
 
 use crate::pancurses_color::{PancursesColor, PancursesColorPair};
 

@@ -1,4 +1,4 @@
-use antigen::ecs::{ComponentTrait, ComponentDebugTrait};
+use antigen::entity_component_system::{ComponentTrait, ComponentDebugTrait};
 
 // TODO: Refactor into PancursesFillColorComponent
 

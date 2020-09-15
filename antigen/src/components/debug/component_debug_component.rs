@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::ecs::{ComponentDebugTrait, ComponentID, ComponentTrait};
+use crate::entity_component_system::{ComponentDebugTrait, ComponentID, ComponentTrait};
 
 #[derive(Debug, Clone)]
 pub struct ComponentDebugComponent {

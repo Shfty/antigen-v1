@@ -5,13 +5,13 @@ use crate::{
     components::DebugComponentDataListComponent, components::DebugComponentListComponent,
     components::DebugEntityListComponent, components::DebugExcludeComponent,
     components::EntityDebugComponent, components::EntityInspectorComponent,
-    components::IntRangeComponent, ecs::ComponentID, ecs::ComponentTrait,
-    ecs::EntityID,
+    components::IntRangeComponent, entity_component_system::entity_component_database::EntityComponentDatabase,
+    entity_component_system::ComponentID, entity_component_system::ComponentStorage, entity_component_system::EntityID,
 };
 use crate::{
     components::StringListComponent,
-    ecs::{
-        SystemError, {EntityComponentDatabase, SystemTrait},
+    entity_component_system::{
+        SystemError, {EntityComponentDirectory, SystemTrait},
     },
 };
 
@@ -22,12 +22,20 @@ pub struct ECSDebugSystem<T> {
 
 impl<T> ECSDebugSystem<T>
 where
-    T: EntityComponentDatabase,
+    T: EntityComponentDirectory,
 {
-    pub fn new(db: &mut impl EntityComponentDatabase) -> Self {
-        fn entity_created<T>(db: &mut T, entity_id: EntityID, debug_label: Option<&str>)
-        where
-            T: EntityComponentDatabase,
+    pub fn new<S, D>(builder: &mut EntityComponentDatabase<S, D>) -> Self
+    where
+        S: ComponentStorage,
+        D: EntityComponentDirectory,
+    {
+        fn entity_created<S, D>(
+            db: &mut EntityComponentDatabase<S, D>,
+            entity_id: EntityID,
+            debug_label: Option<&str>,
+        ) where
+            S: ComponentStorage,
+            D: EntityComponentDirectory,
         {
             if let Some(debug_label) = debug_label {
                 if let Some(entity_debug_entity) = db.get_entity_by_predicate(|entity_id| {
@@ -42,13 +50,14 @@ where
             }
         };
 
-        fn component_created<T>(
-            db: &mut T,
+        fn component_created<S, D>(
+            db: &mut EntityComponentDatabase<S, D>,
             component_id: ComponentID,
             label: &str,
             description: &str,
         ) where
-            T: EntityComponentDatabase,
+            S: ComponentStorage,
+            D: EntityComponentDirectory,
         {
             if let Some(component_debug_entity) = db.get_entity_by_predicate(|entity_id| {
                 db.entity_has_component::<ComponentDebugComponent>(entity_id)
@@ -56,13 +65,17 @@ where
                 if let Ok(component_debug_component) =
                     db.get_entity_component_mut::<ComponentDebugComponent>(component_debug_entity)
                 {
-                    component_debug_component.register_component(component_id, label.into(), description.into());
+                    component_debug_component.register_component(
+                        component_id,
+                        label.into(),
+                        description.into(),
+                    );
                 }
             }
         }
 
-        db.register_entity_create_callback(entity_created);
-        db.register_component_create_callback(component_created);
+        builder.register_entity_create_callback(entity_created);
+        builder.register_component_create_callback(component_created);
 
         ECSDebugSystem {
             phantom: PhantomData,
@@ -70,13 +83,15 @@ where
     }
 }
 
-impl<T> SystemTrait<T> for ECSDebugSystem<T>
+impl<S, D> SystemTrait<S, D> for ECSDebugSystem<D>
 where
-    T: EntityComponentDatabase,
+    S: ComponentStorage,
+    D: EntityComponentDirectory,
 {
-    fn run(&mut self, db: &mut T) -> Result<(), SystemError>
+    fn run(&mut self, db: &mut EntityComponentDatabase<S, D>) -> Result<(), SystemError>
     where
-        T: EntityComponentDatabase,
+        S: ComponentStorage,
+        D: EntityComponentDirectory,
     {
         let mut entities: Vec<EntityID> = db.get_entities_by_predicate(|entity_id| {
             !db.entity_has_component::<DebugExcludeComponent>(entity_id)

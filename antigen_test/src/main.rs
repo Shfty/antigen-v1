@@ -16,13 +16,12 @@ use antigen::{
         SizeComponent, StringComponent, StringListComponent, VelocityComponent, WindowComponent,
         ZIndexComponent,
     },
-    ecs::entity_component_database::SingleThreadedDatabase,
-    ecs::system_runner::SingleThreadedSystemRunner,
-    ecs::ComponentID,
-    ecs::EntityComponentSystem,
-    ecs::HeapComponentStorage,
-    ecs::SystemRunner,
-    ecs::{Assemblage, EntityComponentDatabase, EntityID, SystemError},
+    entity_component_system::entity_component_database::{EntityComponentDatabase, SingleThreadedDirectory},
+    entity_component_system::system_runner::SingleThreadedSystemRunner,
+    entity_component_system::ComponentStorage,
+    entity_component_system::HeapComponentStorage,
+    entity_component_system::SystemRunner,
+    entity_component_system::{Assemblage, EntityComponentDirectory, EntityID, SystemError},
     primitive_types::IVector2,
     profiler::Profiler,
     systems::AnchorsMarginsSystem,
@@ -103,13 +102,17 @@ enum EntityAssemblage {
     DestructionTest = 4,
 }
 
-fn create_string_control(
-    db: &mut impl EntityComponentDatabase,
+fn create_string_control<S, D>(
+    db: &mut EntityComponentDatabase<S, D>,
     string_assemblage: &Assemblage,
     debug_label: Option<&str>,
     text: &str,
     (x, y): (i64, i64),
-) -> Result<EntityID, String> {
+) -> Result<EntityID, String>
+where
+    S: ComponentStorage,
+    D: EntityComponentDirectory,
+{
     let entity_id = string_assemblage.create_and_assemble_entity(db, debug_label)?;
 
     db.get_entity_component_mut::<StringComponent>(entity_id)?
@@ -121,13 +124,17 @@ fn create_string_control(
     Ok(entity_id)
 }
 
-fn create_window_entity(
-    db: &mut impl EntityComponentDatabase,
+fn create_window_entity<S, D>(
+    db: &mut EntityComponentDatabase<S, D>,
     debug_label: Option<&str>,
     position: IVector2,
     size: IVector2,
     parent_window_entity_id: Option<EntityID>,
-) -> Result<EntityID, String> {
+) -> Result<EntityID, String>
+where
+    S: ComponentStorage,
+    D: EntityComponentDirectory,
+{
     let entity_id = db.create_entity(debug_label)?;
     db.add_component_to_entity(entity_id, WindowComponent)?;
     db.add_component_to_entity(entity_id, PancursesWindowComponent::default())?;
@@ -142,9 +149,13 @@ fn create_window_entity(
     Ok(entity_id)
 }
 
-fn setup_assemblages(
-    db: &mut impl EntityComponentDatabase,
-) -> Result<HashMap<EntityAssemblage, Assemblage>, String> {
+fn setup_assemblages<S, D>(
+    db: &mut EntityComponentDatabase<S, D>,
+) -> Result<HashMap<EntityAssemblage, Assemblage>, String>
+where
+    S: ComponentStorage,
+    D: EntityComponentDirectory,
+{
     let mut assemblages: HashMap<EntityAssemblage, Assemblage> = HashMap::new();
 
     assemblages.insert(
@@ -219,11 +230,15 @@ fn setup_assemblages(
     Ok(assemblages)
 }
 
-fn create_game_window(
-    db: &mut impl EntityComponentDatabase,
+fn create_game_window<S, D>(
+    db: &mut EntityComponentDatabase<S, D>,
     assemblages: &HashMap<EntityAssemblage, Assemblage>,
     parent_window_entity: EntityID,
-) -> Result<EntityID, String> {
+) -> Result<EntityID, String>
+where
+    S: ComponentStorage,
+    D: EntityComponentDirectory,
+{
     // Create Game Window
     let game_window_entity = db.create_entity(Some("Game"))?;
     db.add_component_to_entity(game_window_entity, PositionComponent::default())?;
@@ -278,15 +293,19 @@ fn create_game_window(
     Ok(game_window_entity)
 }
 
-fn create_debug_window(
-    db: &mut impl EntityComponentDatabase,
+fn create_debug_window<S, D>(
+    db: &mut EntityComponentDatabase<S, D>,
     assemblages: &HashMap<EntityAssemblage, Assemblage>,
     parent_window_entity: EntityID,
     list_index_entity: Option<EntityID>,
     window_name: &str,
     anchor_horizontal: Range<f32>,
     anchor_vertical: Range<f32>,
-) -> Result<EntityID, String> {
+) -> Result<EntityID, String>
+where
+    S: ComponentStorage,
+    D: EntityComponentDirectory,
+{
     let entity_list_window_entity = assemblages[&EntityAssemblage::RectControl]
         .create_and_assemble_entity(db, Some(&format!("{} Window", window_name)))?;
     db.get_entity_component_mut::<PancursesColorPairComponent>(entity_list_window_entity)?
@@ -355,12 +374,16 @@ fn create_debug_window(
     Ok(entity_list_entity)
 }
 
-fn create_entity_list_window(
-    db: &mut impl EntityComponentDatabase,
+fn create_entity_list_window<S, D>(
+    db: &mut EntityComponentDatabase<S, D>,
     assemblages: &HashMap<EntityAssemblage, Assemblage>,
     parent_window_entity: EntityID,
     entity_inspector_entity: EntityID,
-) -> Result<EntityID, String> {
+) -> Result<EntityID, String>
+where
+    S: ComponentStorage,
+    D: EntityComponentDirectory,
+{
     let entity_list_entity = create_debug_window(
         db,
         assemblages,
@@ -374,12 +397,16 @@ fn create_entity_list_window(
     Ok(entity_list_entity)
 }
 
-fn create_component_list_window(
-    db: &mut impl EntityComponentDatabase,
+fn create_component_list_window<S, D>(
+    db: &mut EntityComponentDatabase<S, D>,
     assemblages: &HashMap<EntityAssemblage, Assemblage>,
     parent_window_entity: EntityID,
     component_inspector_entity: EntityID,
-) -> Result<EntityID, String> {
+) -> Result<EntityID, String>
+where
+    S: ComponentStorage,
+    D: EntityComponentDirectory,
+{
     let component_list_entity = create_debug_window(
         db,
         assemblages,
@@ -395,11 +422,15 @@ fn create_component_list_window(
     Ok(component_list_entity)
 }
 
-fn create_component_data_list_window(
-    db: &mut impl EntityComponentDatabase,
+fn create_component_data_list_window<S, D>(
+    db: &mut EntityComponentDatabase<S, D>,
     assemblages: &HashMap<EntityAssemblage, Assemblage>,
     parent_window_entity: EntityID,
-) -> Result<EntityID, String> {
+) -> Result<EntityID, String>
+where
+    S: ComponentStorage,
+    D: EntityComponentDirectory,
+{
     let component_list_entity = create_debug_window(
         db,
         assemblages,
@@ -414,55 +445,64 @@ fn create_component_data_list_window(
 }
 
 fn main_internal() -> Result<(), SystemError> {
-    let mut storage = HeapComponentStorage::new();
+    let storage = HeapComponentStorage::new();
+    let db = SingleThreadedDirectory::new();
+    let mut builder = EntityComponentDatabase::new(storage, db);
 
-    /*
-    control_component::ControlComponent,
-    destruction_test_input_component::DestructionTestInputComponent, fill_component::FillComponent,
-    list_component::ListComponent, local_mouse_position_component::LocalMousePositionComponent,
-    pancurses_color_pair_component::PancursesColorPairComponent,
-    pancurses_input_buffer_component::PancursesInputBufferComponent,
-    pancurses_window_component::PancursesWindowComponent,
-    */
+    {
+        let entity_debug_entity = builder.create_entity(None).unwrap();
 
-    storage.register_component::<AnchorsComponent>();
-    storage.register_component::<CharComponent>();
-    storage.register_component::<ComponentDebugComponent>();
-    storage.register_component::<ComponentInspectorComponent>();
-    storage.register_component::<ChildEntitiesComponent>();
-    storage.register_component::<DebugComponentDataListComponent>();
-    storage.register_component::<DebugComponentListComponent>();
-    storage.register_component::<DebugEntityListComponent>();
-    storage.register_component::<DebugExcludeComponent>();
-    storage.register_component::<EntityDebugComponent>();
-    storage.register_component::<EntityInspectorComponent>();
-    storage.register_component::<GlobalPositionComponent>();
-    storage.register_component::<IntRangeComponent>();
-    storage.register_component::<MarginsComponent>();
-    storage.register_component::<ParentEntityComponent>();
-    storage.register_component::<PositionComponent>();
-    storage.register_component::<SizeComponent>();
-    storage.register_component::<StringComponent>();
-    storage.register_component::<StringListComponent>();
-    storage.register_component::<VelocityComponent>();
-    storage.register_component::<WindowComponent>();
-    storage.register_component::<ZIndexComponent>();
+        builder
+            .add_component_to_entity(entity_debug_entity, EntityDebugComponent::default())?
+            .register_entity(entity_debug_entity, "Entity Debug".into());
 
-    storage.register_component::<ControlComponent>();
-    storage.register_component::<DestructionTestInputComponent>();
-    storage.register_component::<FillComponent>();
-    storage.register_component::<ListComponent>();
-    storage.register_component::<LocalMousePositionComponent>();
-    storage.register_component::<PancursesColorPairComponent>();
-    storage.register_component::<PancursesInputAxisComponent>();
-    storage.register_component::<PancursesInputBufferComponent>();
-    storage.register_component::<PancursesMouseComponent>();
-    storage.register_component::<PancursesWindowComponent>();
-    storage.register_component::<PancursesColorSetComponent>();
+        builder.add_component_to_entity(entity_debug_entity, DebugExcludeComponent)?;
+    }
 
-    println!("Storage: {:#?}", storage);
+    {
+        let component_debug_entity = builder.create_entity("Component Debug".into()).unwrap();
 
-    let mut pancurses_window_system = PancursesWindowSystem::new(&mut storage);
+        builder
+            .add_component_to_entity(component_debug_entity, ComponentDebugComponent::default())?;
+        builder.add_component_to_entity(component_debug_entity, DebugExcludeComponent)?;
+    }
+
+    builder.register_component::<AnchorsComponent>()?;
+    builder.register_component::<CharComponent>()?;
+    builder.register_component::<ComponentDebugComponent>()?;
+    builder.register_component::<ComponentInspectorComponent>()?;
+    builder.register_component::<ChildEntitiesComponent>()?;
+    builder.register_component::<DebugComponentDataListComponent>()?;
+    builder.register_component::<DebugComponentListComponent>()?;
+    builder.register_component::<DebugEntityListComponent>()?;
+    builder.register_component::<DebugExcludeComponent>()?;
+    builder.register_component::<EntityDebugComponent>()?;
+    builder.register_component::<EntityInspectorComponent>()?;
+    builder.register_component::<GlobalPositionComponent>()?;
+    builder.register_component::<IntRangeComponent>()?;
+    builder.register_component::<MarginsComponent>()?;
+    builder.register_component::<ParentEntityComponent>()?;
+    builder.register_component::<PositionComponent>()?;
+    builder.register_component::<SizeComponent>()?;
+    builder.register_component::<StringComponent>()?;
+    builder.register_component::<StringListComponent>()?;
+    builder.register_component::<VelocityComponent>()?;
+    builder.register_component::<WindowComponent>()?;
+    builder.register_component::<ZIndexComponent>()?;
+
+    builder.register_component::<ControlComponent>()?;
+    builder.register_component::<DestructionTestInputComponent>()?;
+    builder.register_component::<FillComponent>()?;
+    builder.register_component::<ListComponent>()?;
+    builder.register_component::<LocalMousePositionComponent>()?;
+    builder.register_component::<PancursesColorPairComponent>()?;
+    builder.register_component::<PancursesInputAxisComponent>()?;
+    builder.register_component::<PancursesInputBufferComponent>()?;
+    builder.register_component::<PancursesMouseComponent>()?;
+    builder.register_component::<PancursesWindowComponent>()?;
+    builder.register_component::<PancursesColorSetComponent>()?;
+
+    let mut pancurses_window_system = PancursesWindowSystem::new(&mut builder);
     let mut pancurses_input_system = PancursesInputSystem::new(1);
     let mut pancurses_prev_next_input_system = PancursesInputAxisSystem::new();
     let mut destruction_test_input_system = DestructionTestInputSystem::new();
@@ -473,48 +513,47 @@ fn main_internal() -> Result<(), SystemError> {
     let mut anchors_margins_system = AnchorsMarginsSystem::new();
     let mut global_position_system = GlobalPositionSystem::new();
 
-    let mut db = SingleThreadedDatabase::new(&mut storage)?;
-
-    let mut ecs_debug_system = ECSDebugSystem::new(&mut db);
+    let mut ecs_debug_system = ECSDebugSystem::new(&mut builder);
     let mut child_entities_system = ChildEntitiesSystem::new();
     let mut pancurses_renderer_system = PancursesRendererSystem::new();
 
-    let assemblages = setup_assemblages(&mut db)?;
+    let assemblages = setup_assemblages(&mut builder)?;
 
     // Create Main Window
     let main_window_entity = create_window_entity(
-        &mut db,
+        &mut builder,
         Some("Main Window"),
         IVector2::default(),
         IVector2(256, 64),
         None,
     )?;
 
-    let entity_inspector_entity = db.create_entity(Some("Entity Inspector"))?;
-    db.add_component_to_entity(entity_inspector_entity, EntityInspectorComponent)?;
-    db.add_component_to_entity(entity_inspector_entity, IntRangeComponent::default())?;
+    let entity_inspector_entity = builder.create_entity(Some("Entity Inspector"))?;
+    builder.add_component_to_entity(entity_inspector_entity, EntityInspectorComponent)?;
+    builder.add_component_to_entity(entity_inspector_entity, IntRangeComponent::default())?;
 
-    let component_inspector_entity = db.create_entity(Some("Component Inspector"))?;
-    db.add_component_to_entity(component_inspector_entity, ComponentInspectorComponent)?;
-    db.add_component_to_entity(component_inspector_entity, IntRangeComponent::default())?;
+    let component_inspector_entity = builder.create_entity(Some("Component Inspector"))?;
+    builder.add_component_to_entity(component_inspector_entity, ComponentInspectorComponent)?;
+    builder.add_component_to_entity(component_inspector_entity, IntRangeComponent::default())?;
 
-    create_game_window(&mut db, &assemblages, main_window_entity)?;
+    create_game_window(&mut builder, &assemblages, main_window_entity)?;
     create_entity_list_window(
-        &mut db,
+        &mut builder,
         &assemblages,
         main_window_entity,
         entity_inspector_entity,
     )?;
     create_component_list_window(
-        &mut db,
+        &mut builder,
         &assemblages,
         main_window_entity,
         component_inspector_entity,
     )?;
-    create_component_data_list_window(&mut db, &assemblages, main_window_entity)?;
+    create_component_data_list_window(&mut builder, &assemblages, main_window_entity)?;
 
     // Create systems
-    let mut system_runner = SingleThreadedSystemRunner::<SingleThreadedDatabase>::new();
+    let mut system_runner =
+        SingleThreadedSystemRunner::<HeapComponentStorage, SingleThreadedDirectory>::new();
     system_runner.register_system("Pancurses Window", &mut pancurses_window_system);
     system_runner.register_system("Pancurses Input", &mut pancurses_input_system);
     system_runner.register_system(
@@ -537,7 +576,7 @@ fn main_internal() -> Result<(), SystemError> {
     loop {
         let main_loop_profiler = Profiler::start("Main Loop");
 
-        system_runner.run(&mut db)?;
+        system_runner.run(&mut builder)?;
 
         // Sleep if framerate target is exceeded - prevents deadlock when pancurses stops being able to poll input after window close
         let delta = main_loop_profiler.finish();

@@ -1,7 +1,9 @@
 use crate::components::pancurses_input_buffer_component::PancursesInputBufferComponent;
 use antigen::{
     components::VelocityComponent,
-    ecs::{EntityComponentDatabase, SystemError, SystemTrait},
+    entity_component_system::entity_component_database::EntityComponentDatabase,
+    entity_component_system::ComponentStorage,
+    entity_component_system::{EntityComponentDirectory, SystemError, SystemTrait},
     primitive_types::IVector2,
 };
 
@@ -14,11 +16,16 @@ impl InputVelocitySystem {
     }
 }
 
-impl<T> SystemTrait<T> for InputVelocitySystem
+impl<S, D> SystemTrait<S, D> for InputVelocitySystem
 where
-    T: EntityComponentDatabase,
+    S: ComponentStorage,
+    D: EntityComponentDirectory,
 {
-    fn run(&mut self, db: &mut T) -> Result<(), SystemError> {
+    fn run(&mut self, db: &mut EntityComponentDatabase<S, D>) -> Result<(), SystemError>
+    where
+        S: ComponentStorage,
+        D: EntityComponentDirectory,
+    {
         let entities = db.get_entities_by_predicate(|entity_id| {
             db.entity_has_component::<PancursesInputBufferComponent>(entity_id)
                 && db.entity_has_component::<VelocityComponent>(entity_id)

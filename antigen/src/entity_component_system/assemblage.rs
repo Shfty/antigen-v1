@@ -1,7 +1,7 @@
 use super::{
-    component::{ComponentID},
-    entity_component_database::EntityComponentDatabase,
-    ComponentDebugTrait, ComponentTrait, EntityID,
+    component::ComponentID,
+    entity_component_database::{EntityComponentDatabase, EntityComponentDirectory},
+    ComponentDebugTrait, ComponentStorage, ComponentTrait, EntityID,
 };
 use crate::primitive_types::UID;
 use std::{
@@ -28,20 +28,22 @@ impl AddAssign<UID> for AssemblageID {
     }
 }
 
-pub struct AssemblageBuilder<'a, T>
+pub struct AssemblageBuilder<'a, S, D>
 where
-    T: EntityComponentDatabase,
+    S: ComponentStorage,
+    D: EntityComponentDirectory,
 {
-    db: &'a mut T,
+    db: &'a mut EntityComponentDatabase<S, D>,
     assemblage: Assemblage,
     component_data: HashMap<ComponentID, Box<dyn ComponentTrait>>,
 }
 
-impl<'a, T> AssemblageBuilder<'a, T>
+impl<'a, S, D> AssemblageBuilder<'a, S, D>
 where
-    T: EntityComponentDatabase,
+    S: ComponentStorage,
+    D: EntityComponentDirectory,
 {
-    pub fn new(db: &'a mut T, assemblage: Assemblage) -> Self {
+    pub fn new(db: &'a mut EntityComponentDatabase<S, D>, assemblage: Assemblage) -> Self {
         AssemblageBuilder {
             db,
             assemblage,
@@ -51,7 +53,7 @@ where
 
     pub fn add_component<C>(mut self, component: C) -> Result<Self, String>
     where
-        C: ComponentTrait + ComponentDebugTrait + 'static,
+        C: ComponentTrait + ComponentDebugTrait + Default + 'static,
     {
         if !self.db.is_valid_component::<C>() {
             self.db.register_component::<C>()?;
@@ -68,6 +70,7 @@ where
     }
 }
 
+/// An object template as defined by a set of components with given default values
 #[derive(Debug, Clone)]
 pub struct Assemblage {
     pub name: String,
@@ -84,27 +87,40 @@ impl Assemblage {
         }
     }
 
-    pub fn build<'a, T>(db: &'a mut T, name: &str, description: &str) -> AssemblageBuilder<'a, T>
+    pub fn build<'a, S, D>(
+        db: &'a mut EntityComponentDatabase<S, D>,
+        name: &str,
+        description: &str,
+    ) -> AssemblageBuilder<'a, S, D>
     where
-        T: EntityComponentDatabase,
+        S: ComponentStorage,
+        D: EntityComponentDirectory,
     {
         AssemblageBuilder::new(db, Assemblage::new(name, description))
     }
 
-    pub fn create_and_assemble_entity(
+    pub fn create_and_assemble_entity<'a, S, D>(
         &self,
-        db: &mut impl EntityComponentDatabase,
+        db: &'a mut EntityComponentDatabase<S, D>,
         debug_label: Option<&str>,
-    ) -> Result<EntityID, String> {
+    ) -> Result<EntityID, String>
+    where
+        S: ComponentStorage,
+        D: EntityComponentDirectory,
+    {
         let entity_id = db.create_entity(debug_label)?;
         self.assemble_entity(db, entity_id)
     }
 
-    pub fn assemble_entity(
+    pub fn assemble_entity<'a, S, D>(
         &self,
-        db: &mut impl EntityComponentDatabase,
+        db: &'a mut EntityComponentDatabase<S, D>,
         entity_id: EntityID,
-    ) -> Result<EntityID, String> {
+    ) -> Result<EntityID, String>
+    where
+        S: ComponentStorage,
+        D: EntityComponentDirectory,
+    {
         for (component_id, component_data) in &self.component_data {
             db.add_registered_component_to_entity(
                 entity_id,

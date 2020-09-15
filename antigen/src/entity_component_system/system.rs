@@ -2,7 +2,9 @@ use std::fmt::Debug;
 
 use crate::primitive_types::UID;
 
-use super::EntityComponentDatabase;
+use super::{
+    ComponentStorage, EntityComponentDirectory,
+EntityComponentDatabase};
 
 #[derive(Debug, Copy, Clone, Hash, Ord, PartialOrd, Eq, PartialEq)]
 pub struct SystemID(pub UID);
@@ -25,11 +27,14 @@ impl From<&str> for SystemError {
     }
 }
 
-pub trait SystemTrait<T>
+/// A monolithic set of logic that runs on sets of entities with specific component layouts
+pub trait SystemTrait<S, D>
 where
-    T: EntityComponentDatabase,
+    S: ComponentStorage,
+    D: EntityComponentDirectory,
 {
-    fn run(&mut self, db: &mut T) -> Result<(), SystemError>
+    fn run<'a>(&mut self, db: &'a mut EntityComponentDatabase<S, D>) -> Result<(), SystemError>
     where
-        T: EntityComponentDatabase;
+        S: ComponentStorage,
+        D: EntityComponentDirectory;
 }

@@ -1,40 +1,7 @@
+use super::{
+    ComponentDataID, ComponentDropCallback, ComponentID, ComponentStorage, ComponentTrait,
+};
 use std::{collections::HashMap, fmt::Debug};
-
-use super::{ComponentDataID, ComponentID, ComponentTrait, ComponentDropCallback};
-
-pub trait ComponentStorage {
-    fn register_component_drop_callback(
-        &mut self,
-        component_id: ComponentID,
-        callback: ComponentDropCallback,
-    );
-
-    fn store_component_by_id(
-        &mut self,
-        component_id: ComponentID,
-    ) -> Result<ComponentDataID, String>;
-
-    fn insert_component(
-        &mut self,
-        component_data: Box<dyn ComponentTrait>
-    ) -> Result<ComponentDataID, String>;
-
-    fn get_component_data(
-        &self,
-        component_data_id: &ComponentDataID,
-    ) -> Result<&dyn ComponentTrait, String>;
-
-    fn get_component_data_mut(
-        &mut self,
-        component_data_id: &ComponentDataID,
-    ) -> Result<&mut dyn ComponentTrait, String>;
-
-    fn remove_component_data(
-        &mut self,
-        component_id: &ComponentID,
-        component_data_id: &ComponentDataID,
-    ) -> Result<(), String>;
-}
 
 pub struct HeapComponentStorage<'a> {
     component_constructors: HashMap<ComponentID, &'a dyn Fn() -> Box<dyn ComponentTrait>>,
@@ -66,14 +33,6 @@ impl<'a> HeapComponentStorage<'a> {
         }
     }
 
-    pub fn register_component<T>(&mut self)
-    where
-        T: ComponentTrait + Default + 'static,
-    {
-        self.component_constructors
-            .insert(ComponentID::get::<T>(), &|| Box::new(T::default()));
-    }
-
     pub fn store_component<T>(&mut self, component_data: T) -> ComponentDataID
     where
         T: ComponentTrait + Default + 'static,
@@ -102,6 +61,14 @@ impl<'a> Default for HeapComponentStorage<'a> {
 }
 
 impl<'a> ComponentStorage for HeapComponentStorage<'a> {
+    fn register_component<T>(&mut self)
+    where
+        T: ComponentTrait + Default + 'static,
+    {
+        self.component_constructors
+            .insert(ComponentID::get::<T>(), &|| Box::new(T::default()));
+    }
+
     fn register_component_drop_callback(
         &mut self,
         component_id: ComponentID,
@@ -141,7 +108,7 @@ impl<'a> ComponentStorage for HeapComponentStorage<'a> {
 
     fn insert_component(
         &mut self,
-        component_data: Box<dyn ComponentTrait>
+        component_data: Box<dyn ComponentTrait>,
     ) -> Result<ComponentDataID, String> {
         let id = ComponentDataID::next();
         self.component_data.insert(id, component_data);

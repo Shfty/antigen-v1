@@ -18,8 +18,10 @@ use antigen::{
     components::{
         CharComponent, GlobalPositionComponent, PositionComponent, SizeComponent, StringComponent,
     },
-    ecs::EntityID,
-    ecs::{EntityComponentDatabase, SystemError, SystemTrait},
+    entity_component_system::entity_component_database::EntityComponentDatabase,
+    entity_component_system::ComponentStorage,
+    entity_component_system::EntityID,
+    entity_component_system::{EntityComponentDirectory, SystemError, SystemTrait},
     primitive_types::IVector2,
 };
 use pancurses::{ToChtype, Window};
@@ -166,11 +168,16 @@ impl PancursesRendererSystem {
     }
 }
 
-impl<T> SystemTrait<T> for PancursesRendererSystem
+impl<S, D> SystemTrait<S, D> for PancursesRendererSystem
 where
-    T: EntityComponentDatabase,
+    S: ComponentStorage,
+    D: EntityComponentDirectory,
 {
-    fn run(&mut self, db: &mut T) -> Result<(), SystemError> {
+    fn run(&mut self, db: &mut EntityComponentDatabase<S, D>) -> Result<(), SystemError>
+    where
+        S: ComponentStorage,
+        D: EntityComponentDirectory,
+    {
         // Fetch color set entity
         let color_set_entities = db.get_entities_by_predicate(|entity_id| {
             db.entity_has_component::<PancursesColorSetComponent>(entity_id)
@@ -208,12 +215,16 @@ where
         // Recursively traverse parent-child tree and populate Z-ordered list of controls
         let mut z_layers: HashMap<i64, Vec<EntityID>> = HashMap::new();
 
-        fn populate_z_layers(
-            db: &impl EntityComponentDatabase,
+        fn populate_z_layers<S, D>(
+            db: &EntityComponentDatabase<S, D>,
             entity_id: EntityID,
             z_layers: &mut HashMap<i64, Vec<EntityID>>,
             z_index: i64,
-        ) -> Result<(), String> {
+        ) -> Result<(), String>
+        where
+            S: ComponentStorage,
+            D: EntityComponentDirectory,
+        {
             let z_index = match db.get_entity_component::<ZIndexComponent>(entity_id) {
                 Ok(z_index_component) => z_index_component.get_z(),
                 Err(_) => z_index,
@@ -288,7 +299,9 @@ where
                 }
 
                 match db.get_entity_component::<ParentEntityComponent>(candidate_id) {
-                    Ok(parent_entity_component) => candidate_id = parent_entity_component.get_parent_id(),
+                    Ok(parent_entity_component) => {
+                        candidate_id = parent_entity_component.get_parent_id()
+                    }
                     Err(_) => break,
                 }
             }

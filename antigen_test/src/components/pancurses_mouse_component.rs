@@ -1,5 +1,5 @@
 use antigen::{
-    ecs::{ComponentDebugTrait, ComponentTrait},
+    entity_component_system::{ComponentDebugTrait, ComponentTrait},
     primitive_types::IVector2,
 };
 

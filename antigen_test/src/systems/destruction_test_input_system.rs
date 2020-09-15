@@ -1,6 +1,9 @@
 use antigen::{
-    ecs::SystemError,
-    ecs::{EntityComponentDatabase, SystemTrait},
+    entity_component_system::SystemError,
+    entity_component_system::{
+        entity_component_database::EntityComponentDatabase, ComponentStorage,
+        EntityComponentDirectory, SystemTrait,
+    },
 };
 
 use crate::components::{
@@ -17,13 +20,15 @@ impl DestructionTestInputSystem {
     }
 }
 
-impl<T> SystemTrait<T> for DestructionTestInputSystem
+impl<S, D> SystemTrait<S, D> for DestructionTestInputSystem
 where
-    T: EntityComponentDatabase,
+    S: ComponentStorage,
+    D: EntityComponentDirectory,
 {
-    fn run(&mut self, db: &mut T) -> Result<(), SystemError>
+    fn run(&mut self, db: &mut EntityComponentDatabase<S, D>) -> Result<(), SystemError>
     where
-        T: EntityComponentDatabase,
+        S: ComponentStorage,
+        D: EntityComponentDirectory,
     {
         let destruction_test_components = db.get_entities_by_predicate(|entity_id| {
             db.entity_has_component::<DestructionTestInputComponent>(entity_id)

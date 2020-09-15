@@ -1,13 +1,17 @@
 use std::collections::HashMap;
 
-use crate::components::{ParentEntityComponent, PositionComponent};
 use crate::{
     components::AnchorsComponent,
     components::MarginsComponent,
     components::SizeComponent,
-    ecs::EntityID,
-    ecs::{EntityComponentDatabase, SystemError, SystemTrait},
+    entity_component_system::entity_component_database::EntityComponentDatabase,
+    entity_component_system::EntityID,
+    entity_component_system::{EntityComponentDirectory, SystemError, SystemTrait},
     primitive_types::IVector2,
+};
+use crate::{
+    components::{ParentEntityComponent, PositionComponent},
+    entity_component_system::ComponentStorage,
 };
 
 #[derive(Debug)]
@@ -25,13 +29,14 @@ impl AnchorsMarginsSystem {
     }
 }
 
-impl<T> SystemTrait<T> for AnchorsMarginsSystem
+impl<S, D> SystemTrait<S, D> for AnchorsMarginsSystem
 where
-    T: EntityComponentDatabase,
+    S: ComponentStorage,
+    D: EntityComponentDirectory,
 {
-    fn run(&mut self, db: &mut T) -> Result<(), SystemError>
+    fn run(&mut self, db: &mut EntityComponentDatabase<S, D>) -> Result<(), SystemError>
     where
-        T: EntityComponentDatabase,
+        D: EntityComponentDirectory,
     {
         // Fetch anchor entities
         let anchor_entities = db.get_entities_by_predicate(|entity_id| {
@@ -94,7 +99,9 @@ where
                 .get_entity_component::<SizeComponent>(parent_id)?
                 .get_size();
 
-            let (anchor_left, anchor_right, anchor_top, anchor_bottom) = db.get_entity_component::<AnchorsComponent>(entity_id)?.get_anchors();
+            let (anchor_left, anchor_right, anchor_top, anchor_bottom) = db
+                .get_entity_component::<AnchorsComponent>(entity_id)?
+                .get_anchors();
 
             let (margin_left, margin_right, margin_top, margin_bottom) =
                 match db.get_entity_component::<MarginsComponent>(entity_id) {

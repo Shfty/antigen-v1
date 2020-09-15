@@ -11,11 +11,12 @@ use antigen::{
     components::StringComponent,
     components::WindowComponent,
     components::{CharComponent, SizeComponent},
-    ecs::ComponentID,
-    ecs::ComponentStorage,
-    ecs::ComponentTrait,
-    ecs::EntityID,
-    ecs::{EntityComponentDatabase, SystemError, SystemTrait},
+    entity_component_system::entity_component_database::EntityComponentDatabase,
+    entity_component_system::ComponentID,
+    entity_component_system::ComponentStorage,
+    entity_component_system::ComponentTrait,
+    entity_component_system::EntityID,
+    entity_component_system::{EntityComponentDirectory, SystemError, SystemTrait},
     primitive_types::IVector2,
 };
 use pancurses::ToChtype;
@@ -27,22 +28,30 @@ use std::collections::HashMap;
 pub struct PancursesWindowSystem;
 
 impl PancursesWindowSystem {
-    pub fn new(storage: &mut impl ComponentStorage) -> Self {
+    pub fn new<S, D>(builder: &mut EntityComponentDatabase<S, D>) -> Self
+    where
+        S: ComponentStorage,
+        D: EntityComponentDirectory,
+    {
         fn drop_callback(_: &mut dyn ComponentTrait) {
             pancurses::endwin();
         }
-        storage.register_component_drop_callback(
+        builder.register_component_drop_callback(
             ComponentID::get::<PancursesWindowComponent>(),
             drop_callback,
         );
         PancursesWindowSystem
     }
 
-    fn try_create_window(
+    fn try_create_window<S, D>(
         &mut self,
-        db: &mut impl EntityComponentDatabase,
+        db: &mut EntityComponentDatabase<S, D>,
         entity_id: EntityID,
-    ) -> Result<(), String> {
+    ) -> Result<(), String>
+    where
+        S: ComponentStorage,
+        D: EntityComponentDirectory,
+    {
         let pancurses_window_component =
             db.get_entity_component::<PancursesWindowComponent>(entity_id)?;
 
@@ -129,11 +138,16 @@ impl PancursesWindowSystem {
     }
 }
 
-impl<T> SystemTrait<T> for PancursesWindowSystem
+impl<S, D> SystemTrait<S, D> for PancursesWindowSystem
 where
-    T: EntityComponentDatabase,
+    S: ComponentStorage,
+    D: EntityComponentDirectory,
 {
-    fn run(&mut self, db: &mut T) -> Result<(), SystemError> {
+    fn run(&mut self, db: &mut EntityComponentDatabase<S, D>) -> Result<(), SystemError>
+    where
+        S: ComponentStorage,
+        D: EntityComponentDirectory,
+    {
         // Get window entities, update internal window state
         let window_entities = db.get_entities_by_predicate(|entity_id| {
             db.entity_has_component::<WindowComponent>(entity_id)

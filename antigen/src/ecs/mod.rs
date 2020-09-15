@@ -21,6 +21,7 @@ pub use system_runner::SystemRunner;
 
 type EntityCreateCallback<T> = fn(&mut T, EntityID, Option<&str>);
 type ComponentCreateCallback<T> = fn(&mut T, ComponentID, &str, &str);
+type ComponentDropCallback = fn(&mut dyn ComponentTrait);
 
 pub struct EntityComponentSystem<'a> {
     component_storage: HeapComponentStorage<'a>,
@@ -68,6 +69,37 @@ impl<'a> EntityComponentSystem<'a> {
         self.entity_component_directory.register_component::<T>()
     }
 
+    fn add_registered_component_to_entity(
+        &mut self,
+        entity_id: EntityID,
+        component_id: ComponentID,
+        component_data: Box<dyn ComponentTrait>,
+    ) -> Result<ComponentDataID, String> {
+        let component_data_id = self.component_storage.insert_component(component_data)?;
+        self.entity_component_directory.insert_entity_component(
+            &entity_id,
+            component_id,
+            component_data_id,
+        )
+    }
+    fn remove_registered_component_from_entity(
+        &mut self,
+        entity_id: EntityID,
+        component_id: ComponentID,
+    ) -> Result<(), String> {
+        let component_data_id = self
+            .entity_component_directory
+            .get_entity_component_data_id_by_id(entity_id, component_id)?;
+
+        self.component_storage
+            .remove_component_data(&component_id, &component_data_id)?;
+
+        self.entity_component_directory
+            .remove_entity_component(&entity_id, &component_id)?;
+
+        Ok(())
+    }
+
     fn register_entity_create_callback(
         &mut self,
         callback: for<'r, 's> fn(
@@ -93,27 +125,28 @@ impl<'a> EntityComponentSystem<'a> {
             .register_component_create_callback(callback)
     }
 
-    fn add_registered_component_to_entity(
+    fn register_component_drop_callback(
         &mut self,
-        entity_id: EntityID,
         component_id: ComponentID,
-        component_data: Box<dyn ComponentTrait>,
-    ) -> Result<ComponentDataID, String> {
-        let component_data_id = self.component_storage.insert_component(component_data)?;
-        self.entity_component_directory.insert_entity_component(
-            &entity_id,
-            component_id,
-            component_data_id,
-        )
+        callback: ComponentDropCallback,
+    ) {
+        self.component_storage
+            .register_component_drop_callback(component_id, callback)
     }
 
-    fn remove_registered_component_from_entity(
+    fn get_component_data(
+        &self,
+        component_data_id: &ComponentDataID,
+    ) -> Result<&dyn ComponentTrait, String> {
+        self.component_storage.get_component_data(component_data_id)
+    }
+
+    fn register_system(
         &mut self,
-        entity_id: EntityID,
-        component_id: ComponentID,
-    ) -> Result<(), String> {
-        self.entity_component_directory
-            .remove_registered_component_from_entity(entity_id, component_id)
+        name: &str,
+        system: &'a mut dyn SystemTrait<SingleThreadedDatabase<'a>>,
+    ) {
+        self.system_runner.register_system(name, system)
     }
 
     fn get_entity_by_predicate(&self, predicate: impl Fn(&EntityID) -> bool) -> Option<EntityID> {
@@ -144,22 +177,6 @@ impl<'a> EntityComponentSystem<'a> {
             .entity_has_component_by_id(entity_id, component_id)
     }
 
-    fn get_entity_component<T: ComponentTrait + 'static>(
-        &self,
-        entity_id: EntityID,
-    ) -> Result<&T, String> {
-        self.entity_component_directory
-            .get_entity_component(entity_id)
-    }
-
-    fn get_entity_component_mut<T: ComponentTrait + 'static>(
-        &mut self,
-        entity_id: EntityID,
-    ) -> Result<&mut T, String> {
-        self.entity_component_directory
-            .get_entity_component_mut(entity_id)
-    }
-
     fn get_entity_component_data_id(
         &self,
         entity_id: &EntityID,
@@ -169,6 +186,67 @@ impl<'a> EntityComponentSystem<'a> {
             .get_entity_component_data_id(entity_id, component_id)
     }
 
+    fn get_entity_component_mut<T: ComponentTrait + 'static>(
+        &mut self,
+        entity_id: EntityID,
+    ) -> Result<&mut T, String> {
+        let component_data_id = self
+            .entity_component_directory
+            .get_entity_component_data_id_by_type::<T>(entity_id)?;
+
+        let component_data = match self
+            .component_storage
+            .get_component_data_mut(&component_data_id)
+        {
+            Ok(component_data) => component_data,
+            Err(err) => {
+                return Err(format!(
+                    "Error getting mutable component for entity {}: {}",
+                    entity_id, err
+                ))
+            }
+        };
+
+        let component_data = match component_data.as_mut_any().downcast_mut::<T>() {
+            Some(component_data) => component_data,
+            None => {
+                return Err(
+                    "Error getting mutable entity component: Component type mismatch".into(),
+                )
+            }
+        };
+
+        Ok(component_data)
+    }
+    
+    fn get_entity_component<T: ComponentTrait + 'static>(
+        &self,
+        entity_id: EntityID,
+    ) -> Result<&T, String> {
+        let component_data_id = self.entity_component_directory.get_entity_component_data_id_by_type::<T>(entity_id)?;
+
+        let component_data = match self
+            .component_storage
+            .get_component_data(&component_data_id)
+        {
+            Ok(component_data) => component_data,
+            Err(err) => {
+                return Err(format!(
+                    "Error getting component for entity {}: {}",
+                    entity_id, err
+                ))
+            }
+        };
+
+        let component_data = match component_data.as_any().downcast_ref::<T>() {
+            Some(component_data) => component_data,
+            None => return Err("Error getting entity component: Component type mismatch".into()),
+        };
+
+        Ok(component_data)
+    }
+
+    // Methods to fixup, audit later
     fn add_component_to_entity<T: ComponentTrait + ComponentDebugTrait + 'static>(
         &mut self,
         entity_id: EntityID,
@@ -184,20 +262,5 @@ impl<'a> EntityComponentSystem<'a> {
     ) -> Result<(), String> {
         self.entity_component_directory
             .remove_component_from_entity::<T>(entity_id)
-    }
-
-    fn get_component_data(
-        &self,
-        component_data_id: &ComponentDataID,
-    ) -> Result<&dyn ComponentTrait, String> {
-        self.component_storage.get_component_data(component_data_id)
-    }
-
-    fn register_system(
-        &mut self,
-        name: &str,
-        system: &'a mut dyn SystemTrait<SingleThreadedDatabase<'a>>,
-    ) {
-        self.system_runner.register_system(name, system)
     }
 }

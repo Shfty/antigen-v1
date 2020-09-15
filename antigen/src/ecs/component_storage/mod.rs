@@ -1,8 +1,6 @@
 use std::{collections::HashMap, fmt::Debug};
 
-use super::{ComponentDataID, ComponentID, ComponentTrait};
-
-type ComponentDropCallback = fn(&mut dyn ComponentTrait);
+use super::{ComponentDataID, ComponentID, ComponentTrait, ComponentDropCallback};
 
 pub trait ComponentStorage {
     fn register_component_drop_callback(

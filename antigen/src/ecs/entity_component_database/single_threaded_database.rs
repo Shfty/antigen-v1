@@ -56,13 +56,21 @@ impl<'a> SingleThreadedDatabase<'a> {
         Ok(db)
     }
 
-    fn get_entity_component_data_id<T>(
+    pub fn get_entity_component_data_id_by_type<T>(
         &self,
         entity_id: EntityID,
     ) -> Result<ComponentDataID, String>
     where
         T: ComponentTrait + 'static,
     {
+        self.get_entity_component_data_id_by_id(entity_id, ComponentID::get::<T>())
+    }
+
+    pub fn get_entity_component_data_id_by_id(
+        &self,
+        entity_id: EntityID,
+        component_id: ComponentID,
+    ) -> Result<ComponentDataID, String> {
         let entity_components = match self.entity_components.get(&entity_id) {
             Some(entity_components) => entity_components,
             None => panic!(
@@ -71,27 +79,41 @@ impl<'a> SingleThreadedDatabase<'a> {
             ),
         };
 
-        let component_id = ComponentID::get::<T>();
         match entity_components.get(&component_id) {
             Some(component_data_id) => Ok(*component_data_id),
             None => Err(format!(
                 "Error getting entity component data ID: No such component {}",
-                std::any::type_name::<T>()
+                component_id
             )),
         }
     }
 
-    pub fn insert_entity_component(&mut self, entity_id: &EntityID, component_id: ComponentID, component_data_id: ComponentDataID) -> Result<ComponentDataID, String> {
-        let entity_components = self.entity_components.get_mut(entity_id).expect(&format!("No such entity {}", entity_id));
+    pub fn insert_entity_component(
+        &mut self,
+        entity_id: &EntityID,
+        component_id: ComponentID,
+        component_data_id: ComponentDataID,
+    ) -> Result<ComponentDataID, String> {
+        let entity_components = self
+            .entity_components
+            .get_mut(entity_id)
+            .expect(&format!("No such entity {}", entity_id));
         entity_components.insert(component_id, component_data_id);
         Ok(component_data_id)
     }
 
-    fn remove_entity_component(&mut self, entity_id: &EntityID, component_id: &ComponentID) -> Result<(), String> {
-        let entity_components = self.entity_components.get_mut(&entity_id).expect(&format!("No such entity {}", entity_id));
+    pub fn remove_entity_component(
+        &mut self,
+        entity_id: &EntityID,
+        component_id: &ComponentID,
+    ) -> Result<(), String> {
+        let entity_components = self
+            .entity_components
+            .get_mut(&entity_id)
+            .expect(&format!("No such entity {}", entity_id));
         match entity_components.remove(component_id) {
             Some(_) => Ok(()),
-            None => Err("No such component".into())
+            None => Err("No such component".into()),
         }
     }
 }
@@ -151,58 +173,6 @@ impl EntityComponentDatabase for SingleThreadedDatabase<'_> {
         Ok(())
     }
 
-    fn add_registered_component_to_entity(
-        &mut self,
-        entity_id: EntityID,
-        component_id: ComponentID,
-        component_data: Box<dyn ComponentTrait>,
-    ) -> Result<ComponentDataID, String> {
-        self.components
-            .get(&component_id)
-            .expect("Can't add unregistered component to entity");
-
-        let component_data_id = self.component_storage.insert_component(component_data)?;
-
-        self.insert_entity_component(&entity_id, component_id, component_data_id)
-    }
-
-    fn remove_registered_component_from_entity(
-        &mut self,
-        entity_id: EntityID,
-        component_id: ComponentID,
-    ) -> Result<(), String> {
-        self.components
-            .get(&component_id)
-            .expect("Can't remove unregistered component from entity");
-
-        let entity_components = match self.entity_components.get_mut(&entity_id) {
-            Some(entity_components) => entity_components,
-            None => {
-                return Err(
-                    "Error removing registered component from entity: No such entity component"
-                        .into(),
-                )
-            }
-        };
-
-        let component_data_id = match entity_components.get(&component_id) {
-            Some(component_data_id) => component_data_id,
-            None => {
-                return Err(
-                    "Error removing registered component from entity: No such component data"
-                        .into(),
-                )
-            }
-        };
-
-        self.component_storage
-            .remove_component_data(&component_id, &component_data_id)?;
-        
-        self.remove_entity_component(&entity_id, &component_id)?;
-
-        Ok(())
-    }
-
     fn get_entity_by_predicate(&self, predicate: impl Fn(&EntityID) -> bool) -> Option<EntityID> {
         self.entities.iter().copied().find(predicate)
     }
@@ -227,64 +197,6 @@ impl EntityComponentDatabase for SingleThreadedDatabase<'_> {
             Some(components) => components.get(component_id).is_some(),
             None => false,
         }
-    }
-
-    fn get_entity_component<T: ComponentTrait + 'static>(
-        &self,
-        entity_id: EntityID,
-    ) -> Result<&T, String> {
-        let component_data_id = self.get_entity_component_data_id::<T>(entity_id)?;
-
-        let component_data = match self
-            .component_storage
-            .get_component_data(&component_data_id)
-        {
-            Ok(component_data) => component_data,
-            Err(err) => {
-                return Err(format!(
-                    "Error getting component for entity {}: {}",
-                    entity_id, err
-                ))
-            }
-        };
-
-        let component_data = match component_data.as_any().downcast_ref::<T>() {
-            Some(component_data) => component_data,
-            None => return Err("Error getting entity component: Component type mismatch".into()),
-        };
-
-        Ok(component_data)
-    }
-
-    fn get_entity_component_mut<T: ComponentTrait + 'static>(
-        &mut self,
-        entity_id: EntityID,
-    ) -> Result<&mut T, String> {
-        let component_data_id = self.get_entity_component_data_id::<T>(entity_id)?;
-
-        let component_data = match self
-            .component_storage
-            .get_component_data_mut(&component_data_id)
-        {
-            Ok(component_data) => component_data,
-            Err(err) => {
-                return Err(format!(
-                    "Error getting mutable component for entity {}: {}",
-                    entity_id, err
-                ))
-            }
-        };
-
-        let component_data = match component_data.as_mut_any().downcast_mut::<T>() {
-            Some(component_data) => component_data,
-            None => {
-                return Err(
-                    "Error getting mutable entity component: Component type mismatch".into(),
-                )
-            }
-        };
-
-        Ok(component_data)
     }
 
     fn get_entity_component_data_id(
@@ -336,6 +248,119 @@ impl EntityComponentDatabase for SingleThreadedDatabase<'_> {
         entity_id: EntityID,
     ) -> Result<(), String> {
         self.remove_registered_component_from_entity(entity_id, ComponentID::get::<T>())
+    }
+
+    // TODO: Remove
+    fn get_entity_component<T: ComponentTrait + 'static>(
+        &self,
+        entity_id: EntityID,
+    ) -> Result<&T, String> {
+        let component_data_id = self.get_entity_component_data_id_by_type::<T>(entity_id)?;
+
+        let component_data = match self
+            .component_storage
+            .get_component_data(&component_data_id)
+        {
+            Ok(component_data) => component_data,
+            Err(err) => {
+                return Err(format!(
+                    "Error getting component for entity {}: {}",
+                    entity_id, err
+                ))
+            }
+        };
+
+        let component_data = match component_data.as_any().downcast_ref::<T>() {
+            Some(component_data) => component_data,
+            None => return Err("Error getting entity component: Component type mismatch".into()),
+        };
+
+        Ok(component_data)
+    }
+
+    fn get_entity_component_mut<T: ComponentTrait + 'static>(
+        &mut self,
+        entity_id: EntityID,
+    ) -> Result<&mut T, String> {
+        let component_data_id = self.get_entity_component_data_id_by_type::<T>(entity_id)?;
+
+        let component_data = match self
+            .component_storage
+            .get_component_data_mut(&component_data_id)
+        {
+            Ok(component_data) => component_data,
+            Err(err) => {
+                return Err(format!(
+                    "Error getting mutable component for entity {}: {}",
+                    entity_id, err
+                ))
+            }
+        };
+
+        let component_data = match component_data.as_mut_any().downcast_mut::<T>() {
+            Some(component_data) => component_data,
+            None => {
+                return Err(
+                    "Error getting mutable entity component: Component type mismatch".into(),
+                )
+            }
+        };
+
+        Ok(component_data)
+    }
+
+    fn add_registered_component_to_entity(
+        &mut self,
+        entity_id: EntityID,
+        component_id: ComponentID,
+        component_data: Box<dyn ComponentTrait>,
+    ) -> Result<ComponentDataID, String> {
+        self.components
+            .get(&component_id)
+            .expect("Can't add unregistered component to entity");
+
+        let component_data_id = self.component_storage.insert_component(component_data)?;
+
+        self.insert_entity_component(&entity_id, component_id, component_data_id)
+    }
+
+    fn remove_registered_component_from_entity(
+        &mut self,
+        entity_id: EntityID,
+        component_id: ComponentID,
+    ) -> Result<(), String> {
+        self.components
+            .get(&component_id)
+            .expect("Can't remove unregistered component from entity");
+
+        let entity_components = match self.entity_components.get_mut(&entity_id) {
+            Some(entity_components) => entity_components,
+            None => {
+                return Err(
+                    "Error removing registered component from entity: No such entity component"
+                        .into(),
+                )
+            }
+        };
+
+        let component_data_id = match entity_components.get(&component_id) {
+            Some(component_data_id) => component_data_id,
+            None => {
+                return Err(
+                    "Error removing registered component from entity: No such component data"
+                        .into(),
+                )
+            }
+        };
+
+        let component_data_id = self.get_entity_component_data_id_by_id(entity_id, component_id)?;
+
+        self.component_storage
+            .remove_component_data(&component_id, &component_data_id)?;
+
+        self.remove_entity_component(&entity_id, &component_id)?;
+
+        Ok(())
     }
 
     fn get_component_data(

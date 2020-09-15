@@ -47,10 +47,10 @@ use systems::{
     PancursesInputAxisSystem, PancursesInputSystem, PancursesRendererSystem, PancursesWindowSystem,
 };
 
-// TODO: Factor boxed component storage out of EntityComponentDatabase, rename to EntityComponentDirectory
-//       Directory should only care about storing IDs and doing lookups on them
-//       Storage should be a separate object that cares about instantiating ComponentData structs and handing out &dyn ComponentData / &mut dyn ComponentData pointers when access is required
-//       May need some super-object to manage Storage + Directory + SystemRunner
+// TODO: Finish ComponentStorage / EntityComponentDirectory / SystemRunner refactor
+//       Move systems over to running with the ECS super-object in context instead of the directory
+//       Move assemblies over to running with the ECS super-object in context instead of the directory
+//       Remove directory dependency on storage
 
 // TODO: Event synthesis for list hover / click
 //       Global 'event queue' entity w/component containing array of boxed event traits (heap allocating on every event seems like a bad idea)

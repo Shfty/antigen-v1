@@ -6,11 +6,9 @@ pub use heap_component_storage::HeapComponentStorage;
 use crate::entity_component_system::{ComponentDropCallback, ComponentID, ComponentTrait};
 
 pub trait ComponentStorage {
-    fn register_component_drop_callback(
-        &mut self,
-        component_id: ComponentID,
-        callback: ComponentDropCallback,
-    );
+    fn register_component_drop_callback<T>(&mut self, callback: ComponentDropCallback)
+    where
+        T: ComponentTrait + 'static;
 
     fn insert_component<T>(&mut self, component_data: T) -> Result<ComponentDataID, String>
     where
@@ -27,19 +25,14 @@ pub trait ComponentStorage {
     where
         T: ComponentTrait + 'static;
 
-    fn get_component_data_dyn(
-        &self,
-        component_data_id: &ComponentDataID,
-    ) -> Result<&dyn ComponentTrait, String>;
-
-    fn get_component_data_dyn_mut(
-        &mut self,
-        component_data_id: &ComponentDataID,
-    ) -> Result<&mut dyn ComponentTrait, String>;
-
     fn remove_component_data(
         &mut self,
         component_id: &ComponentID,
         component_data_id: &ComponentDataID,
     ) -> Result<(), String>;
+
+    fn get_component_data_string(
+        &self,
+        component_data_id: &ComponentDataID,
+    ) -> Result<String, String>;
 }

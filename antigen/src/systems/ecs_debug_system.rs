@@ -190,9 +190,9 @@ where
                                 inspected_component,
                             )?;
 
-                            let component_data = db.get_component_data_dyn(&component_data_id)?;
+                            let component_data_string = db.get_component_data_string(&component_data_id)?;
                             let component_data_string =
-                                format!("{}: {:#?}", component_data_id, component_data);
+                                format!("{}: {}", component_data_id, component_data_string);
 
                             let entity_component_debug_entities =
                                 db.get_entities_by_predicate(|entity_id| {

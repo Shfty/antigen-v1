@@ -5,8 +5,6 @@ mod systems;
 use std::{collections::HashMap, ops::Range, time::Duration};
 
 use antigen::{
-    components::ComponentDebugComponent,
-    components::EntityDebugComponent,
     components::{
         AnchorsComponent, CharComponent, ComponentInspectorComponent,
         DebugComponentDataListComponent, DebugComponentListComponent, DebugEntityListComponent,
@@ -21,13 +19,16 @@ use antigen::{
     entity_component_system::entity_component_database::HeapComponentStorage,
     entity_component_system::entity_component_database::SingleThreadedDirectory,
     entity_component_system::system_runner::SingleThreadedSystemRunner,
+    entity_component_system::system_storage::HeapSystemStorage,
+    entity_component_system::system_storage::SystemStorage,
     entity_component_system::SystemRunner,
+    entity_component_system::ECS,
     entity_component_system::{Assemblage, EntityID, SystemError},
     primitive_types::IVector2,
     profiler::Profiler,
     systems::AnchorsMarginsSystem,
     systems::ChildEntitiesSystem,
-    systems::{ECSDebugSystem, GlobalPositionSystem, PositionIntegratorSystem},
+    systems::{GlobalPositionSystem, PositionIntegratorSystem},
 };
 
 use components::{
@@ -43,11 +44,6 @@ use systems::{
     DestructionTestInputSystem, InputVelocitySystem, ListSystem, LocalMousePositionSystem,
     PancursesInputAxisSystem, PancursesInputSystem, PancursesRendererSystem, PancursesWindowSystem,
 };
-
-// TODO: Minimize usage of dyn in favor of generics for trait objects
-// TODO: Remove debug system dependency on get_component_data_dyn, remove *_dyn_* functions from trait
-// TODO: Create EntityComponentSystem struct to compose EntityComponentDatabase + SystemRunner
-// TODO: Create storage class for systems
 
 // TODO: Event synthesis for list hover / click
 //       Global 'event queue' entity w/component containing array of boxed event traits (heap allocating on every event seems like a bad idea)
@@ -145,7 +141,7 @@ where
     Ok(entity_id)
 }
 
-fn setup_assemblages<S, D>() -> Result<HashMap<EntityAssemblage, Assemblage<S, D>>, String>
+fn create_assemblages<S, D>() -> Result<HashMap<EntityAssemblage, Assemblage<S, D>>, String>
 where
     S: ComponentStorage,
     D: EntityComponentDirectory,
@@ -448,113 +444,105 @@ where
     Ok(component_list_entity)
 }
 
-fn setup_debug_system<S, D>(
-    db: &mut EntityComponentDatabase<S, D>,
-) -> Result<ECSDebugSystem<D>, String>
+fn create_entities<CS, CD, SS, SR>(ecs: &mut ECS<CS, CD, SS, SR>) -> Result<(), String>
 where
-    S: ComponentStorage,
-    D: EntityComponentDirectory,
+    CS: ComponentStorage,
+    CD: EntityComponentDirectory,
+    SS: SystemStorage<CS, CD>,
+    SR: SystemRunner,
 {
-    let ecs_debug_system = ECSDebugSystem::new(db);
+    let mut assemblages = create_assemblages()?;
 
-    let entity_debug_entity = db.create_entity(None)?;
-
-    db.insert_entity_component(entity_debug_entity, EntityDebugComponent::default())?
-        .register_entity(entity_debug_entity, "Entity Debug".into());
-
-    db.insert_entity_component(entity_debug_entity, DebugExcludeComponent)?;
-
-    let component_debug_entity = db.create_entity("Component Debug".into())?;
-
-    db.insert_entity_component(component_debug_entity, ComponentDebugComponent::default())?;
-    db.insert_entity_component(component_debug_entity, DebugExcludeComponent)?;
-
-    Ok(ecs_debug_system)
-}
-
-fn create_entities<S, D>(
-    db: &mut EntityComponentDatabase<S, D>,
-    assemblages: &mut HashMap<EntityAssemblage, Assemblage<S, D>>,
-) -> Result<(), String>
-where
-    S: ComponentStorage,
-    D: EntityComponentDirectory,
-{
     // Create Main Window
     let main_window_entity = create_window_entity(
-        db,
+        &mut ecs.entity_component_database,
         Some("Main Window"),
         IVector2::default(),
         IVector2(256, 64),
         None,
     )?;
 
-    let entity_inspector_entity = db.create_entity(Some("Entity Inspector"))?;
-    db.insert_entity_component(entity_inspector_entity, EntityInspectorComponent)?;
-    db.insert_entity_component(entity_inspector_entity, IntRangeComponent::default())?;
+    let entity_inspector_entity = ecs
+        .entity_component_database
+        .create_entity(Some("Entity Inspector"))?;
+    ecs.entity_component_database
+        .insert_entity_component(entity_inspector_entity, EntityInspectorComponent)?;
+    ecs.entity_component_database
+        .insert_entity_component(entity_inspector_entity, IntRangeComponent::default())?;
 
-    let component_inspector_entity = db.create_entity(Some("Component Inspector"))?;
-    db.insert_entity_component(component_inspector_entity, ComponentInspectorComponent)?;
-    db.insert_entity_component(component_inspector_entity, IntRangeComponent::default())?;
+    let component_inspector_entity = ecs
+        .entity_component_database
+        .create_entity(Some("Component Inspector"))?;
+    ecs.entity_component_database
+        .insert_entity_component(component_inspector_entity, ComponentInspectorComponent)?;
+    ecs.entity_component_database
+        .insert_entity_component(component_inspector_entity, IntRangeComponent::default())?;
 
-    create_game_window(db, assemblages, main_window_entity)?;
-    create_entity_list_window(db, assemblages, main_window_entity, entity_inspector_entity)?;
+    create_game_window(
+        &mut ecs.entity_component_database,
+        &mut assemblages,
+        main_window_entity,
+    )?;
+    create_entity_list_window(
+        &mut ecs.entity_component_database,
+        &mut assemblages,
+        main_window_entity,
+        entity_inspector_entity,
+    )?;
     create_component_list_window(
-        db,
-        assemblages,
+        &mut ecs.entity_component_database,
+        &mut assemblages,
         main_window_entity,
         component_inspector_entity,
     )?;
-    create_component_data_list_window(db, assemblages, main_window_entity)?;
+    create_component_data_list_window(
+        &mut ecs.entity_component_database,
+        &mut assemblages,
+        main_window_entity,
+    )?;
 
     Ok(())
 }
 
-fn register_systems<S, D>(
-    system_runner: &mut SingleThreadedSystemRunner<S, D>,
-    db: &mut EntityComponentDatabase<S, D>,
-    ecs_debug_system: ECSDebugSystem<D>,
-) where
-    S: ComponentStorage,
-    D: EntityComponentDirectory + 'static,
+fn register_systems<CS, CD, SS, SR>(ecs: &mut ECS<CS, CD, SS, SR>) -> Result<(), String>
+where
+    CS: ComponentStorage,
+    CD: EntityComponentDirectory + 'static,
+    SS: SystemStorage<CS, CD> + 'static,
+    SR: SystemRunner + 'static,
 {
-    system_runner.register_system("Pancurses Window", PancursesWindowSystem::new(db));
-    system_runner.register_system("Pancurses Input", PancursesInputSystem::new(1));
-    system_runner.register_system("Pancurses Input Axis", PancursesInputAxisSystem::new());
-    system_runner.register_system("Destruction Test Input", DestructionTestInputSystem::new());
-    system_runner.register_system("Local Mouse Position", LocalMousePositionSystem::new());
-    system_runner.register_system("ECS Debug", ecs_debug_system);
-    system_runner.register_system("List", ListSystem::new());
-    system_runner.register_system("Input Velocity", InputVelocitySystem::new());
-    system_runner.register_system("Position Integrator", PositionIntegratorSystem::new());
-    system_runner.register_system("Anchors Margins", AnchorsMarginsSystem::new());
-    system_runner.register_system("Global Position", GlobalPositionSystem::new());
-    system_runner.register_system("Child Entities", ChildEntitiesSystem::new());
-    system_runner.register_system("Pancurses Renderer", PancursesRendererSystem::new());
+    let pancurses_window_system = PancursesWindowSystem::new(&mut ecs.entity_component_database);
+    ecs.insert_system("Pancurses Window", pancurses_window_system);
+    ecs.insert_system("Pancurses Input", PancursesInputSystem::new(1));
+    ecs.insert_system("Pancurses Input Axis", PancursesInputAxisSystem::new());
+    ecs.insert_system("Destruction Test Input", DestructionTestInputSystem::new());
+    ecs.insert_system("Local Mouse Position", LocalMousePositionSystem::new());
+    ecs.insert_system("List", ListSystem::new());
+    ecs.insert_system("Input Velocity", InputVelocitySystem::new());
+    ecs.insert_system("Position Integrator", PositionIntegratorSystem::new());
+    ecs.insert_system("Anchors Margins", AnchorsMarginsSystem::new());
+    ecs.insert_system("Global Position", GlobalPositionSystem::new());
+    ecs.insert_system("Child Entities", ChildEntitiesSystem::new());
+    ecs.insert_system("Pancurses Renderer", PancursesRendererSystem::new());
+
+    Ok(())
 }
 
 fn main_internal() -> Result<(), SystemError> {
-    // Create entity-component database
-    let mut db =
-        EntityComponentDatabase::new(HeapComponentStorage::new(), SingleThreadedDirectory::new());
+    let mut ecs = ECS::new(
+        EntityComponentDatabase::new(HeapComponentStorage::new(), SingleThreadedDirectory::new()),
+        HeapSystemStorage::new(),
+        SingleThreadedSystemRunner,
+    )?;
 
-    // Debug system has to be initialized before any entities or components are registered
-    let ecs_debug_system = setup_debug_system(&mut db)?;
-
-    // Create entities
-    let mut assemblages = setup_assemblages()?;
-    create_entities(&mut db, &mut assemblages)?;
-
-    // Create systems
-    let mut system_runner =
-        SingleThreadedSystemRunner::<HeapComponentStorage, SingleThreadedDirectory>::new();
-    register_systems(&mut system_runner, &mut db, ecs_debug_system);
+    register_systems(&mut ecs)?;
+    create_entities(&mut ecs)?;
 
     // Main loop
     let frame_time_target = Duration::from_secs_f32(1.0 / 60.0);
     loop {
         let main_loop_profiler = Profiler::start("Main Loop");
-        system_runner.run(&mut db)?;
+        ecs.run()?;
         let delta = main_loop_profiler.finish();
 
         // Sleep if framerate target is exceeded - prevents deadlock when pancurses stops being able to poll input after window close

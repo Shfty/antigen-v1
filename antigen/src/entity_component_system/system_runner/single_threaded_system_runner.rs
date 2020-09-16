@@ -1,35 +1,39 @@
 use crate::{
-    entity_component_system::ComponentStorage,
-    entity_component_system::{EntityComponentDirectory, SystemError, SystemTrait},
+    entity_component_system::entity_component_database::ComponentStorage,
+    entity_component_system::entity_component_database::EntityComponentDirectory,
+    entity_component_system::{SystemError, SystemTrait},
     profiler::Profiler,
 };
 
 use super::{EntityComponentDatabase, SystemRunner};
 
-pub struct SingleThreadedSystemRunner<'a, S, D>
+pub struct SingleThreadedSystemRunner<S, D>
 where
     S: ComponentStorage,
     D: EntityComponentDirectory,
 {
     system_names: Vec<String>,
-    systems: Vec<&'a mut dyn SystemTrait<S, D>>,
+    systems: Vec<Box<dyn SystemTrait<S, D>>>,
 }
 
-impl<'a, S, D> SystemRunner<'a, S, D> for SingleThreadedSystemRunner<'a, S, D>
+impl<S, D> SystemRunner<S, D> for SingleThreadedSystemRunner<S, D>
 where
     S: ComponentStorage,
     D: EntityComponentDirectory,
 {
-    fn new() -> SingleThreadedSystemRunner<'a, S, D> {
+    fn new() -> SingleThreadedSystemRunner<S, D> {
         SingleThreadedSystemRunner {
             system_names: Vec::new(),
             systems: Vec::new(),
         }
     }
 
-    fn register_system(&mut self, name: &str, system: &'a mut dyn SystemTrait<S, D>) {
+    fn register_system<T>(&mut self, name: &str, system: T)
+    where
+        T: SystemTrait<S, D> + 'static,
+    {
         self.system_names.push(name.into());
-        self.systems.push(system);
+        self.systems.push(Box::new(system));
     }
 
     fn run(&mut self, ecs: &mut EntityComponentDatabase<S, D>) -> Result<(), SystemError> {

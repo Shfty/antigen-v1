@@ -11,12 +11,13 @@ use antigen::{
     components::StringComponent,
     components::WindowComponent,
     components::{CharComponent, SizeComponent},
+    entity_component_system::entity_component_database::ComponentStorage,
     entity_component_system::entity_component_database::EntityComponentDatabase,
+    entity_component_system::entity_component_database::EntityComponentDirectory,
     entity_component_system::ComponentID,
-    entity_component_system::ComponentStorage,
     entity_component_system::ComponentTrait,
     entity_component_system::EntityID,
-    entity_component_system::{EntityComponentDirectory, SystemError, SystemTrait},
+    entity_component_system::{SystemError, SystemTrait},
     primitive_types::IVector2,
 };
 use pancurses::ToChtype;
@@ -108,13 +109,13 @@ impl PancursesWindowSystem {
             .collect();
 
         let color_entity = db.create_entity(Some("Pancurses Colors"))?;
-        db.add_component_to_entity(
+        db.insert_entity_component(
             color_entity,
             PancursesColorSetComponent::new(colors, color_pairs),
         )?;
 
         let mouse_entity = db.create_entity(Some("Pancurses Mouse"))?;
-        db.add_component_to_entity(mouse_entity, PancursesMouseComponent::new())?;
+        db.insert_entity_component(mouse_entity, PancursesMouseComponent::new())?;
 
         let pancurses_color_set_entities = db.get_entities_by_predicate(|entity_id| {
             db.entity_has_component::<PancursesColorSetComponent>(entity_id)

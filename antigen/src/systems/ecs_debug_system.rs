@@ -5,14 +5,15 @@ use crate::{
     components::DebugComponentDataListComponent, components::DebugComponentListComponent,
     components::DebugEntityListComponent, components::DebugExcludeComponent,
     components::EntityDebugComponent, components::EntityInspectorComponent,
-    components::IntRangeComponent, entity_component_system::entity_component_database::EntityComponentDatabase,
-    entity_component_system::ComponentID, entity_component_system::ComponentStorage, entity_component_system::EntityID,
+    components::IntRangeComponent,
+    entity_component_system::entity_component_database::ComponentStorage,
+    entity_component_system::entity_component_database::EntityComponentDatabase,
+    entity_component_system::entity_component_database::EntityComponentDirectory,
+    entity_component_system::ComponentID, entity_component_system::EntityID,
 };
 use crate::{
     components::StringListComponent,
-    entity_component_system::{
-        SystemError, {EntityComponentDirectory, SystemTrait},
-    },
+    entity_component_system::{SystemError, SystemTrait},
 };
 
 #[derive(Debug)]
@@ -24,7 +25,7 @@ impl<T> ECSDebugSystem<T>
 where
     T: EntityComponentDirectory,
 {
-    pub fn new<S, D>(builder: &mut EntityComponentDatabase<S, D>) -> Self
+    pub fn new<S, D>(db: &mut EntityComponentDatabase<S, D>) -> Self
     where
         S: ComponentStorage,
         D: EntityComponentDirectory,
@@ -74,8 +75,8 @@ where
             }
         }
 
-        builder.register_entity_create_callback(entity_created);
-        builder.register_component_create_callback(component_created);
+        db.register_entity_create_callback(entity_created);
+        db.register_component_create_callback(component_created);
 
         ECSDebugSystem {
             phantom: PhantomData,
@@ -189,7 +190,7 @@ where
                                 inspected_component,
                             )?;
 
-                            let component_data = db.get_component_data(&component_data_id)?;
+                            let component_data = db.get_component_data_dyn(&component_data_id)?;
                             let component_data_string =
                                 format!("{}: {:#?}", component_data_id, component_data);
 

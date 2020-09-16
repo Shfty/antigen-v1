@@ -3,10 +3,10 @@ use std::{
     collections::{HashMap, HashSet},
 };
 
-use crate::entity_component_system::ComponentID;
+use super::ComponentID;
 
 use super::{
-    ComponentDataID, ComponentDebugTrait, ComponentTrait, EntityComponentDirectory, EntityID,
+    ComponentDataID, ComponentTrait, EntityComponentDirectory, EntityID,
 };
 
 pub struct SingleThreadedDirectory {
@@ -52,7 +52,7 @@ impl EntityComponentDirectory for SingleThreadedDirectory {
     }
 
     // INSERT
-    fn insert_component<T: ComponentTrait + ComponentDebugTrait + 'static>(
+    fn insert_component<T: ComponentTrait + 'static>(
         &mut self,
     ) -> Result<ComponentID, String> {
         let component_id = ComponentID(TypeId::of::<T>());
@@ -83,7 +83,7 @@ impl EntityComponentDirectory for SingleThreadedDirectory {
         Ok(())
     }
 
-    fn destroy_component<T: ComponentTrait + ComponentDebugTrait + 'static>(
+    fn destroy_component<T: ComponentTrait + 'static>(
         &mut self,
         component_id: ComponentID,
     ) -> Result<(), String> {

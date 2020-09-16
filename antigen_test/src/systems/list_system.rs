@@ -18,10 +18,11 @@ use antigen::{
     components::SizeComponent,
     components::StringComponent,
     components::StringListComponent,
+    entity_component_system::entity_component_database::ComponentStorage,
     entity_component_system::entity_component_database::EntityComponentDatabase,
-    entity_component_system::ComponentStorage,
+    entity_component_system::entity_component_database::EntityComponentDirectory,
     entity_component_system::EntityID,
-    entity_component_system::{EntityComponentDirectory, SystemError, SystemTrait},
+    entity_component_system::{SystemError, SystemTrait},
     primitive_types::IVector2,
 };
 
@@ -101,36 +102,35 @@ where
                         .insert(list_control_entity, Vec::new());
                 }
 
-                let string_entities = self
-                    .list_string_entities
-                    .get_mut(&list_control_entity)
-                    .unwrap();
+                let string_entities = match self.list_string_entities.get_mut(&list_control_entity)
+                {
+                    Some(string_entities) => string_entities,
+                    None => {
+                        return Err(format!(
+                            "Failed to get list string entities for list control entity {}",
+                            list_control_entity
+                        )
+                        .into())
+                    }
+                };
 
                 while string_entities.len() < string_count {
                     let string_entity = db.create_entity(Some("List String Entity"))?;
-                    db.add_component_to_entity(string_entity, ControlComponent)?;
-                    db.add_component_to_entity(string_entity, PositionComponent::default())?;
-                    db.add_component_to_entity(string_entity, GlobalPositionComponent::default())?;
-                    db.add_component_to_entity(
+                    db.insert_entity_component(string_entity, ControlComponent)?;
+                    db.insert_entity_component(string_entity, PositionComponent::default())?;
+                    db.insert_entity_component(string_entity, GlobalPositionComponent::default())?;
+                    db.insert_entity_component(
                         string_entity,
                         ParentEntityComponent::new(list_control_entity),
                     )?;
-                    db.add_component_to_entity(string_entity, StringComponent::default())?;
-                    db.add_component_to_entity(
+                    db.insert_entity_component(string_entity, StringComponent::default())?;
+                    db.insert_entity_component(
                         string_entity,
                         PancursesColorPairComponent::new(PancursesColorPair::default()),
                     )?;
 
                     if db.entity_has_component::<DebugExcludeComponent>(&list_control_entity) {
-                        db.add_component_to_entity(string_entity, DebugExcludeComponent)?;
-                    }
-
-                    if let Some(assemblage) = db
-                        .get_entity_component::<ListComponent>(list_control_entity)?
-                        .get_string_entity_assemblage()
-                        .cloned()
-                    {
-                        assemblage.assemble_entity(db, string_entity)?;
+                        db.insert_entity_component(string_entity, DebugExcludeComponent)?;
                     }
 
                     string_entities.push(string_entity);

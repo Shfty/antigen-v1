@@ -1,74 +1,29 @@
-use super::{
-    ComponentDataID, ComponentDropCallback, ComponentID, ComponentStorage, ComponentTrait,
-};
-use std::{collections::HashMap, fmt::Debug};
+use crate::entity_component_system::{ComponentID, ComponentTrait};
 
-pub struct HeapComponentStorage<'a> {
-    component_constructors: HashMap<ComponentID, &'a dyn Fn() -> Box<dyn ComponentTrait>>,
+use super::{ComponentDataID, ComponentDropCallback, ComponentStorage};
+use std::collections::HashMap;
+
+pub struct HeapComponentStorage {
     component_data: HashMap<ComponentDataID, Box<dyn ComponentTrait>>,
     component_drop_callbacks: HashMap<ComponentID, Vec<ComponentDropCallback>>,
 }
 
-impl<'a> Debug for HeapComponentStorage<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let component_ids: Vec<String> = self
-            .component_constructors
-            .keys()
-            .map(|key| key.to_string())
-            .collect();
-
-        f.debug_struct("HeapComponentStorage")
-            .field("component_constructors", &component_ids)
-            .field("component_data", &self.component_data)
-            .finish()
-    }
-}
-
-impl<'a> HeapComponentStorage<'a> {
+impl<'a> HeapComponentStorage {
     pub fn new() -> Self {
         HeapComponentStorage {
-            component_constructors: HashMap::new(),
             component_data: HashMap::new(),
             component_drop_callbacks: HashMap::new(),
         }
     }
-
-    pub fn store_component<T>(&mut self, component_data: T) -> ComponentDataID
-    where
-        T: ComponentTrait + Default + 'static,
-    {
-        self.register_component::<T>();
-
-        let component_data_id = ComponentDataID::next();
-        self.component_data
-            .insert(component_data_id, Box::new(component_data));
-        component_data_id
-    }
-
-    pub fn store_component_by_id(&mut self, component_id: ComponentID) -> ComponentDataID {
-        let component_data_id = ComponentDataID::next();
-        let component_data = self.component_constructors.get(&component_id).unwrap()();
-        self.component_data
-            .insert(component_data_id, component_data);
-        component_data_id
-    }
 }
 
-impl<'a> Default for HeapComponentStorage<'a> {
+impl Default for HeapComponentStorage {
     fn default() -> Self {
         HeapComponentStorage::new()
     }
 }
 
-impl<'a> ComponentStorage for HeapComponentStorage<'a> {
-    fn register_component<T>(&mut self)
-    where
-        T: ComponentTrait + Default + 'static,
-    {
-        self.component_constructors
-            .insert(ComponentID::get::<T>(), &|| Box::new(T::default()));
-    }
-
+impl ComponentStorage for HeapComponentStorage {
     fn register_component_drop_callback(
         &mut self,
         component_id: ComponentID,
@@ -85,37 +40,57 @@ impl<'a> ComponentStorage for HeapComponentStorage<'a> {
         }
     }
 
-    fn store_component_by_id(
-        &mut self,
-        component_id: ComponentID,
-    ) -> Result<ComponentDataID, String> {
-        let component_data = match self.component_constructors.get(&component_id) {
-            Some(constructor) => constructor(),
-            None => {
-                return Err(format!(
-                    "Error storing component {} by ID: No constructor registered",
-                    component_id
-                ))
-            }
-        };
-
-        let component_data_id = ComponentDataID::next();
-        self.component_data
-            .insert(component_data_id, component_data);
-
-        Ok(component_data_id)
-    }
-
-    fn insert_component(
-        &mut self,
-        component_data: Box<dyn ComponentTrait>,
-    ) -> Result<ComponentDataID, String> {
+    fn insert_component<T>(&mut self, component_data: T) -> Result<ComponentDataID, String>
+    where
+        T: ComponentTrait + 'static,
+    {
         let id = ComponentDataID::next();
-        self.component_data.insert(id, component_data);
+        self.component_data.insert(id, Box::new(component_data));
         Ok(id)
     }
 
-    fn get_component_data(
+    fn get_component_data<T>(&self, component_data_id: &ComponentDataID) -> Result<&T, String>
+    where
+        T: ComponentTrait + 'static,
+    {
+        match self.component_data.get(component_data_id) {
+            Some(component_data) => match component_data.as_any().downcast_ref::<T>() {
+                Some(component_data) => Ok(component_data),
+                None => Err(format!(
+                    "Error getting component data: Failed to downcast to {}",
+                    std::any::type_name::<T>()
+                )),
+            },
+            None => Err(format!(
+                "Error getting component data: No such data {}",
+                component_data_id
+            )),
+        }
+    }
+
+    fn get_component_data_mut<T>(
+        &mut self,
+        component_data_id: &ComponentDataID,
+    ) -> Result<&mut T, String>
+    where
+        T: ComponentTrait + 'static,
+    {
+        match self.component_data.get_mut(component_data_id) {
+            Some(component_data) => match component_data.as_mut_any().downcast_mut::<T>() {
+                Some(component_data) => Ok(component_data),
+                None => Err(format!(
+                    "Error getting mutable component data: Failed to downcast to {}",
+                    std::any::type_name::<T>()
+                )),
+            },
+            None => Err(format!(
+                "Error getting component data: No such data {}",
+                component_data_id
+            )),
+        }
+    }
+
+    fn get_component_data_dyn(
         &self,
         component_data_id: &ComponentDataID,
     ) -> Result<&dyn ComponentTrait, String> {
@@ -128,7 +103,7 @@ impl<'a> ComponentStorage for HeapComponentStorage<'a> {
         }
     }
 
-    fn get_component_data_mut(
+    fn get_component_data_dyn_mut(
         &mut self,
         component_data_id: &ComponentDataID,
     ) -> Result<&mut dyn ComponentTrait, String> {

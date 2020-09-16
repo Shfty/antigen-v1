@@ -18,10 +18,11 @@ use antigen::{
     components::{
         CharComponent, GlobalPositionComponent, PositionComponent, SizeComponent, StringComponent,
     },
+    entity_component_system::entity_component_database::ComponentStorage,
     entity_component_system::entity_component_database::EntityComponentDatabase,
-    entity_component_system::ComponentStorage,
+    entity_component_system::entity_component_database::EntityComponentDirectory,
     entity_component_system::EntityID,
-    entity_component_system::{EntityComponentDirectory, SystemError, SystemTrait},
+    entity_component_system::{SystemError, SystemTrait},
     primitive_types::IVector2,
 };
 use pancurses::{ToChtype, Window};
@@ -234,7 +235,10 @@ where
                 Some(z_layer) => z_layer,
                 None => {
                     z_layers.insert(z_index, Vec::new());
-                    z_layers.get_mut(&z_index).unwrap()
+                    match z_layers.get_mut(&z_index) {
+                        Some(z_layer) => z_layer,
+                        None => return Err(format!("Failed to get Z layer {}", z_index)),
+                    }
                 }
             };
 
@@ -259,7 +263,10 @@ where
         let mut layer_keys: Vec<i64> = z_layers.keys().copied().collect();
         layer_keys.sort();
         for i in layer_keys {
-            let z_layer = z_layers.get_mut(&i).unwrap();
+            let z_layer = match z_layers.get_mut(&i) {
+                Some(z_layer) => z_layer,
+                None => return Err(format!("Failed to get Z layer {}", i).into()),
+            };
             control_entities.append(z_layer);
         }
 

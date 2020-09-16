@@ -1,9 +1,8 @@
 use antigen::{
+    entity_component_system::entity_component_database::ComponentStorage,
+    entity_component_system::entity_component_database::EntityComponentDirectory,
     entity_component_system::SystemError,
-    entity_component_system::{
-        entity_component_database::EntityComponentDatabase, ComponentStorage,
-        EntityComponentDirectory, SystemTrait,
-    },
+    entity_component_system::{entity_component_database::EntityComponentDatabase, SystemTrait},
 };
 
 use crate::components::{

@@ -5,8 +5,11 @@ use crate::components::{
 };
 use antigen::{
     components::ParentEntityComponent,
-    entity_component_system::{EntityComponentDirectory, SystemError, SystemTrait},
-entity_component_system::ComponentStorage, entity_component_system::entity_component_database::EntityComponentDatabase};
+    entity_component_system::entity_component_database::ComponentStorage,
+    entity_component_system::entity_component_database::EntityComponentDatabase,
+    entity_component_system::entity_component_database::EntityComponentDirectory,
+    entity_component_system::{SystemError, SystemTrait},
+};
 
 #[derive(Debug)]
 pub struct PancursesInputSystem {
@@ -31,7 +34,7 @@ where
     fn run(&mut self, db: &mut EntityComponentDatabase<S, D>) -> Result<(), SystemError>
     where
         S: ComponentStorage,
-        D: EntityComponentDirectory
+        D: EntityComponentDirectory,
     {
         self.input_buffer.clear();
 

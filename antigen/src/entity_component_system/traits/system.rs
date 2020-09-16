@@ -1,10 +1,7 @@
 use std::fmt::Debug;
 
-use crate::primitive_types::UID;
+use crate::{uid::UID, entity_component_system::entity_component_database::ComponentStorage, entity_component_system::entity_component_database::EntityComponentDirectory, entity_component_system::EntityComponentDatabase};
 
-use super::{
-    ComponentStorage, EntityComponentDirectory,
-EntityComponentDatabase};
 
 #[derive(Debug, Copy, Clone, Hash, Ord, PartialOrd, Eq, PartialEq)]
 pub struct SystemID(pub UID);

@@ -98,9 +98,8 @@ where
 
         let component_data_id = self.component_storage.insert_component(component_data)?;
 
-        self.entity_component_directory.insert_entity_component(
+        self.entity_component_directory.insert_entity_component::<T>(
             &entity_id,
-            ComponentID::get::<T>(),
             component_data_id,
         )?;
 
@@ -113,12 +112,11 @@ where
         self.entity_component_directory.destroy_entity(entity_id)
     }
 
-    pub fn destroy_component<T>(&mut self, component_id: ComponentID) -> Result<(), String>
+    pub fn destroy_component<T>(&mut self) -> Result<(), String>
     where
         T: ComponentTrait + ComponentDebugTrait + 'static,
     {
-        self.entity_component_directory
-            .destroy_component::<T>(component_id)
+        self.entity_component_directory.destroy_component::<T>()
     }
 
     pub fn remove_component_from_entity<T: ComponentTrait + ComponentDebugTrait + 'static>(
@@ -206,12 +204,12 @@ where
             .get_component_data::<T>(component_data_id)
     }
 
-    pub fn get_component_data_dyn(
+    pub fn get_component_data_string(
         &self,
         component_data_id: &ComponentDataID,
-    ) -> Result<&dyn ComponentTrait, String> {
+    ) -> Result<String, String> {
         self.component_storage
-            .get_component_data_dyn(component_data_id)
+            .get_component_data_string(component_data_id)
     }
 
     // Callback Registration
@@ -229,12 +227,11 @@ where
         self.component_create_callbacks.push(callback);
     }
 
-    pub fn register_component_drop_callback(
-        &mut self,
-        component_id: ComponentID,
-        callback: ComponentDropCallback,
-    ) {
+    pub fn register_component_drop_callback<T>(&mut self, callback: ComponentDropCallback)
+    where
+        T: ComponentTrait + 'static,
+    {
         self.component_storage
-            .register_component_drop_callback(component_id, callback)
+            .register_component_drop_callback::<T>(callback)
     }
 }

@@ -14,7 +14,6 @@ use antigen::{
     entity_component_system::entity_component_database::ComponentStorage,
     entity_component_system::entity_component_database::EntityComponentDatabase,
     entity_component_system::entity_component_database::EntityComponentDirectory,
-    entity_component_system::ComponentID,
     entity_component_system::ComponentTrait,
     entity_component_system::EntityID,
     entity_component_system::{SystemError, SystemTrait},
@@ -29,7 +28,7 @@ use std::collections::HashMap;
 pub struct PancursesWindowSystem;
 
 impl PancursesWindowSystem {
-    pub fn new<S, D>(builder: &mut EntityComponentDatabase<S, D>) -> Self
+    pub fn new<S, D>(db: &mut EntityComponentDatabase<S, D>) -> Self
     where
         S: ComponentStorage,
         D: EntityComponentDirectory,
@@ -37,10 +36,9 @@ impl PancursesWindowSystem {
         fn drop_callback(_: &mut dyn ComponentTrait) {
             pancurses::endwin();
         }
-        builder.register_component_drop_callback(
-            ComponentID::get::<PancursesWindowComponent>(),
-            drop_callback,
-        );
+
+        db.register_component_drop_callback::<PancursesWindowComponent>(drop_callback);
+
         PancursesWindowSystem
     }
 

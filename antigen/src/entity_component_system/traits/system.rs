@@ -1,7 +1,10 @@
 use std::fmt::Debug;
 
-use crate::{uid::UID, entity_component_system::entity_component_database::ComponentStorage, entity_component_system::entity_component_database::EntityComponentDirectory, entity_component_system::EntityComponentDatabase};
-
+use crate::{
+    entity_component_system::entity_component_database::ComponentStorage,
+    entity_component_system::entity_component_database::EntityComponentDirectory,
+    entity_component_system::EntityComponentDatabase, uid::UID,
+};
 
 #[derive(Debug, Copy, Clone, Hash, Ord, PartialOrd, Eq, PartialEq)]
 pub struct SystemID(pub UID);
@@ -30,8 +33,5 @@ where
     S: ComponentStorage,
     D: EntityComponentDirectory,
 {
-    fn run<'a>(&mut self, db: &'a mut EntityComponentDatabase<S, D>) -> Result<(), SystemError>
-    where
-        S: ComponentStorage,
-        D: EntityComponentDirectory;
+    fn run<'a>(&mut self, db: &'a mut EntityComponentDatabase<S, D>) -> Result<(), SystemError>;
 }

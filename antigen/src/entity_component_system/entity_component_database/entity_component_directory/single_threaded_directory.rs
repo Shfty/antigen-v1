@@ -5,9 +5,7 @@ use std::{
 
 use super::ComponentID;
 
-use super::{
-    ComponentDataID, ComponentTrait, EntityComponentDirectory, EntityID,
-};
+use super::{ComponentDataID, ComponentTrait, EntityComponentDirectory, EntityID};
 
 pub struct SingleThreadedDirectory {
     entities: HashSet<EntityID>,
@@ -52,26 +50,30 @@ impl EntityComponentDirectory for SingleThreadedDirectory {
     }
 
     // INSERT
-    fn insert_component<T: ComponentTrait + 'static>(
-        &mut self,
-    ) -> Result<ComponentID, String> {
+    fn insert_component<T: ComponentTrait + 'static>(&mut self) -> Result<ComponentID, String> {
         let component_id = ComponentID(TypeId::of::<T>());
         self.components.insert(component_id);
 
         Ok(component_id)
     }
 
-    fn insert_entity_component(
+    fn insert_entity_component<T>(
         &mut self,
         entity_id: &EntityID,
-        component_id: ComponentID,
         component_data_id: ComponentDataID,
-    ) -> Result<ComponentDataID, String> {
+    ) -> Result<ComponentDataID, String>
+    where
+        T: ComponentTrait + 'static,
+    {
         let entity_components = self
             .entity_components
             .get_mut(entity_id)
             .unwrap_or_else(|| panic!("No such entity {}", entity_id));
+
+        let component_id = ComponentID::get::<T>();
+
         entity_components.insert(component_id, component_data_id);
+
         Ok(component_data_id)
     }
 
@@ -83,10 +85,8 @@ impl EntityComponentDirectory for SingleThreadedDirectory {
         Ok(())
     }
 
-    fn destroy_component<T: ComponentTrait + 'static>(
-        &mut self,
-        component_id: ComponentID,
-    ) -> Result<(), String> {
+    fn destroy_component<T: ComponentTrait + 'static>(&mut self) -> Result<(), String> {
+        let component_id = ComponentID::get::<T>();
         if self.components.remove(&component_id) {
             Ok(())
         } else {

@@ -24,11 +24,11 @@ impl Default for HeapComponentStorage {
 }
 
 impl ComponentStorage for HeapComponentStorage {
-    fn register_component_drop_callback(
-        &mut self,
-        component_id: ComponentID,
-        callback: ComponentDropCallback,
-    ) {
+    fn register_component_drop_callback<T>(&mut self, callback: ComponentDropCallback)
+    where
+        T: ComponentTrait + 'static,
+    {
+        let component_id = ComponentID::get::<T>();
         match self.component_drop_callbacks.get_mut(&component_id) {
             Some(component_drop_callbacks) => {
                 component_drop_callbacks.push(callback);
@@ -90,25 +90,12 @@ impl ComponentStorage for HeapComponentStorage {
         }
     }
 
-    fn get_component_data_dyn(
+    fn get_component_data_string(
         &self,
         component_data_id: &ComponentDataID,
-    ) -> Result<&dyn ComponentTrait, String> {
+    ) -> Result<String, String> {
         match self.component_data.get(component_data_id) {
-            Some(component_data) => Ok(component_data.as_ref()),
-            None => Err(format!(
-                "Error getting component data: No such data {}",
-                component_data_id
-            )),
-        }
-    }
-
-    fn get_component_data_dyn_mut(
-        &mut self,
-        component_data_id: &ComponentDataID,
-    ) -> Result<&mut dyn ComponentTrait, String> {
-        match self.component_data.get_mut(component_data_id) {
-            Some(component_data) => Ok(component_data.as_mut()),
+            Some(component_data) => Ok(format!("{:#?}", component_data)),
             None => Err(format!(
                 "Error getting component data: No such data {}",
                 component_data_id

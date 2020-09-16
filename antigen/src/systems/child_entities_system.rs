@@ -1,11 +1,13 @@
 use crate::{
     components::ChildEntitiesComponent,
+    entity_component_system::entity_component_database::ComponentStorage,
+    entity_component_system::entity_component_database::EntityComponentDirectory,
     entity_component_system::EntityID,
-    entity_component_system::{EntityComponentDirectory, SystemError, SystemTrait},
+    entity_component_system::{SystemError, SystemTrait},
 };
 use crate::{
-    components::ParentEntityComponent, entity_component_system::entity_component_database::EntityComponentDatabase,
-    entity_component_system::ComponentStorage,
+    components::ParentEntityComponent,
+    entity_component_system::entity_component_database::EntityComponentDatabase,
 };
 
 #[derive(Debug)]
@@ -47,7 +49,7 @@ where
                 .get_entity_component_mut::<ChildEntitiesComponent>(parent_id)
             {
                 Ok(child_entities_component) => child_entities_component,
-                Err(_) => db.add_component_to_entity(parent_id, ChildEntitiesComponent::new())?,
+                Err(_) => db.insert_entity_component(parent_id, ChildEntitiesComponent::new())?,
             };
 
             if !child_entities_component.has_child_id(&entity_id) {

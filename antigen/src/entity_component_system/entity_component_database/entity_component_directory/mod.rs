@@ -1,7 +1,9 @@
 mod single_threaded_directory;
 pub use single_threaded_directory::SingleThreadedDirectory;
 
-use super::{ComponentDataID, ComponentDebugTrait, ComponentID, ComponentTrait, EntityID};
+use crate::entity_component_system::{
+    ComponentDataID, ComponentDebugTrait, ComponentTrait, EntityID,
+ComponentID};
 
 pub trait EntityComponentDirectory {
     // CREATE
@@ -20,7 +22,7 @@ pub trait EntityComponentDirectory {
     ) -> Result<ComponentDataID, String>;
 
     // DESTROY
-    fn destroy_component<T: ComponentTrait + ComponentDebugTrait + 'static>(
+    fn destroy_component<T: ComponentTrait + 'static>(
         &mut self,
         component_id: ComponentID,
     ) -> Result<(), String>;

@@ -1,4 +1,3 @@
-use crate::uid::UID;
 use std::{
     any::Any,
     any::TypeId,
@@ -18,22 +17,6 @@ impl Display for ComponentID {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let ComponentID(component_id) = self;
         write!(f, "{:?}", component_id)
-    }
-}
-
-#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
-pub struct ComponentDataID(pub UID);
-
-impl ComponentDataID {
-    pub fn next() -> Self {
-        ComponentDataID(crate::uid::new())
-    }
-}
-
-impl Display for ComponentDataID {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let ComponentDataID(component_data_id) = self;
-        write!(f, "{}", component_data_id)
     }
 }
 

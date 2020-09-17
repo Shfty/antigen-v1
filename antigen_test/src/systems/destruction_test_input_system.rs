@@ -4,6 +4,7 @@ use antigen::{
     entity_component_system::SystemError,
     entity_component_system::{entity_component_database::EntityComponentDatabase, SystemTrait},
 };
+use pancurses::Input;
 
 use crate::components::{
     destruction_test_input_component::DestructionTestInputComponent,
@@ -34,16 +35,17 @@ where
         });
 
         for entity_id in destruction_test_components {
-            while let Some(input) = db
+            let input_char = pancurses::Input::Character(
+                db.get_entity_component::<DestructionTestInputComponent>(entity_id)?
+                    .get_input_char(),
+            );
+
+            let inputs: Vec<Input> = db
                 .get_entity_component_mut::<PancursesInputBufferComponent>(entity_id)?
-                .pop()
-            {
-                if input
-                    == pancurses::Input::Character(
-                        db.get_entity_component::<DestructionTestInputComponent>(entity_id)?
-                            .get_input_char(),
-                    )
-                {
+                .get_inputs();
+
+            for input in inputs {
+                if input == input_char {
                     db.destroy_entity(entity_id)?;
                 }
             }

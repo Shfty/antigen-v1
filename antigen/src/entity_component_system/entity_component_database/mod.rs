@@ -1,15 +1,19 @@
-use super::{
-    ComponentCreateCallback, ComponentDebugTrait, ComponentDropCallback, ComponentID,
-    ComponentTrait, EntityCreateCallback, EntityID,
-};
+use super::{ComponentDebugTrait, ComponentID, ComponentTrait, EntityID};
 
 mod assemblage;
 mod component_storage;
 mod entity_component_directory;
 
 pub use assemblage::{Assemblage, AssemblageID};
+use component_storage::ComponentDropCallback;
 pub use component_storage::{ComponentDataID, ComponentStorage, HeapComponentStorage};
 pub use entity_component_directory::{EntityComponentDirectory, SingleThreadedDirectory};
+
+pub type EntityCreateCallback<S, D> =
+    fn(&mut EntityComponentDatabase<S, D>, EntityID, Option<&str>);
+
+pub type ComponentCreateCallback<S, D> =
+    fn(&mut EntityComponentDatabase<S, D>, ComponentID, &str, &str);
 
 /// Ties together component data storage, entity-component lookup, and callback handling
 pub struct EntityComponentDatabase<S: ComponentStorage, D: EntityComponentDirectory> {
@@ -98,10 +102,8 @@ where
 
         let component_data_id = self.component_storage.insert_component(component_data)?;
 
-        self.entity_component_directory.insert_entity_component::<T>(
-            &entity_id,
-            component_data_id,
-        )?;
+        self.entity_component_directory
+            .insert_entity_component::<T>(&entity_id, component_data_id)?;
 
         self.component_storage
             .get_component_data_mut::<T>(&component_data_id)
@@ -213,17 +215,11 @@ where
     }
 
     // Callback Registration
-    pub fn register_entity_create_callback(
-        &mut self,
-        callback: crate::entity_component_system::EntityCreateCallback<S, D>,
-    ) {
+    pub fn register_entity_create_callback(&mut self, callback: EntityCreateCallback<S, D>) {
         self.entity_create_callbacks.push(callback);
     }
 
-    pub fn register_component_create_callback(
-        &mut self,
-        callback: crate::entity_component_system::ComponentCreateCallback<S, D>,
-    ) {
+    pub fn register_component_create_callback(&mut self, callback: ComponentCreateCallback<S, D>) {
         self.component_create_callbacks.push(callback);
     }
 

@@ -34,10 +34,10 @@ where
 
         for entity_id in entities {
             let pancurses_input_buffer_component =
-                db.get_entity_component_mut::<PancursesInputBufferComponent>(entity_id)?;
+                db.get_entity_component::<PancursesInputBufferComponent>(entity_id)?;
 
             let mut move_input: IVector2 = IVector2(0, 0);
-            while let Some(input) = pancurses_input_buffer_component.pop() {
+            for input in pancurses_input_buffer_component.get_inputs() {
                 match input {
                     pancurses::Input::KeyLeft => move_input.0 -= 1,
                     pancurses::Input::KeyRight => move_input.0 += 1,

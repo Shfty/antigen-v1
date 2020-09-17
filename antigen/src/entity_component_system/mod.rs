@@ -11,7 +11,7 @@ use entity_component_database::{ComponentStorage, EntityComponentDirectory};
 pub use system_runner::SystemRunner;
 use system_storage::SystemStorage;
 pub use traits::{
-    ComponentDebugTrait, ComponentID, ComponentTrait, EntityID, SystemError, SystemTrait,
+    ComponentDebugTrait, ComponentID, ComponentTrait, EntityID, Scene, SystemError, SystemTrait,
 };
 
 use crate::{
@@ -19,13 +19,7 @@ use crate::{
     components::EntityDebugComponent, systems::ECSDebugSystem,
 };
 
-pub type EntityCreateCallback<S, D> =
-    fn(&mut EntityComponentDatabase<S, D>, EntityID, Option<&str>);
-pub type ComponentCreateCallback<S, D> =
-    fn(&mut EntityComponentDatabase<S, D>, ComponentID, &str, &str);
-pub type ComponentDropCallback = fn(&mut dyn ComponentTrait);
-
-pub struct ECS<CS, CD, SS, SR>
+pub struct EntityComponentSystem<CS, CD, SS, SR>
 where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
@@ -37,7 +31,7 @@ where
     pub system_runner: SR,
 }
 
-impl<CS, CD, SS, SR> ECS<CS, CD, SS, SR>
+impl<CS, CD, SS, SR> EntityComponentSystem<CS, CD, SS, SR>
 where
     CS: ComponentStorage,
     CD: EntityComponentDirectory + 'static,
@@ -45,46 +39,54 @@ where
     SR: SystemRunner + 'static,
 {
     pub fn new(
-        mut entity_component_database: EntityComponentDatabase<CS, CD>,
+        component_storage: CS,
+        entity_component_directory: CD,
         mut system_storage: SS,
         system_runner: SR,
     ) -> Result<Self, String>
     where
         SR: SystemRunner + 'static,
     {
+        let mut entity_component_database =
+            EntityComponentDatabase::new(component_storage, entity_component_directory);
+
         system_storage.insert_system(
             "ECS Debug",
             ECSDebugSystem::new(&mut entity_component_database),
         );
 
-        let mut ecs = ECS {
+        let mut ecs = EntityComponentSystem {
             entity_component_database,
             system_runner,
             system_storage,
         };
 
         let entity_debug_entity = ecs.entity_component_database.create_entity(None)?;
+        {
+            ecs.entity_component_database
+                .insert_entity_component(entity_debug_entity, EntityDebugComponent::default())?
+                .register_entity(entity_debug_entity, "Entity Debug".into());
 
-        ecs.entity_component_database
-            .insert_entity_component(entity_debug_entity, EntityDebugComponent::default())?
-            .register_entity(entity_debug_entity, "Entity Debug".into());
-
-        ecs.entity_component_database
-            .insert_entity_component(entity_debug_entity, DebugExcludeComponent)?;
+            ecs.entity_component_database
+                .insert_entity_component(entity_debug_entity, DebugExcludeComponent)?;
+        }
 
         let component_debug_entity = ecs
             .entity_component_database
             .create_entity("Component Debug".into())?;
-
-        ecs.entity_component_database
-            .insert_entity_component(component_debug_entity, ComponentDebugComponent::default())?;
-        ecs.entity_component_database
-            .insert_entity_component(component_debug_entity, DebugExcludeComponent)?;
+        {
+            ecs.entity_component_database.insert_entity_component(
+                component_debug_entity,
+                ComponentDebugComponent::default(),
+            )?;
+            ecs.entity_component_database
+                .insert_entity_component(component_debug_entity, DebugExcludeComponent)?;
+        }
 
         Ok(ecs)
     }
 
-    pub fn insert_system<T>(&mut self, name: &str, system: T)
+    pub fn push_system<T>(&mut self, name: &str, system: T)
     where
         T: SystemTrait<CS, CD> + 'static,
     {
@@ -96,5 +98,18 @@ where
             &mut self.system_storage,
             &mut self.entity_component_database,
         )
+    }
+}
+
+impl<CS, CD, SS, SR> Default for EntityComponentSystem<CS, CD, SS, SR>
+where
+    CS: ComponentStorage + Default + 'static,
+    CD: EntityComponentDirectory + Default + 'static,
+    SS: SystemStorage<CS, CD> + Default + 'static,
+    SR: SystemRunner + Default + 'static,
+{
+    fn default() -> Self {
+        EntityComponentSystem::new(CS::default(), CD::default(), SS::default(), SR::default())
+            .unwrap()
     }
 }

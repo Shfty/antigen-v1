@@ -8,6 +8,7 @@ use crate::{
 
 use super::SystemRunner;
 
+#[derive(Default)]
 pub struct SingleThreadedSystemRunner;
 
 impl SystemRunner for SingleThreadedSystemRunner {

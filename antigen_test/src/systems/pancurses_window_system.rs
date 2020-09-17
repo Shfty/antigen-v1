@@ -115,12 +115,11 @@ impl PancursesWindowSystem {
         let mouse_entity = db.create_entity(Some("Pancurses Mouse"))?;
         db.insert_entity_component(mouse_entity, PancursesMouseComponent::new())?;
 
-        let pancurses_color_set_entities = db.get_entities_by_predicate(|entity_id| {
+        let pancurses_color_set_entity = db.get_entity_by_predicate(|entity_id| {
             db.entity_has_component::<PancursesColorSetComponent>(entity_id)
         });
-        assert!(pancurses_color_set_entities.len() <= 1);
-        let background_color_pair = if let Some(entity_id) = pancurses_color_set_entities.get(0) {
-            db.get_entity_component_mut::<PancursesColorSetComponent>(*entity_id)?
+        let background_color_pair = if let Some(entity_id) = pancurses_color_set_entity {
+            db.get_entity_component_mut::<PancursesColorSetComponent>(entity_id)?
                 .get_color_pair_idx(&background_color_pair)
         } else {
             return Err("No pancurses color set entity".into());

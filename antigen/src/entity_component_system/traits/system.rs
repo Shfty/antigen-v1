@@ -28,10 +28,10 @@ impl From<&str> for SystemError {
 }
 
 /// A monolithic set of logic that runs on sets of entities with specific component layouts
-pub trait SystemTrait<S, D>
+pub trait SystemTrait<CS, CD>
 where
-    S: ComponentStorage,
-    D: EntityComponentDirectory,
+    CS: ComponentStorage,
+    CD: EntityComponentDirectory,
 {
-    fn run<'a>(&mut self, db: &'a mut EntityComponentDatabase<S, D>) -> Result<(), SystemError>;
+    fn run<'a>(&mut self, db: &'a mut EntityComponentDatabase<CS, CD>) -> Result<(), SystemError>;
 }

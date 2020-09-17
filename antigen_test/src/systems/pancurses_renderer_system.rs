@@ -180,13 +180,10 @@ where
         D: EntityComponentDirectory,
     {
         // Fetch color set entity
-        let color_set_entities = db.get_entities_by_predicate(|entity_id| {
+        let color_set_entity = db.get_entity_by_predicate(|entity_id| {
             db.entity_has_component::<PancursesColorSetComponent>(entity_id)
         });
-
-        let color_set_entity = color_set_entities
-            .get(0)
-            .expect("Color set entity does not exist");
+        let color_set_entity = color_set_entity.expect("Color set entity does not exist");
 
         // Fetch control entities
         let control_entities = db.get_entities_by_predicate(|entity_id| {
@@ -339,7 +336,7 @@ where
             };
 
             let color_pair_idx = db
-                .get_entity_component_mut::<PancursesColorSetComponent>(*color_set_entity)?
+                .get_entity_component_mut::<PancursesColorSetComponent>(color_set_entity)?
                 .get_color_pair_idx(&color_pair);
 
             let window_component =

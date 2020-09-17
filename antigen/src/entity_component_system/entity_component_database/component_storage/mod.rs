@@ -3,7 +3,9 @@ mod heap_component_storage;
 pub use component_data_id::ComponentDataID;
 pub use heap_component_storage::HeapComponentStorage;
 
-use crate::entity_component_system::{ComponentDropCallback, ComponentID, ComponentTrait};
+use crate::entity_component_system::{ComponentID, ComponentTrait};
+
+pub type ComponentDropCallback = fn(&mut dyn ComponentTrait);
 
 pub trait ComponentStorage {
     fn register_component_drop_callback<T>(&mut self, callback: ComponentDropCallback)

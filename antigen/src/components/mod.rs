@@ -15,8 +15,9 @@ mod z_index_component;
 pub use anchors_component::AnchorsComponent;
 pub use debug::{
     ComponentDebugComponent, ComponentInspectorComponent, DebugComponentDataListComponent,
-    DebugComponentListComponent, DebugEntityListComponent, EntityDebugComponent,
-    EntityInspectorComponent, DebugExcludeComponent
+    DebugComponentListComponent, DebugEntityListComponent, DebugExcludeComponent,
+    DebugSceneTreeComponent, DebugSystemListComponent, EntityDebugComponent,
+    EntityInspectorComponent, SystemInspectorComponent,
 };
 pub use global_position_component::GlobalPositionComponent;
 pub use int_range_component::IntRangeComponent;

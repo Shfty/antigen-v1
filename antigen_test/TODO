@@ -1,0 +1,38 @@
+
+TODO: Scene tree window
+TODO: System list window
+
+TODO: Event synthesis for list hover / click
+      Global 'event queue' entity w/component containing array of boxed event traits (heap allocating on every event seems like a bad idea)
+      Emitter systems push events into the array
+      Receiver systems iterate through the array, respond to, and optionally consume events
+      How to avoid memory leaks from un-consumed events? Clear at beginning of frame and assume emitters will always run before receivers?
+
+TODO: Click to set inspected entity / component
+
+TODO: Profiler window
+      Will need a component / system based approach for this
+
+TODO: Clipping rects for UI controls
+
+TODO: Register entity fetches and associated logic at System registration time to allow for runtime lookup optimization
+    Ex:
+        db
+        .entity_query()
+        .component::<PositionComponent>()
+        .and(
+                db
+            .entity_query()
+            .component::<SizeComponent>()
+            .or(
+                db
+                .entity_query()
+                .component::<AnchorsComponent>()
+            )
+        )
+        .then(|entity_id| {
+                do_something_with_position_component();
+                maybe_do_something_with_size_component()
+                maybe_do_something_with_anchors_component()
+        })
+        .register()

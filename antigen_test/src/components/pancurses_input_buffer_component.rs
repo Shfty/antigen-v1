@@ -9,7 +9,7 @@ pub struct PancursesInputBufferComponent {
 impl PancursesInputBufferComponent {
     pub fn new() -> Self {
         PancursesInputBufferComponent {
-            input_buffer: Vec::new()
+            input_buffer: Vec::new(),
         }
     }
 
@@ -18,13 +18,13 @@ impl PancursesInputBufferComponent {
         self
     }
 
-    pub fn pop(&mut self) -> Option<Input> {
-        self.input_buffer.pop()
-    }
-
     pub fn clear(&mut self) -> &mut Self {
         self.input_buffer.clear();
         self
+    }
+
+    pub fn get_inputs(&self) -> Vec<Input> {
+        self.input_buffer.clone()
     }
 }
 

@@ -6,6 +6,9 @@ mod debug_entity_list_component;
 mod entity_debug_component;
 mod entity_inspector_component;
 mod debug_exclude_component;
+mod debug_scene_tree_component;
+mod debug_system_list_component;
+mod system_inspector_component;
 
 pub use component_debug_component::ComponentDebugComponent;
 pub use component_inspector_component::ComponentInspectorComponent;
@@ -15,3 +18,6 @@ pub use debug_entity_list_component::DebugEntityListComponent;
 pub use entity_debug_component::EntityDebugComponent;
 pub use entity_inspector_component::EntityInspectorComponent;
 pub use debug_exclude_component::DebugExcludeComponent;
+pub use debug_scene_tree_component::DebugSceneTreeComponent;
+pub use debug_system_list_component::DebugSystemListComponent;
+pub use system_inspector_component::SystemInspectorComponent;

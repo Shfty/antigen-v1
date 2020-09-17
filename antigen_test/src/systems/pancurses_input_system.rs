@@ -4,7 +4,7 @@ use crate::components::{
     pancurses_window_component::PancursesWindowComponent,
 };
 use antigen::{
-    components::ParentEntityComponent,
+    components::WindowComponent,
     entity_component_system::entity_component_database::ComponentStorage,
     entity_component_system::entity_component_database::EntityComponentDatabase,
     entity_component_system::entity_component_database::EntityComponentDirectory,
@@ -36,18 +36,15 @@ where
         S: ComponentStorage,
         D: EntityComponentDirectory,
     {
-        self.input_buffer.clear();
-
-        let window_entities = db.get_entities_by_predicate(|entity_id| {
-            db.entity_has_component::<PancursesWindowComponent>(entity_id)
-                && !db.entity_has_component::<ParentEntityComponent>(entity_id)
+        let window_entity = db.get_entity_by_predicate(|entity_id| {
+            db.entity_has_component::<WindowComponent>(entity_id)
+                && db.entity_has_component::<PancursesWindowComponent>(entity_id)
         });
 
-        assert!(window_entities.len() <= 1);
-
-        if let Some(entity_id) = window_entities.get(0) {
+        self.input_buffer.clear();
+        if let Some(entity_id) = window_entity {
             let window_component =
-                db.get_entity_component::<PancursesWindowComponent>(*entity_id)?;
+                db.get_entity_component::<PancursesWindowComponent>(entity_id)?;
             if let Some(window) = window_component.get_window() {
                 let mut i = self.input_buffer_size;
                 while let Some(input) = window.getch() {
@@ -62,11 +59,6 @@ where
             pancurses::flushinp();
         }
 
-        let pancurses_mouse_entities = db.get_entities_by_predicate(|entity_id| {
-            db.entity_has_component::<PancursesMouseComponent>(entity_id)
-        });
-        assert!(pancurses_mouse_entities.len() <= 1);
-
         // Check for special inputs
         for input in &self.input_buffer {
             if let pancurses::Input::Character('\u{1b}') = input {
@@ -77,6 +69,11 @@ where
                 pancurses::resize_term(0, 0);
             }
         }
+
+        let pancurses_mouse_entities = db.get_entities_by_predicate(|entity_id| {
+            db.entity_has_component::<PancursesMouseComponent>(entity_id)
+        });
+        assert!(pancurses_mouse_entities.len() <= 1);
 
         // Check for mouse input
         if let Ok(mouse_event) = pancurses::getmouse() {

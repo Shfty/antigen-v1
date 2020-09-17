@@ -1,11 +1,12 @@
 use std::{fmt::Debug, marker::PhantomData};
 
 use crate::{
-    components::ComponentDebugComponent, components::ComponentInspectorComponent,
-    components::DebugComponentDataListComponent, components::DebugComponentListComponent,
-    components::DebugEntityListComponent, components::DebugExcludeComponent,
+    components::ChildEntitiesComponent, components::ComponentDebugComponent,
+    components::ComponentInspectorComponent, components::DebugComponentDataListComponent,
+    components::DebugComponentListComponent, components::DebugEntityListComponent,
+    components::DebugExcludeComponent, components::DebugSceneTreeComponent,
     components::EntityDebugComponent, components::EntityInspectorComponent,
-    components::IntRangeComponent,
+    components::IntRangeComponent, components::ParentEntityComponent,
     entity_component_system::entity_component_database::ComponentStorage,
     entity_component_system::entity_component_database::EntityComponentDatabase,
     entity_component_system::entity_component_database::EntityComponentDirectory,
@@ -94,21 +95,22 @@ where
         S: ComponentStorage,
         D: EntityComponentDirectory,
     {
-        let mut entities: Vec<EntityID> = db.get_entities_by_predicate(|entity_id| {
+        let mut debug_entities: Vec<EntityID> = db.get_entities_by_predicate(|entity_id| {
             !db.entity_has_component::<DebugExcludeComponent>(entity_id)
         });
-        entities.sort();
+        debug_entities.sort();
 
         if let Some(entity_debug_entity) = db.get_entity_by_predicate(|entity_id| {
             db.entity_has_component::<EntityDebugComponent>(entity_id)
         }) {
+            // Populate strings for debug entity list entities
             let entity_debug_component =
                 match db.get_entity_component::<EntityDebugComponent>(entity_debug_entity) {
                     Ok(entity_debug_component) => entity_debug_component,
                     Err(err) => return Err(err.into()),
                 };
 
-            let entity_strings: Vec<String> = entities
+            let entity_strings: Vec<String> = debug_entities
                 .iter()
                 .map(|entity_id| {
                     let label = entity_debug_component.get_label(entity_id);
@@ -116,7 +118,6 @@ where
                 })
                 .collect();
 
-            // Populate strings for debug entity list entities
             let debug_entity_list_entities = db.get_entities_by_predicate(|entity_id| {
                 db.entity_has_component::<DebugEntityListComponent>(entity_id)
                     && db.entity_has_component::<StringListComponent>(entity_id)
@@ -125,6 +126,104 @@ where
             for entity_id in debug_entity_list_entities {
                 db.get_entity_component_mut::<StringListComponent>(entity_id)?
                     .set_data(entity_strings.clone());
+            }
+
+            // Populate strings for debug scene tree entities
+            let entity_debug_component =
+                match db.get_entity_component::<EntityDebugComponent>(entity_debug_entity) {
+                    Ok(entity_debug_component) => entity_debug_component,
+                    Err(err) => return Err(err.into()),
+                };
+
+            let root_entities: Vec<EntityID> = debug_entities
+                .iter()
+                .filter(|entity_id| !db.entity_has_component::<ParentEntityComponent>(entity_id))
+                .copied()
+                .collect();
+
+            let mut scene_tree_strings: Vec<String> = Vec::new();
+
+            fn traverse_tree<S, D>(
+                db: &EntityComponentDatabase<S, D>,
+                entity_debug_component: &EntityDebugComponent,
+                entity_id: &EntityID,
+                scene_tree_strings: &mut Vec<String>,
+                mut padding: Vec<String>,
+            ) where
+                S: ComponentStorage,
+                D: EntityComponentDirectory,
+            {
+                let depth = padding.len();
+
+                let prefix: String = if depth == 0 {
+                    "".to_string()
+                } else {
+                    padding.iter().cloned().collect::<String>() + " "
+                };
+
+                for string in padding.iter_mut() {
+                    match string.as_str() {
+                        "└" => *string = "  ".into(),
+                        "├" => *string = "│ ".into(),
+                        _ => (),
+                    };
+                }
+
+                let label = entity_debug_component.get_label(entity_id);
+                let label = format!("{}:\t{}{}", entity_id, &prefix, label);
+                scene_tree_strings.push(label);
+
+                if let Ok(child_entities_component) =
+                    db.get_entity_component::<ChildEntitiesComponent>(*entity_id)
+                {
+                    let child_ids: Vec<EntityID> = child_entities_component
+                        .get_child_ids()
+                        .iter()
+                        .filter(|child_id| {
+                            !db.entity_has_component::<DebugExcludeComponent>(child_id)
+                        })
+                        .copied()
+                        .collect();
+
+                    for (i, child_entity) in child_ids.iter().enumerate() {
+                        let mut padding = padding.clone();
+                        padding.push(
+                            if child_ids.len() == 1 || i == child_ids.len() - 1 {
+                                "└"
+                            } else {
+                                "├"
+                            }
+                            .into(),
+                        );
+                        traverse_tree(
+                            db,
+                            entity_debug_component,
+                            child_entity,
+                            scene_tree_strings,
+                            padding,
+                        );
+                    }
+                }
+            }
+
+            for root_entity in &root_entities {
+                traverse_tree(
+                    db,
+                    entity_debug_component,
+                    root_entity,
+                    &mut scene_tree_strings,
+                    Vec::new(),
+                );
+            }
+
+            let debug_scene_tree_entities = db.get_entities_by_predicate(|entity_id| {
+                db.entity_has_component::<DebugSceneTreeComponent>(entity_id)
+                    && db.entity_has_component::<StringListComponent>(entity_id)
+            });
+
+            for entity_id in debug_scene_tree_entities {
+                db.get_entity_component_mut::<StringListComponent>(entity_id)?
+                    .set_data(scene_tree_strings.clone());
             }
         }
 
@@ -143,7 +242,9 @@ where
             let int_range_component =
                 db.get_entity_component::<IntRangeComponent>(entity_inspector_entity)?;
 
-            if let Some(inspected_entity) = entities.get(int_range_component.get_index() as usize) {
+            if let Some(inspected_entity) =
+                debug_entities.get(int_range_component.get_index() as usize)
+            {
                 let component_debug_entity = db.get_entity_by_predicate(|entity_id| {
                     db.entity_has_component::<ComponentDebugComponent>(entity_id)
                 });
@@ -190,7 +291,8 @@ where
                                 inspected_component,
                             )?;
 
-                            let component_data_string = db.get_component_data_string(&component_data_id)?;
+                            let component_data_string =
+                                db.get_component_data_string(&component_data_id)?;
                             let component_data_string =
                                 format!("{}: {}", component_data_id, component_data_string);
 

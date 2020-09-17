@@ -48,7 +48,9 @@ where
 
             let mut offset: i64 = 0;
 
-            while let Some(input) = pancurses_input_buffer_component.pop() {
+            for input in pancurses_input_buffer_component.get_inputs() {
+                let input = input;
+
                 if input == prev_input {
                     offset -= 1;
                 } else if input == next_input {

@@ -37,8 +37,8 @@ where
         for entity_id in entities {
             let pancurses_input_buffer_component =
                 get_entity_component::<CS, CD, PancursesInputBufferComponent>(
-                    &mut db.component_storage,
-                    &mut db.entity_component_directory,
+                    &db.component_storage,
+                    &db.entity_component_directory,
                     entity_id,
                 )?;
 

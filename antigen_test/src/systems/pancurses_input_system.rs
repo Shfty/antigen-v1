@@ -46,8 +46,8 @@ where
         self.input_buffer.clear();
         if let Some(entity_id) = window_entity {
             let window_component = get_entity_component::<CS, CD, PancursesWindowComponent>(
-                &mut db.component_storage,
-                &mut db.entity_component_directory,
+                &db.component_storage,
+                &db.entity_component_directory,
                 entity_id,
             )?;
             if let Some(window) = window_component.get_window() {

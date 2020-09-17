@@ -82,6 +82,16 @@ where
     }
 }
 
+impl<CS, CD> Default for CallbackManager<CS, CD>
+where
+    CS: ComponentStorage,
+    CD: EntityComponentDirectory,
+{
+    fn default() -> Self {
+        CallbackManager::new()
+    }
+}
+
 /// Ties together component data storage, entity-component lookup, and callback handling
 pub struct EntityComponentDatabase<CS: ComponentStorage, CD: EntityComponentDirectory> {
     pub component_storage: CS,

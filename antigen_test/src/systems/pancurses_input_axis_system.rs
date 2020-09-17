@@ -40,8 +40,8 @@ where
         for entity_id in entities {
             let pancurses_prev_next_input_component =
                 get_entity_component::<CS, CD, PancursesInputAxisComponent>(
-                    &mut db.component_storage,
-                    &mut db.entity_component_directory,
+                    &db.component_storage,
+                    &db.entity_component_directory,
                     entity_id,
                 )?;
             let (prev_input, next_input) = (

@@ -200,8 +200,8 @@ where
             .filter(|entity_id| {
                 let parent_entity_component =
                     match get_entity_component::<CS, CD, ParentEntityComponent>(
-                        &mut db.component_storage,
-                        &mut db.entity_component_directory,
+                        &db.component_storage,
+                        &db.entity_component_directory,
                         **entity_id,
                     ) {
                         Ok(parent_entity_component) => parent_entity_component,
@@ -291,8 +291,8 @@ where
         // Erase existing framebuffer
         for entity_id in &window_entities {
             get_entity_component::<CS, CD, PancursesWindowComponent>(
-                &mut db.component_storage,
-                &mut db.entity_component_directory,
+                &db.component_storage,
+                &db.entity_component_directory,
                 *entity_id,
             )?
             .get_window()
@@ -303,8 +303,8 @@ where
         for entity_id in control_entities {
             // Search up parent chain for window component
             let parent_entity_component = match get_entity_component::<CS, CD, ParentEntityComponent>(
-                &mut db.component_storage,
-                &mut db.entity_component_directory,
+                &db.component_storage,
+                &db.entity_component_directory,
                 entity_id,
             ) {
                 Ok(parent_entity_component) => parent_entity_component,
@@ -316,8 +316,8 @@ where
 
             loop {
                 if get_entity_component::<CS, CD, PancursesWindowComponent>(
-                    &mut db.component_storage,
-                    &mut db.entity_component_directory,
+                    &db.component_storage,
+                    &db.entity_component_directory,
                     candidate_id,
                 )
                 .is_ok()
@@ -327,8 +327,8 @@ where
                 }
 
                 match get_entity_component::<CS, CD, ParentEntityComponent>(
-                    &mut db.component_storage,
-                    &mut db.entity_component_directory,
+                    &db.component_storage,
+                    &db.entity_component_directory,
                     candidate_id,
                 ) {
                     Ok(parent_entity_component) => {
@@ -347,15 +347,15 @@ where
             // Get Position
             let IVector2(x, y) = if let Ok(global_position_component) =
                 get_entity_component::<CS, CD, GlobalPositionComponent>(
-                    &mut db.component_storage,
-                    &mut db.entity_component_directory,
+                    &db.component_storage,
+                    &db.entity_component_directory,
                     entity_id,
                 ) {
                 global_position_component.get_global_position()
             } else {
                 match get_entity_component::<CS, CD, PositionComponent>(
-                    &mut db.component_storage,
-                    &mut db.entity_component_directory,
+                    &db.component_storage,
+                    &db.entity_component_directory,
                     entity_id,
                 ) {
                     Ok(position_component) => position_component.get_position(),
@@ -365,8 +365,8 @@ where
 
             // Get Color
             let color_pair = match get_entity_component::<CS, CD, PancursesColorPairComponent>(
-                &mut db.component_storage,
-                &mut db.entity_component_directory,
+                &db.component_storage,
+                &db.entity_component_directory,
                 entity_id,
             ) {
                 Ok(pancurses_color_pair_component) => *pancurses_color_pair_component.get_data(),
@@ -453,8 +453,8 @@ where
 
         for entity_id in &window_entities {
             get_entity_component::<CS, CD, PancursesWindowComponent>(
-                &mut db.component_storage,
-                &mut db.entity_component_directory,
+                &db.component_storage,
+                &db.entity_component_directory,
                 *entity_id,
             )?
             .get_window()

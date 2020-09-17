@@ -163,10 +163,10 @@ impl EntityComponentDirectory for SingleThreadedDirectory {
 
         match entity_components.get(&component_id) {
             Some(component_data_id) => Ok(*component_data_id),
-            None => Err(format!(
+            None => panic!(
                 "Error getting entity component data ID: No such component {}",
                 component_id
-            )),
+            ),
         }
     }
 }

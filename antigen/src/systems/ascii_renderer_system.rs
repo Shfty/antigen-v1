@@ -31,15 +31,15 @@ where
         let mut positions: Vec<(IVector2, char)> = Vec::new();
         for entity_id in entities {
             let position = get_entity_component::<CS, CD, PositionComponent>(
-                &mut db.component_storage,
-                &mut db.entity_component_directory,
+                &db.component_storage,
+                &db.entity_component_directory,
                 entity_id,
             )?
             .get_position();
 
             let ascii = *get_entity_component::<CS, CD, CharComponent>(
-                &mut db.component_storage,
-                &mut db.entity_component_directory,
+                &db.component_storage,
+                &db.entity_component_directory,
                 entity_id,
             )?
             .get_data();

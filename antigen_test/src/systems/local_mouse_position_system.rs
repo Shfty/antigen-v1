@@ -51,8 +51,8 @@ where
             None => return Err("No mouse entity".into()),
         };
         let mouse_position = get_entity_component::<CS, CD, PancursesMouseComponent>(
-            &mut db.component_storage,
-            &mut db.entity_component_directory,
+            &db.component_storage,
+            &db.entity_component_directory,
             mouse_entity,
         )?
         .get_position();
@@ -68,8 +68,8 @@ where
             loop {
                 if let Ok(parent_entity_component) =
                     get_entity_component::<CS, CD, ParentEntityComponent>(
-                        &mut db.component_storage,
-                        &mut db.entity_component_directory,
+                        &db.component_storage,
+                        &db.entity_component_directory,
                         candidate_id,
                     )
                 {
@@ -79,15 +79,15 @@ where
                 }
 
                 if get_entity_component::<CS, CD, WindowComponent>(
-                    &mut db.component_storage,
-                    &mut db.entity_component_directory,
+                    &db.component_storage,
+                    &db.entity_component_directory,
                     candidate_id,
                 )
                 .is_ok()
                 {
                     let position_component = get_entity_component::<CS, CD, PositionComponent>(
-                        &mut db.component_storage,
-                        &mut db.entity_component_directory,
+                        &db.component_storage,
+                        &db.entity_component_directory,
                         candidate_id,
                     )?;
                     window_position = position_component.get_position();
@@ -96,14 +96,14 @@ where
             }
 
             let position = match get_entity_component::<CS, CD, GlobalPositionComponent>(
-                &mut db.component_storage,
-                &mut db.entity_component_directory,
+                &db.component_storage,
+                &db.entity_component_directory,
                 entity_id,
             ) {
                 Ok(global_position_component) => global_position_component.get_global_position(),
                 Err(_) => match get_entity_component::<CS, CD, PositionComponent>(
-                    &mut db.component_storage,
-                    &mut db.entity_component_directory,
+                    &db.component_storage,
+                    &db.entity_component_directory,
                     entity_id,
                 ) {
                     Ok(position_component) => position_component.get_position(),

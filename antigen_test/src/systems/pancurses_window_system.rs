@@ -56,8 +56,8 @@ impl PancursesWindowSystem {
         CD: EntityComponentDirectory,
     {
         let pancurses_window_component = get_entity_component::<CS, CD, PancursesWindowComponent>(
-            &mut db.component_storage,
-            &mut db.entity_component_directory,
+            &db.component_storage,
+            &db.entity_component_directory,
             entity_id,
         )?;
 
@@ -66,15 +66,15 @@ impl PancursesWindowSystem {
         }
 
         let IVector2(width, height) = get_entity_component::<CS, CD, SizeComponent>(
-            &mut db.component_storage,
-            &mut db.entity_component_directory,
+            &db.component_storage,
+            &db.entity_component_directory,
             entity_id,
         )?
         .get_size();
 
         let background_char = match get_entity_component::<CS, CD, CharComponent>(
-            &mut db.component_storage,
-            &mut db.entity_component_directory,
+            &db.component_storage,
+            &db.entity_component_directory,
             entity_id,
         ) {
             Ok(char_component) => *char_component.get_data(),
@@ -82,8 +82,8 @@ impl PancursesWindowSystem {
         };
 
         let background_color_pair = match get_entity_component::<CS, CD, PancursesColorPairComponent>(
-            &mut db.component_storage,
-            &mut db.entity_component_directory,
+            &db.component_storage,
+            &db.entity_component_directory,
             entity_id,
         ) {
             Ok(pancurses_color_pair_component) => *pancurses_color_pair_component.get_data(),
@@ -91,8 +91,8 @@ impl PancursesWindowSystem {
         };
 
         let title = match get_entity_component::<CS, CD, StringComponent>(
-            &mut db.component_storage,
-            &mut db.entity_component_directory,
+            &db.component_storage,
+            &db.entity_component_directory,
             entity_id,
         ) {
             Ok(string_component) => string_component.get_data(),
@@ -203,8 +203,8 @@ where
             self.try_create_window(db, entity_id)?;
 
             if let Some(window) = get_entity_component::<CS, CD, PancursesWindowComponent>(
-                &mut db.component_storage,
-                &mut db.entity_component_directory,
+                &db.component_storage,
+                &db.entity_component_directory,
                 entity_id,
             )?
             .get_window()

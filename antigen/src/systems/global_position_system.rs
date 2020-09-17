@@ -41,15 +41,15 @@ where
 
         for entity_id in entities {
             let parent_entity = get_entity_component::<CS, CD, ParentEntityComponent>(
-                &mut db.component_storage,
-                &mut db.entity_component_directory,
+                &db.component_storage,
+                &db.entity_component_directory,
                 entity_id,
             )?
             .get_parent_id();
 
             let position_component = get_entity_component::<CS, CD, PositionComponent>(
-                &mut db.component_storage,
-                &mut db.entity_component_directory,
+                &db.component_storage,
+                &db.entity_component_directory,
                 entity_id,
             )?;
             let mut global_position = position_component.get_position();
@@ -57,15 +57,15 @@ where
 
             loop {
                 let parent_position_component = get_entity_component::<CS, CD, PositionComponent>(
-                    &mut db.component_storage,
-                    &mut db.entity_component_directory,
+                    &db.component_storage,
+                    &db.entity_component_directory,
                     candidate_id,
                 )?;
                 global_position += parent_position_component.get_position();
 
                 if get_entity_component::<CS, CD, GlobalPositionComponent>(
-                    &mut db.component_storage,
-                    &mut db.entity_component_directory,
+                    &db.component_storage,
+                    &db.entity_component_directory,
                     candidate_id,
                 )
                 .is_err()
@@ -74,8 +74,8 @@ where
                 }
 
                 match get_entity_component::<CS, CD, ParentEntityComponent>(
-                    &mut db.component_storage,
-                    &mut db.entity_component_directory,
+                    &db.component_storage,
+                    &db.entity_component_directory,
                     candidate_id,
                 ) {
                     Ok(parent_entity_component) => {

@@ -6,7 +6,7 @@ use std::{
 use crate::{
     entity_component_system::create_entity, entity_component_system::insert_entity_component,
     entity_component_system::ComponentDebugTrait, entity_component_system::ComponentID,
-    entity_component_system::ComponentTrait, entity_component_system::EntityComponentSystem,
+    entity_component_system::ComponentTrait,
     entity_component_system::EntityID, uid::UID,
 };
 

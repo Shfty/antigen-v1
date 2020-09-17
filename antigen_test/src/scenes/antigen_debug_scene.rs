@@ -679,7 +679,7 @@ fn create_scene_tree_window<S, D>(
     db: &mut EntityComponentDatabase<S, D>,
     assemblages: &mut HashMap<EntityAssemblage, Assemblage<S, D>>,
     parent_window_entity: EntityID,
-    entity_inspector_entity: EntityID,
+    _entity_inspector_entity: EntityID,
 ) -> Result<EntityID, String>
 where
     S: ComponentStorage,

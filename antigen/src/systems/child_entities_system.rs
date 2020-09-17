@@ -5,7 +5,6 @@ use crate::{
     entity_component_system::get_entity_component,
     entity_component_system::get_entity_component_mut,
     entity_component_system::insert_entity_component,
-    entity_component_system::EntityComponentSystem,
     entity_component_system::EntityID,
     entity_component_system::{SystemError, SystemTrait},
 };

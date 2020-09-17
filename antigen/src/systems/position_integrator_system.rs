@@ -1,4 +1,8 @@
-use crate::entity_component_system::{SystemError, SystemTrait, entity_component_database::ComponentStorage, entity_component_database::EntityComponentDirectory};
+use crate::entity_component_system::{
+    entity_component_database::ComponentStorage,
+    entity_component_database::EntityComponentDirectory, get_entity_component,
+    get_entity_component_mut, SystemError, SystemTrait,
+};
 use crate::{
     components::{PositionComponent, VelocityComponent},
     entity_component_system::entity_component_database::EntityComponentDatabase,
@@ -19,15 +23,15 @@ impl PositionIntegratorSystem {
     }
 }
 
-impl<S, D> SystemTrait<S, D> for PositionIntegratorSystem
+impl<CS, CD> SystemTrait<CS, CD> for PositionIntegratorSystem
 where
-    S: ComponentStorage,
-    D: EntityComponentDirectory,
+    CS: ComponentStorage,
+    CD: EntityComponentDirectory,
 {
-    fn run(&mut self, db: &mut EntityComponentDatabase<S, D>) -> Result<(), SystemError>
+    fn run(&mut self, db: &mut EntityComponentDatabase<CS, CD>) -> Result<(), SystemError>
     where
-        S: ComponentStorage,
-        D: EntityComponentDirectory,
+        CS: ComponentStorage,
+        CD: EntityComponentDirectory,
     {
         let entities = db.get_entities_by_predicate(|entity_id| {
             db.entity_has_component::<PositionComponent>(entity_id)
@@ -35,11 +39,18 @@ where
         });
 
         for entity_id in entities {
-            let velocity = db
-                .get_entity_component::<VelocityComponent>(entity_id)?
-                .get_velocity();
+            let velocity = get_entity_component::<CS, CD, VelocityComponent>(
+                &mut db.component_storage,
+                &mut db.entity_component_directory,
+                entity_id,
+            )?
+            .get_velocity();
 
-            let position_component = db.get_entity_component_mut::<PositionComponent>(entity_id)?;
+            let position_component = get_entity_component_mut::<CS, CD, PositionComponent>(
+                &mut db.component_storage,
+                &mut db.entity_component_directory,
+                entity_id,
+            )?;
             position_component.set_position(position_component.get_position() + velocity);
         }
 

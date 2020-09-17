@@ -9,19 +9,84 @@ use component_storage::ComponentDropCallback;
 pub use component_storage::{ComponentDataID, ComponentStorage, HeapComponentStorage};
 pub use entity_component_directory::{EntityComponentDirectory, SingleThreadedDirectory};
 
-pub type EntityCreateCallback<S, D> =
-    fn(&mut EntityComponentDatabase<S, D>, EntityID, Option<&str>);
+pub type EntityCreateCallback<CS, CD> = fn(&mut CS, &mut CD, EntityID, Option<&str>);
 
-pub type ComponentCreateCallback<S, D> =
-    fn(&mut EntityComponentDatabase<S, D>, ComponentID, &str, &str);
+pub type ComponentCreateCallback<CS, CD> = fn(&mut CS, &mut CD, ComponentID, &str, &str);
+
+pub struct CallbackManager<CS, CD>
+where
+    CS: ComponentStorage,
+    CD: EntityComponentDirectory,
+{
+    entity_create_callbacks: Vec<EntityCreateCallback<CS, CD>>,
+    component_create_callbacks: Vec<ComponentCreateCallback<CS, CD>>,
+}
+
+impl<CS, CD> CallbackManager<CS, CD>
+where
+    CS: ComponentStorage,
+    CD: EntityComponentDirectory,
+{
+    pub fn new() -> Self {
+        CallbackManager {
+            entity_create_callbacks: Vec::new(),
+            component_create_callbacks: Vec::new(),
+        }
+    }
+
+    pub fn register_entity_create_callback(&mut self, callback: EntityCreateCallback<CS, CD>) {
+        self.entity_create_callbacks.push(callback);
+    }
+
+    pub fn register_component_create_callback(
+        &mut self,
+        callback: ComponentCreateCallback<CS, CD>,
+    ) {
+        self.component_create_callbacks.push(callback);
+    }
+
+    pub fn call_entity_create_callbacks(
+        &mut self,
+        component_storage: &mut CS,
+        entity_component_directory: &mut CD,
+        entity_id: EntityID,
+        debug_label: Option<&str>,
+    ) {
+        for callback in &self.entity_create_callbacks.clone() {
+            callback(
+                component_storage,
+                entity_component_directory,
+                entity_id,
+                debug_label,
+            );
+        }
+    }
+
+    pub fn call_component_create_callbacks<T>(
+        &self,
+        component_storage: &mut CS,
+        entity_component_directory: &mut CD,
+        component_id: ComponentID,
+    ) where
+        T: ComponentTrait + ComponentDebugTrait,
+    {
+        for callback in &self.component_create_callbacks.clone() {
+            callback(
+                component_storage,
+                entity_component_directory,
+                component_id,
+                &T::get_name(),
+                &T::get_description(),
+            );
+        }
+    }
+}
 
 /// Ties together component data storage, entity-component lookup, and callback handling
-pub struct EntityComponentDatabase<S: ComponentStorage, D: EntityComponentDirectory> {
-    component_storage: S,
-    entity_component_directory: D,
-
-    entity_create_callbacks: Vec<EntityCreateCallback<S, D>>,
-    component_create_callbacks: Vec<ComponentCreateCallback<S, D>>,
+pub struct EntityComponentDatabase<CS: ComponentStorage, CD: EntityComponentDirectory> {
+    pub component_storage: CS,
+    pub entity_component_directory: CD,
+    pub callback_manager: CallbackManager<CS, CD>,
 }
 
 impl<S, D> EntityComponentDatabase<S, D>
@@ -33,8 +98,7 @@ where
         EntityComponentDatabase {
             component_storage,
             entity_component_directory,
-            entity_create_callbacks: Vec::new(),
-            component_create_callbacks: Vec::new(),
+            callback_manager: CallbackManager::new(),
         }
     }
 }
@@ -65,48 +129,6 @@ where
     ) -> bool {
         self.entity_component_directory
             .entity_has_component_by_id(entity_id, component_id)
-    }
-
-    // CREATE
-    pub fn create_entity(&mut self, debug_label: Option<&str>) -> Result<EntityID, String> {
-        let entity_id = self.entity_component_directory.create_entity()?;
-
-        for callback in &self.entity_create_callbacks.clone() {
-            callback(self, entity_id, debug_label);
-        }
-
-        Ok(entity_id)
-    }
-
-    // INSERT
-    pub fn insert_component<T: ComponentTrait + ComponentDebugTrait + 'static>(
-        &mut self,
-    ) -> Result<ComponentID, String> {
-        let component_id = self.entity_component_directory.insert_component::<T>()?;
-
-        for callback in &self.component_create_callbacks.clone() {
-            callback(self, component_id, &T::get_name(), &T::get_description());
-        }
-
-        Ok(component_id)
-    }
-
-    pub fn insert_entity_component<T: ComponentTrait + ComponentDebugTrait + 'static>(
-        &mut self,
-        entity_id: EntityID,
-        component_data: T,
-    ) -> Result<&mut T, String> {
-        if !self.is_valid_component::<T>() {
-            self.insert_component::<T>()?;
-        }
-
-        let component_data_id = self.component_storage.insert_component(component_data)?;
-
-        self.entity_component_directory
-            .insert_entity_component::<T>(&entity_id, component_data_id)?;
-
-        self.component_storage
-            .get_component_data_mut::<T>(&component_data_id)
     }
 
     // DESTROY
@@ -165,30 +187,6 @@ where
             .get_components_by_predicate(predicate)
     }
 
-    pub fn get_entity_component<T: ComponentTrait + 'static>(
-        &self,
-        entity_id: EntityID,
-    ) -> Result<&T, String> {
-        let component_data_id = self
-            .entity_component_directory
-            .get_entity_component_data_id(&entity_id, &ComponentID::get::<T>())?;
-
-        self.component_storage
-            .get_component_data(&component_data_id)
-    }
-
-    pub fn get_entity_component_mut<T: ComponentTrait + 'static>(
-        &mut self,
-        entity_id: EntityID,
-    ) -> Result<&mut T, String> {
-        let component_data_id = self
-            .entity_component_directory
-            .get_entity_component_data_id(&entity_id, &ComponentID::get::<T>())?;
-
-        self.component_storage
-            .get_component_data_mut::<T>(&component_data_id)
-    }
-
     pub fn get_entity_component_data_id(
         &self,
         entity_id: &EntityID,
@@ -215,14 +213,6 @@ where
     }
 
     // Callback Registration
-    pub fn register_entity_create_callback(&mut self, callback: EntityCreateCallback<S, D>) {
-        self.entity_create_callbacks.push(callback);
-    }
-
-    pub fn register_component_create_callback(&mut self, callback: ComponentCreateCallback<S, D>) {
-        self.component_create_callbacks.push(callback);
-    }
-
     pub fn register_component_drop_callback<T>(&mut self, callback: ComponentDropCallback)
     where
         T: ComponentTrait + 'static,

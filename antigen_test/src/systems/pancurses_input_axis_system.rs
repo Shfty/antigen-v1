@@ -7,6 +7,8 @@ use antigen::{
     entity_component_system::entity_component_database::ComponentStorage,
     entity_component_system::entity_component_database::EntityComponentDatabase,
     entity_component_system::entity_component_database::EntityComponentDirectory,
+    entity_component_system::get_entity_component,
+    entity_component_system::get_entity_component_mut,
     entity_component_system::{SystemError, SystemTrait},
 };
 
@@ -19,15 +21,15 @@ impl PancursesInputAxisSystem {
     }
 }
 
-impl<S, D> SystemTrait<S, D> for PancursesInputAxisSystem
+impl<CS, CD> SystemTrait<CS, CD> for PancursesInputAxisSystem
 where
-    S: ComponentStorage,
-    D: EntityComponentDirectory,
+    CS: ComponentStorage,
+    CD: EntityComponentDirectory,
 {
-    fn run(&mut self, db: &mut EntityComponentDatabase<S, D>) -> Result<(), SystemError>
+    fn run(&mut self, db: &mut EntityComponentDatabase<CS, CD>) -> Result<(), SystemError>
     where
-        S: ComponentStorage,
-        D: EntityComponentDirectory,
+        CS: ComponentStorage,
+        CD: EntityComponentDirectory,
     {
         let entities = db.get_entities_by_predicate(|entity_id| {
             db.entity_has_component::<PancursesInputAxisComponent>(entity_id)
@@ -37,14 +39,22 @@ where
 
         for entity_id in entities {
             let pancurses_prev_next_input_component =
-                db.get_entity_component::<PancursesInputAxisComponent>(entity_id)?;
+                get_entity_component::<CS, CD, PancursesInputAxisComponent>(
+                    &mut db.component_storage,
+                    &mut db.entity_component_directory,
+                    entity_id,
+                )?;
             let (prev_input, next_input) = (
                 pancurses_prev_next_input_component.get_negative_input(),
                 pancurses_prev_next_input_component.get_positive_input(),
             );
 
             let pancurses_input_buffer_component =
-                db.get_entity_component_mut::<PancursesInputBufferComponent>(entity_id)?;
+                get_entity_component_mut::<CS, CD, PancursesInputBufferComponent>(
+                    &mut db.component_storage,
+                    &mut db.entity_component_directory,
+                    entity_id,
+                )?;
 
             let mut offset: i64 = 0;
 
@@ -60,8 +70,11 @@ where
                 }
             }
 
-            let ui_tab_input_component =
-                db.get_entity_component_mut::<IntRangeComponent>(entity_id)?;
+            let ui_tab_input_component = get_entity_component_mut::<CS, CD, IntRangeComponent>(
+                &mut db.component_storage,
+                &mut db.entity_component_directory,
+                entity_id,
+            )?;
 
             ui_tab_input_component.set_index(ui_tab_input_component.get_index() + offset);
         }

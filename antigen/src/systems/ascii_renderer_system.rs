@@ -3,6 +3,7 @@ use crate::{
     entity_component_system::entity_component_database::ComponentStorage,
     entity_component_system::entity_component_database::EntityComponentDatabase,
     entity_component_system::entity_component_database::EntityComponentDirectory,
+    entity_component_system::get_entity_component,
 };
 use crate::{
     entity_component_system::{SystemError, SystemTrait},
@@ -12,15 +13,15 @@ use crate::{
 #[derive(Debug)]
 pub struct ASCIIRendererSystem;
 
-impl<S, D> SystemTrait<S, D> for ASCIIRendererSystem
+impl<CS, CD> SystemTrait<CS, CD> for ASCIIRendererSystem
 where
-    S: ComponentStorage,
-    D: EntityComponentDirectory,
+    CS: ComponentStorage,
+    CD: EntityComponentDirectory,
 {
-    fn run(&mut self, db: &mut EntityComponentDatabase<S, D>) -> Result<(), SystemError>
+    fn run(&mut self, db: &mut EntityComponentDatabase<CS, CD>) -> Result<(), SystemError>
     where
-        S: ComponentStorage,
-        D: EntityComponentDirectory,
+        CS: ComponentStorage,
+        CD: EntityComponentDirectory,
     {
         let entities = db.get_entities_by_predicate(|entity_id| {
             db.entity_has_component::<PositionComponent>(entity_id)
@@ -29,13 +30,19 @@ where
 
         let mut positions: Vec<(IVector2, char)> = Vec::new();
         for entity_id in entities {
-            let position = db
-                .get_entity_component::<PositionComponent>(entity_id)?
-                .get_position();
+            let position = get_entity_component::<CS, CD, PositionComponent>(
+                &mut db.component_storage,
+                &mut db.entity_component_directory,
+                entity_id,
+            )?
+            .get_position();
 
-            let ascii = *db
-                .get_entity_component::<CharComponent>(entity_id)?
-                .get_data();
+            let ascii = *get_entity_component::<CS, CD, CharComponent>(
+                &mut db.component_storage,
+                &mut db.entity_component_directory,
+                entity_id,
+            )?
+            .get_data();
 
             positions.push((position, ascii))
         }

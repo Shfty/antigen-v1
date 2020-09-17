@@ -229,7 +229,7 @@ where
                             }
                             .into(),
                         );
-                        traverse_tree(db, child_entity, scene_tree_strings, padding);
+                        traverse_tree(db, child_entity, scene_tree_strings, padding)?;
                     }
                 }
 
@@ -238,7 +238,7 @@ where
 
             // Populate strings for debug scene tree entities
             for root_entity in &root_entities {
-                traverse_tree(db, root_entity, &mut scene_tree_strings, Vec::new());
+                traverse_tree(db, root_entity, &mut scene_tree_strings, Vec::new())?;
             }
 
             let debug_scene_tree_entities = db.get_entities_by_predicate(|entity_id| {

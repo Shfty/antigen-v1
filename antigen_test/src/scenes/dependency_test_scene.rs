@@ -3,6 +3,8 @@ use antigen::{
         CharComponent, ParentEntityComponent, PositionComponent, SizeComponent, VelocityComponent,
         WindowComponent,
     },
+    entity_component_system::create_entity,
+    entity_component_system::insert_entity_component,
     entity_component_system::Scene,
     entity_component_system::{
         entity_component_database::{ComponentStorage, EntityComponentDirectory},
@@ -84,15 +86,28 @@ impl Scene for DependencyTestScene {
         SR: SystemRunner,
     {
         // Create Main Window
-        let main_window_entity = ecs
-            .entity_component_database
-            .create_entity(Some("Main Window"))?;
+        let main_window_entity = create_entity(
+            &mut ecs.entity_component_database.component_storage,
+            &mut ecs.entity_component_database.entity_component_directory,
+            &mut ecs.entity_component_database.callback_manager,
+            Some("Main Window"),
+        )?;
         {
-            ecs.entity_component_database
-                .insert_entity_component(main_window_entity, WindowComponent)?;
-            ecs.entity_component_database
-                .insert_entity_component(main_window_entity, PancursesWindowComponent::default())?;
-            ecs.entity_component_database.insert_entity_component(
+            insert_entity_component(
+                &mut ecs.entity_component_database.component_storage,
+                &mut ecs.entity_component_database.entity_component_directory,
+                main_window_entity,
+                WindowComponent,
+            )?;
+            insert_entity_component(
+                &mut ecs.entity_component_database.component_storage,
+                &mut ecs.entity_component_database.entity_component_directory,
+                main_window_entity,
+                PancursesWindowComponent::default(),
+            )?;
+            insert_entity_component(
+                &mut ecs.entity_component_database.component_storage,
+                &mut ecs.entity_component_database.entity_component_directory,
                 main_window_entity,
                 SizeComponent::new(IVector2(64, 32)),
             )?;
@@ -117,7 +132,9 @@ impl Scene for DependencyTestScene {
         let test_player_entity = player_assemblage
             .create_and_assemble_entity(&mut ecs.entity_component_database, Some("Test Player"))?;
         {
-            ecs.entity_component_database.insert_entity_component(
+            insert_entity_component(
+                &mut ecs.entity_component_database.component_storage,
+                &mut ecs.entity_component_database.entity_component_directory,
                 test_player_entity,
                 ParentEntityComponent::new(main_window_entity),
             )?;

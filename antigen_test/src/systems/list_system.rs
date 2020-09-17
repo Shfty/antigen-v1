@@ -18,9 +18,13 @@ use antigen::{
     components::SizeComponent,
     components::StringComponent,
     components::StringListComponent,
+    entity_component_system::create_entity,
     entity_component_system::entity_component_database::ComponentStorage,
     entity_component_system::entity_component_database::EntityComponentDatabase,
     entity_component_system::entity_component_database::EntityComponentDirectory,
+    entity_component_system::get_entity_component,
+    entity_component_system::get_entity_component_mut,
+    entity_component_system::insert_entity_component,
     entity_component_system::EntityID,
     entity_component_system::{SystemError, SystemTrait},
     primitive_types::IVector2,
@@ -40,15 +44,15 @@ impl ListSystem {
     }
 }
 
-impl<S, D> SystemTrait<S, D> for ListSystem
+impl<CS, CD> SystemTrait<CS, CD> for ListSystem
 where
-    S: ComponentStorage,
-    D: EntityComponentDirectory,
+    CS: ComponentStorage,
+    CD: EntityComponentDirectory,
 {
-    fn run<'a>(&mut self, db: &'a mut EntityComponentDatabase<S, D>) -> Result<(), SystemError>
+    fn run<'a>(&mut self, db: &'a mut EntityComponentDatabase<CS, CD>) -> Result<(), SystemError>
     where
-        S: ComponentStorage,
-        D: EntityComponentDirectory,
+        CS: ComponentStorage,
+        CD: EntityComponentDirectory,
     {
         let list_control_entities = db.get_entities_by_predicate(|entity_id| {
             db.entity_has_component::<ListComponent>(entity_id)
@@ -59,7 +63,11 @@ where
 
         for list_control_entity in list_control_entities {
             let (string_list_entity, list_index_entity) =
-                match db.get_entity_component::<ListComponent>(list_control_entity) {
+                match get_entity_component::<CS, CD, ListComponent>(
+                    &db.component_storage,
+                    &db.entity_component_directory,
+                    list_control_entity,
+                ) {
                     Ok(pancurses_list_control_component) => (
                         pancurses_list_control_component.get_string_list_entity(),
                         pancurses_list_control_component.get_list_index_entity(),
@@ -68,15 +76,22 @@ where
                 };
 
             if let Some(string_list_entity) = string_list_entity {
-                let IVector2(width, height) =
-                    match db.get_entity_component::<SizeComponent>(list_control_entity) {
-                        Ok(size_component) => size_component.get_size(),
-                        Err(err) => return Err(err.into()),
-                    };
+                let IVector2(width, height) = match get_entity_component::<CS, CD, SizeComponent>(
+                    &db.component_storage,
+                    &db.entity_component_directory,
+                    list_control_entity,
+                ) {
+                    Ok(size_component) => size_component.get_size(),
+                    Err(err) => return Err(err.into()),
+                };
 
                 // If we have a string list entity, fetch its strings
-                let string_list: Vec<Vec<String>> = db
-                    .get_entity_component::<StringListComponent>(string_list_entity)?
+                let string_list: Vec<Vec<String>> =
+                    get_entity_component::<CS, CD, StringListComponent>(
+                        &mut db.component_storage,
+                        &mut db.entity_component_directory,
+                        string_list_entity,
+                    )?
                     .get_data()
                     .iter()
                     .map(|string| {
@@ -115,22 +130,56 @@ where
                 };
 
                 while string_entities.len() < string_count {
-                    let string_entity = db.create_entity(Some("List String Entity"))?;
-                    db.insert_entity_component(string_entity, ControlComponent)?;
-                    db.insert_entity_component(string_entity, PositionComponent::default())?;
-                    db.insert_entity_component(string_entity, GlobalPositionComponent::default())?;
-                    db.insert_entity_component(
+                    let string_entity = create_entity(
+                        &mut db.component_storage,
+                        &mut db.entity_component_directory,
+                        &mut db.callback_manager,
+                        Some("List String Entity"),
+                    )?;
+                    insert_entity_component(
+                        &mut db.component_storage,
+                        &mut db.entity_component_directory,
+                        string_entity,
+                        ControlComponent,
+                    )?;
+                    insert_entity_component(
+                        &mut db.component_storage,
+                        &mut db.entity_component_directory,
+                        string_entity,
+                        PositionComponent::default(),
+                    )?;
+                    insert_entity_component(
+                        &mut db.component_storage,
+                        &mut db.entity_component_directory,
+                        string_entity,
+                        GlobalPositionComponent::default(),
+                    )?;
+                    insert_entity_component(
+                        &mut db.component_storage,
+                        &mut db.entity_component_directory,
                         string_entity,
                         ParentEntityComponent::new(list_control_entity),
                     )?;
-                    db.insert_entity_component(string_entity, StringComponent::default())?;
-                    db.insert_entity_component(
+                    insert_entity_component(
+                        &mut db.component_storage,
+                        &mut db.entity_component_directory,
+                        string_entity,
+                        StringComponent::default(),
+                    )?;
+                    insert_entity_component(
+                        &mut db.component_storage,
+                        &mut db.entity_component_directory,
                         string_entity,
                         PancursesColorPairComponent::new(PancursesColorPair::default()),
                     )?;
 
                     if db.entity_has_component::<DebugExcludeComponent>(&list_control_entity) {
-                        db.insert_entity_component(string_entity, DebugExcludeComponent)?;
+                        insert_entity_component(
+                            &mut db.component_storage,
+                            &mut db.entity_component_directory,
+                            string_entity,
+                            DebugExcludeComponent,
+                        )?;
                     }
 
                     string_entities.push(string_entity);
@@ -143,14 +192,17 @@ where
                     }
                 }
 
-                let local_mouse_position = match db
-                    .get_entity_component::<LocalMousePositionComponent>(list_control_entity)
-                {
-                    Ok(local_mouse_position_component) => {
-                        Some(local_mouse_position_component.get_local_mouse_position())
-                    }
-                    Err(_) => None,
-                };
+                let local_mouse_position =
+                    match get_entity_component::<CS, CD, LocalMousePositionComponent>(
+                        &mut db.component_storage,
+                        &mut db.entity_component_directory,
+                        list_control_entity,
+                    ) {
+                        Ok(local_mouse_position_component) => {
+                            Some(local_mouse_position_component.get_local_mouse_position())
+                        }
+                        Err(_) => None,
+                    };
 
                 let mut y = 0i64;
                 for (string_index, strings) in string_list.iter().enumerate() {
@@ -159,17 +211,27 @@ where
                         let string_entity = string_entities[y as usize];
 
                         // Update each string entity's position
-                        db.get_entity_component_mut::<PositionComponent>(string_entity)?
-                            .set_position(IVector2(0, y));
+                        get_entity_component_mut::<CS, CD, PositionComponent>(
+                            &mut db.component_storage,
+                            &mut db.entity_component_directory,
+                            string_entity,
+                        )?
+                        .set_position(IVector2(0, y));
 
                         // Update each string entity's text
-                        db.get_entity_component_mut::<StringComponent>(string_entity)?
-                            .set_data(string.clone());
+                        get_entity_component_mut::<CS, CD, StringComponent>(
+                            &mut db.component_storage,
+                            &mut db.entity_component_directory,
+                            string_entity,
+                        )?
+                        .set_data(string.clone());
 
                         // Update color pair based on focused item
                         let focused_item = match list_index_entity {
                             Some(list_index_entity) => {
-                                match db.get_entity_component_mut::<IntRangeComponent>(
+                                match get_entity_component_mut::<CS, CD, IntRangeComponent>(
+                                    &mut db.component_storage,
+                                    &mut db.entity_component_directory,
                                     list_index_entity,
                                 ) {
                                     Ok(int_range_component) => {
@@ -200,8 +262,12 @@ where
                             PancursesColorPair::default()
                         };
 
-                        db.get_entity_component_mut::<PancursesColorPairComponent>(string_entity)?
-                            .set_data(data);
+                        get_entity_component_mut::<CS, CD, PancursesColorPairComponent>(
+                            &mut db.component_storage,
+                            &mut db.entity_component_directory,
+                            string_entity,
+                        )?
+                        .set_data(data);
 
                         y += 1;
                         if y >= height {

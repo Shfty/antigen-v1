@@ -8,6 +8,8 @@ use antigen::{
     entity_component_system::entity_component_database::ComponentStorage,
     entity_component_system::entity_component_database::EntityComponentDatabase,
     entity_component_system::entity_component_database::EntityComponentDirectory,
+    entity_component_system::get_entity_component,
+    entity_component_system::get_entity_component_mut,
     entity_component_system::{SystemError, SystemTrait},
 };
 
@@ -26,15 +28,15 @@ impl PancursesInputSystem {
     }
 }
 
-impl<S, D> SystemTrait<S, D> for PancursesInputSystem
+impl<CS, CD> SystemTrait<CS, CD> for PancursesInputSystem
 where
-    S: ComponentStorage,
-    D: EntityComponentDirectory,
+    CS: ComponentStorage,
+    CD: EntityComponentDirectory,
 {
-    fn run(&mut self, db: &mut EntityComponentDatabase<S, D>) -> Result<(), SystemError>
+    fn run(&mut self, db: &mut EntityComponentDatabase<CS, CD>) -> Result<(), SystemError>
     where
-        S: ComponentStorage,
-        D: EntityComponentDirectory,
+        CS: ComponentStorage,
+        CD: EntityComponentDirectory,
     {
         let window_entity = db.get_entity_by_predicate(|entity_id| {
             db.entity_has_component::<WindowComponent>(entity_id)
@@ -43,8 +45,11 @@ where
 
         self.input_buffer.clear();
         if let Some(entity_id) = window_entity {
-            let window_component =
-                db.get_entity_component::<PancursesWindowComponent>(entity_id)?;
+            let window_component = get_entity_component::<CS, CD, PancursesWindowComponent>(
+                &mut db.component_storage,
+                &mut db.entity_component_directory,
+                entity_id,
+            )?;
             if let Some(window) = window_component.get_window() {
                 let mut i = self.input_buffer_size;
                 while let Some(input) = window.getch() {
@@ -79,7 +84,11 @@ where
         if let Ok(mouse_event) = pancurses::getmouse() {
             let pancurses_mouse_component = if let Some(entity_id) = pancurses_mouse_entities.get(0)
             {
-                db.get_entity_component_mut::<PancursesMouseComponent>(*entity_id)?
+                get_entity_component_mut::<CS, CD, PancursesMouseComponent>(
+                    &mut db.component_storage,
+                    &mut db.entity_component_directory,
+                    *entity_id,
+                )?
             } else {
                 return Err("No pancurses mouse entity".into());
             };
@@ -100,7 +109,11 @@ where
 
         for entity_id in entities {
             let pancurses_input_buffer_component =
-                db.get_entity_component_mut::<PancursesInputBufferComponent>(entity_id)?;
+                get_entity_component_mut::<CS, CD, PancursesInputBufferComponent>(
+                    &mut db.component_storage,
+                    &mut db.entity_component_directory,
+                    entity_id,
+                )?;
 
             pancurses_input_buffer_component.clear();
 

@@ -136,25 +136,25 @@ where
     pub fn new(
         component_storage: CS,
         entity_component_directory: CD,
-        mut system_storage: SS,
+        system_storage: SS,
         system_runner: SR,
     ) -> Result<Self, String>
     where
         SR: SystemRunner + 'static,
     {
-        let mut entity_component_database =
+        let entity_component_database =
             EntityComponentDatabase::new(component_storage, entity_component_directory);
-
-        system_storage.insert_system(
-            "ECS Debug",
-            ECSDebugSystem::new(&mut entity_component_database),
-        );
 
         let mut ecs = EntityComponentSystem {
             entity_component_database,
             system_runner,
             system_storage,
         };
+
+        ecs.system_storage.insert_system(
+            "ECS Debug",
+            ECSDebugSystem::new(&mut ecs.entity_component_database),
+        );
 
         let entity_debug_entity = create_entity(
             &mut ecs.entity_component_database.component_storage,

@@ -45,8 +45,8 @@ where
 
         for entity_id in entities_with_parents {
             let parent_id = get_entity_component::<CS, CD, ParentEntityComponent>(
-                &mut db.component_storage,
-                &mut db.entity_component_directory,
+                &db.component_storage,
+                &db.entity_component_directory,
                 entity_id,
             )?
             .get_parent_id();
@@ -79,8 +79,8 @@ where
         for entity_id in entities_with_children {
             let valid_entities: Vec<EntityID> =
                 get_entity_component::<CS, CD, ChildEntitiesComponent>(
-                    &mut db.component_storage,
-                    &mut db.entity_component_directory,
+                    &db.component_storage,
+                    &db.entity_component_directory,
                     entity_id,
                 )?
                 .get_child_ids()

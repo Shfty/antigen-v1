@@ -53,8 +53,8 @@ where
 
         for entity_id in &anchor_entities {
             let parent_id = get_entity_component::<CS, CD, ParentEntityComponent>(
-                &mut db.component_storage,
-                &mut db.entity_component_directory,
+                &db.component_storage,
+                &db.entity_component_directory,
                 *entity_id,
             )?
             .get_parent_id();
@@ -64,8 +64,8 @@ where
             loop {
                 depth += 1;
                 match get_entity_component::<CS, CD, ParentEntityComponent>(
-                    &mut db.component_storage,
-                    &mut db.entity_component_directory,
+                    &db.component_storage,
+                    &db.entity_component_directory,
                     candidate_id,
                 ) {
                     Ok(parent_entity_component) => {
@@ -98,39 +98,39 @@ where
         // Update position and size based on anchors
         for entity_id in anchor_entities {
             let parent_id = get_entity_component::<CS, CD, ParentEntityComponent>(
-                &mut db.component_storage,
-                &mut db.entity_component_directory,
+                &db.component_storage,
+                &db.entity_component_directory,
                 entity_id,
             )?
             .get_parent_id();
 
             let parent_position_component = get_entity_component::<CS, CD, PositionComponent>(
-                &mut db.component_storage,
-                &mut db.entity_component_directory,
+                &db.component_storage,
+                &db.entity_component_directory,
                 parent_id,
             )?;
             let IVector2(parent_pos_x, parent_pos_y) = parent_position_component.get_position();
 
             let IVector2(parent_width, parent_height) =
                 get_entity_component::<CS, CD, SizeComponent>(
-                    &mut db.component_storage,
-                    &mut db.entity_component_directory,
+                    &db.component_storage,
+                    &db.entity_component_directory,
                     parent_id,
                 )?
                 .get_size();
 
             let (anchor_left, anchor_right, anchor_top, anchor_bottom) =
                 get_entity_component::<CS, CD, AnchorsComponent>(
-                    &mut db.component_storage,
-                    &mut db.entity_component_directory,
+                    &db.component_storage,
+                    &db.entity_component_directory,
                     entity_id,
                 )?
                 .get_anchors();
 
             let (margin_left, margin_right, margin_top, margin_bottom) =
                 match get_entity_component::<CS, CD, MarginsComponent>(
-                    &mut db.component_storage,
-                    &mut db.entity_component_directory,
+                    &db.component_storage,
+                    &db.entity_component_directory,
                     entity_id,
                 ) {
                     Ok(margins_component) => margins_component.get_margins(),

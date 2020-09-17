@@ -125,8 +125,8 @@ where
         }) {
             // Populate strings for debug entity list entities
             let entity_debug_component = match get_entity_component::<CS, CD, EntityDebugComponent>(
-                &mut db.component_storage,
-                &mut db.entity_component_directory,
+                &db.component_storage,
+                &db.entity_component_directory,
                 entity_debug_entity,
             ) {
                 Ok(entity_debug_component) => entity_debug_component,
@@ -173,15 +173,11 @@ where
                 CS: ComponentStorage,
                 CD: EntityComponentDirectory,
             {
-                let entity_debug_component =
-                    match get_entity_component::<CS, CD, EntityDebugComponent>(
-                        &mut db.component_storage,
-                        &mut db.entity_component_directory,
-                        *entity_id,
-                    ) {
-                        Ok(entity_debug_component) => entity_debug_component,
-                        Err(err) => return Err(err.into()),
-                    };
+                let entity_debug_component = get_entity_component::<CS, CD, EntityDebugComponent>(
+                    &db.component_storage,
+                    &db.entity_component_directory,
+                    *entity_id,
+                )?;
 
                 let depth = padding.len();
 
@@ -205,8 +201,8 @@ where
 
                 if let Ok(child_entities_component) =
                     get_entity_component::<CS, CD, ChildEntitiesComponent>(
-                        &mut db.component_storage,
-                        &mut db.entity_component_directory,
+                        &db.component_storage,
+                        &db.entity_component_directory,
                         *entity_id,
                     )
                 {
@@ -269,8 +265,8 @@ where
 
         if let Some(entity_inspector_entity) = entity_inspector_entity {
             let int_range_component = get_entity_component::<CS, CD, IntRangeComponent>(
-                &mut db.component_storage,
-                &mut db.entity_component_directory,
+                &db.component_storage,
+                &db.entity_component_directory,
                 entity_inspector_entity,
             )?;
 
@@ -288,8 +284,8 @@ where
 
                     let component_debug_component =
                         get_entity_component::<CS, CD, ComponentDebugComponent>(
-                            &mut db.component_storage,
-                            &mut db.entity_component_directory,
+                            &db.component_storage,
+                            &db.entity_component_directory,
                             component_debug_entity,
                         )?;
 
@@ -320,8 +316,8 @@ where
 
                     if let Some(component_inspector_entity) = component_inspector_entity {
                         let int_range_component = get_entity_component::<CS, CD, IntRangeComponent>(
-                            &mut db.component_storage,
-                            &mut db.entity_component_directory,
+                            &db.component_storage,
+                            &db.entity_component_directory,
                             component_inspector_entity,
                         )?;
 

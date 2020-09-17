@@ -88,8 +88,8 @@ where
                 // If we have a string list entity, fetch its strings
                 let string_list: Vec<Vec<String>> =
                     get_entity_component::<CS, CD, StringListComponent>(
-                        &mut db.component_storage,
-                        &mut db.entity_component_directory,
+                        &db.component_storage,
+                        &db.entity_component_directory,
                         string_list_entity,
                     )?
                     .get_data()
@@ -194,8 +194,8 @@ where
 
                 let local_mouse_position =
                     match get_entity_component::<CS, CD, LocalMousePositionComponent>(
-                        &mut db.component_storage,
-                        &mut db.entity_component_directory,
+                        &db.component_storage,
+                        &db.entity_component_directory,
                         list_control_entity,
                     ) {
                         Ok(local_mouse_position_component) => {

@@ -40,8 +40,8 @@ where
 
         for entity_id in entities {
             let velocity = get_entity_component::<CS, CD, VelocityComponent>(
-                &mut db.component_storage,
-                &mut db.entity_component_directory,
+                &db.component_storage,
+                &db.entity_component_directory,
                 entity_id,
             )?
             .get_velocity();

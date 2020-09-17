@@ -39,8 +39,8 @@ where
         for entity_id in destruction_test_components {
             let input_char = pancurses::Input::Character(
                 get_entity_component::<CS, CD, DestructionTestInputComponent>(
-                    &mut db.component_storage,
-                    &mut db.entity_component_directory,
+                    &db.component_storage,
+                    &db.entity_component_directory,
                     entity_id,
                 )?
                 .get_input_char(),

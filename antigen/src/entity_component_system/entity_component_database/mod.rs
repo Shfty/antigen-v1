@@ -119,10 +119,6 @@ where
     D: EntityComponentDirectory,
 {
     // EXIST
-    pub fn is_valid_entity(&self, entity_id: &EntityID) -> bool {
-        self.entity_component_directory.is_valid_entity(entity_id)
-    }
-
     pub fn is_valid_component<T: ComponentTrait + 'static>(&self) -> bool {
         self.entity_component_directory.is_valid_component::<T>()
     }

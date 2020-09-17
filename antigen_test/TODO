@@ -1,6 +1,9 @@
+TODO: Finish refactoring EntityComponentDatabase into a thin interface w/mutable refs
+      Move ComponentStorage and EntityComponentDirectory into EntityComponentSystem
+TODO: Fix debug component registration getting missed
 
-TODO: Scene tree window
 TODO: System list window
+      Need an entrypoint for getting system data into a component - should be able to pass system storage into 
 
 TODO: Event synthesis for list hover / click
       Global 'event queue' entity w/component containing array of boxed event traits (heap allocating on every event seems like a bad idea)

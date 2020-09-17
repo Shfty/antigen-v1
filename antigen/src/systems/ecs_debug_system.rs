@@ -166,6 +166,7 @@ where
             fn traverse_tree<CS, CD>(
                 db: &mut EntityComponentDatabase<CS, CD>,
                 entity_id: &EntityID,
+                entity_debug_entity: EntityID,
                 scene_tree_strings: &mut Vec<String>,
                 mut padding: Vec<String>,
             ) -> Result<(), String>
@@ -176,7 +177,7 @@ where
                 let entity_debug_component = get_entity_component::<CS, CD, EntityDebugComponent>(
                     &db.component_storage,
                     &db.entity_component_directory,
-                    *entity_id,
+                    entity_debug_entity,
                 )?;
 
                 let depth = padding.len();
@@ -225,7 +226,7 @@ where
                             }
                             .into(),
                         );
-                        traverse_tree(db, child_entity, scene_tree_strings, padding)?;
+                        traverse_tree(db, child_entity, entity_debug_entity, scene_tree_strings, padding)?;
                     }
                 }
 
@@ -234,7 +235,7 @@ where
 
             // Populate strings for debug scene tree entities
             for root_entity in &root_entities {
-                traverse_tree(db, root_entity, &mut scene_tree_strings, Vec::new())?;
+                traverse_tree(db, root_entity, entity_debug_entity, &mut scene_tree_strings, Vec::new())?;
             }
 
             let debug_scene_tree_entities = db.get_entities_by_predicate(|entity_id| {

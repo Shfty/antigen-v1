@@ -90,7 +90,7 @@ where
 
             let valid_entities: Vec<EntityID> = valid_entities
                 .iter()
-                .filter(|entity_id| db.is_valid_entity(entity_id))
+                .filter(|entity_id| db.entity_component_directory.is_valid_entity(entity_id))
                 .copied()
                 .collect();
 

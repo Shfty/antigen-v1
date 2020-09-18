@@ -182,16 +182,16 @@ where
         CD: EntityComponentDirectory,
     {
         // Fetch color set entity
-        let color_set_entity = db.get_entity_by_predicate(|entity_id| {
-            db.entity_has_component::<PancursesColorSetComponent>(entity_id)
+        let color_set_entity = db.entity_component_directory.get_entity_by_predicate(|entity_id| {
+            db.entity_component_directory.entity_has_component::<PancursesColorSetComponent>(entity_id)
         });
         let color_set_entity = color_set_entity.expect("Color set entity does not exist");
 
         // Fetch control entities
-        let control_entities = db.get_entities_by_predicate(|entity_id| {
-            db.entity_has_component::<ControlComponent>(entity_id)
-                && db.entity_has_component::<ParentEntityComponent>(entity_id)
-                && db.entity_has_component::<PositionComponent>(entity_id)
+        let control_entities = db.entity_component_directory.get_entities_by_predicate(|entity_id| {
+            db.entity_component_directory.entity_has_component::<ControlComponent>(entity_id)
+                && db.entity_component_directory.entity_has_component::<ParentEntityComponent>(entity_id)
+                && db.entity_component_directory.entity_has_component::<PositionComponent>(entity_id)
         });
 
         // Filter out non-root controls and sort
@@ -209,7 +209,7 @@ where
                     };
 
                 let parent_id = parent_entity_component.get_parent_id();
-                !db.entity_has_component::<ControlComponent>(&parent_id)
+                !db.entity_component_directory.entity_has_component::<ControlComponent>(&parent_id)
             })
             .copied()
             .collect();
@@ -282,10 +282,10 @@ where
         }
 
         // Fetch window entities
-        let window_entities = db.get_entities_by_predicate(|entity_id| {
-            db.entity_has_component::<WindowComponent>(entity_id)
-                && db.entity_has_component::<PancursesWindowComponent>(entity_id)
-                && db.entity_has_component::<SizeComponent>(entity_id)
+        let window_entities = db.entity_component_directory.get_entities_by_predicate(|entity_id| {
+            db.entity_component_directory.entity_has_component::<WindowComponent>(entity_id)
+                && db.entity_component_directory.entity_has_component::<PancursesWindowComponent>(entity_id)
+                && db.entity_component_directory.entity_has_component::<SizeComponent>(entity_id)
         });
 
         // Erase existing framebuffer
@@ -399,9 +399,9 @@ where
                 let (window_height, window_width) = window.get_max_yx();
                 let (window_width, window_height) = (window_width as i64, window_height as i64);
 
-                if db.entity_has_component::<SizeComponent>(&entity_id) {
+                if db.entity_component_directory.entity_has_component::<SizeComponent>(&entity_id) {
                     //let filled = *filled;
-                    let filled = db.entity_has_component::<FillComponent>(&entity_id);
+                    let filled = db.entity_component_directory.entity_has_component::<FillComponent>(&entity_id);
 
                     let IVector2(width, height) = get_entity_component::<CS, CD, SizeComponent>(
                         &db.component_storage,
@@ -418,8 +418,8 @@ where
                         color_pair_idx,
                         filled,
                     );
-                } else if db.entity_has_component::<StringComponent>(&entity_id)
-                    || db.entity_has_component::<CharComponent>(&entity_id)
+                } else if db.entity_component_directory.entity_has_component::<StringComponent>(&entity_id)
+                    || db.entity_component_directory.entity_has_component::<CharComponent>(&entity_id)
                 {
                     let string = if let Ok(string_component) =
                         get_entity_component::<CS, CD, StringComponent>(

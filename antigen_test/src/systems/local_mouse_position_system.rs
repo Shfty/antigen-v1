@@ -42,8 +42,8 @@ where
         CS: ComponentStorage,
         CD: EntityComponentDirectory,
     {
-        let mouse_entities = db.get_entities_by_predicate(|entity_id| {
-            db.entity_has_component::<PancursesMouseComponent>(entity_id)
+        let mouse_entities = db.entity_component_directory.get_entities_by_predicate(|entity_id| {
+            db.entity_component_directory.entity_has_component::<PancursesMouseComponent>(entity_id)
         });
         assert!(mouse_entities.len() <= 1);
         let mouse_entity = match mouse_entities.get(0) {
@@ -57,9 +57,9 @@ where
         )?
         .get_position();
 
-        let entities = db.get_entities_by_predicate(|entity_id| {
-            db.entity_has_component::<LocalMousePositionComponent>(entity_id)
-                && db.entity_has_component::<PositionComponent>(entity_id)
+        let entities = db.entity_component_directory.get_entities_by_predicate(|entity_id| {
+            db.entity_component_directory.entity_has_component::<LocalMousePositionComponent>(entity_id)
+                && db.entity_component_directory.entity_has_component::<PositionComponent>(entity_id)
         });
 
         for entity_id in entities {

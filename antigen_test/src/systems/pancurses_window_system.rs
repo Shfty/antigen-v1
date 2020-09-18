@@ -41,7 +41,8 @@ impl PancursesWindowSystem {
             pancurses::endwin();
         }
 
-        db.register_component_drop_callback::<PancursesWindowComponent>(drop_callback);
+        db.component_storage
+            .register_component_drop_callback::<PancursesWindowComponent>(drop_callback);
 
         PancursesWindowSystem
     }
@@ -153,9 +154,12 @@ impl PancursesWindowSystem {
             PancursesMouseComponent::new(),
         )?;
 
-        let pancurses_color_set_entity = db.get_entity_by_predicate(|entity_id| {
-            db.entity_has_component::<PancursesColorSetComponent>(entity_id)
-        });
+        let pancurses_color_set_entity =
+            db.entity_component_directory
+                .get_entity_by_predicate(|entity_id| {
+                    db.entity_component_directory
+                        .entity_has_component::<PancursesColorSetComponent>(entity_id)
+                });
         let background_color_pair = if let Some(entity_id) = pancurses_color_set_entity {
             get_entity_component_mut::<CS, CD, PancursesColorSetComponent>(
                 &mut db.component_storage,
@@ -193,11 +197,18 @@ where
         CD: EntityComponentDirectory,
     {
         // Get window entities, update internal window state
-        let window_entities = db.get_entities_by_predicate(|entity_id| {
-            db.entity_has_component::<WindowComponent>(entity_id)
-                && db.entity_has_component::<PancursesWindowComponent>(entity_id)
-                && db.entity_has_component::<SizeComponent>(entity_id)
-        });
+        let window_entities =
+            db.entity_component_directory
+                .get_entities_by_predicate(|entity_id| {
+                    db.entity_component_directory
+                        .entity_has_component::<WindowComponent>(entity_id)
+                        && db
+                            .entity_component_directory
+                            .entity_has_component::<PancursesWindowComponent>(entity_id)
+                        && db
+                            .entity_component_directory
+                            .entity_has_component::<SizeComponent>(entity_id)
+                });
 
         for entity_id in window_entities {
             self.try_create_window(db, entity_id)?;

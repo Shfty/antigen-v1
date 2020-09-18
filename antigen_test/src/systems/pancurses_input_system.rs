@@ -38,9 +38,9 @@ where
         CS: ComponentStorage,
         CD: EntityComponentDirectory,
     {
-        let window_entity = db.get_entity_by_predicate(|entity_id| {
-            db.entity_has_component::<WindowComponent>(entity_id)
-                && db.entity_has_component::<PancursesWindowComponent>(entity_id)
+        let window_entity = db.entity_component_directory.get_entity_by_predicate(|entity_id| {
+            db.entity_component_directory.entity_has_component::<WindowComponent>(entity_id)
+                && db.entity_component_directory.entity_has_component::<PancursesWindowComponent>(entity_id)
         });
 
         self.input_buffer.clear();
@@ -75,8 +75,8 @@ where
             }
         }
 
-        let pancurses_mouse_entities = db.get_entities_by_predicate(|entity_id| {
-            db.entity_has_component::<PancursesMouseComponent>(entity_id)
+        let pancurses_mouse_entities = db.entity_component_directory.get_entities_by_predicate(|entity_id| {
+            db.entity_component_directory.entity_has_component::<PancursesMouseComponent>(entity_id)
         });
         assert!(pancurses_mouse_entities.len() <= 1);
 
@@ -103,8 +103,8 @@ where
         }
 
         // Update entity input buffers
-        let entities = db.get_entities_by_predicate(|entity_id| {
-            db.entity_has_component::<PancursesInputBufferComponent>(entity_id)
+        let entities = db.entity_component_directory.get_entities_by_predicate(|entity_id| {
+            db.entity_component_directory.entity_has_component::<PancursesInputBufferComponent>(entity_id)
         });
 
         for entity_id in entities {

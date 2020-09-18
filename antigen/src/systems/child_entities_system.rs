@@ -2,10 +2,6 @@ use crate::{
     components::ChildEntitiesComponent,
     entity_component_system::entity_component_database::ComponentStorage,
     entity_component_system::entity_component_database::EntityComponentDirectory,
-    entity_component_system::get_entity_component,
-    entity_component_system::get_entity_component_mut,
-    entity_component_system::insert_entity_component,
-    entity_component_system::remove_component_from_entity,
     entity_component_system::EntityID,
     entity_component_system::{SystemError, SystemTrait},
 };
@@ -48,27 +44,16 @@ where
                 });
 
         for entity_id in entities_with_parents {
-            let parent_id = get_entity_component::<CS, CD, ParentEntityComponent>(
-                &db.component_storage,
-                &db.entity_component_directory,
-                entity_id,
-            )?
-            .get_parent_id();
+            let parent_id = db
+                .get_entity_component::<ParentEntityComponent>(entity_id)?
+                .get_parent_id();
 
-            let child_entities_component =
-                match get_entity_component_mut::<CS, CD, ChildEntitiesComponent>(
-                    &mut db.component_storage,
-                    &mut db.entity_component_directory,
-                    parent_id,
-                ) {
-                    Ok(child_entities_component) => child_entities_component,
-                    Err(_) => insert_entity_component(
-                        &mut db.component_storage,
-                        &mut db.entity_component_directory,
-                        parent_id,
-                        ChildEntitiesComponent::new(),
-                    )?,
-                };
+            let child_entities_component = match db
+                .get_entity_component_mut::<ChildEntitiesComponent>(parent_id)
+            {
+                Ok(child_entities_component) => child_entities_component,
+                Err(_) => db.insert_entity_component(parent_id, ChildEntitiesComponent::new())?,
+            };
 
             if !child_entities_component.has_child_id(&entity_id) {
                 child_entities_component.add_child_id(entity_id);
@@ -84,12 +69,8 @@ where
                 });
 
         for entity_id in entities_with_children {
-            let valid_entities: Vec<EntityID> =
-                get_entity_component::<CS, CD, ChildEntitiesComponent>(
-                    &db.component_storage,
-                    &db.entity_component_directory,
-                    entity_id,
-                )?
+            let valid_entities: Vec<EntityID> = db
+                .get_entity_component::<ChildEntitiesComponent>(entity_id)?
                 .get_child_ids()
                 .iter()
                 .copied()
@@ -103,18 +84,10 @@ where
 
             if valid_entities.is_empty() {
                 println!("No valid children, removing component");
-                remove_component_from_entity::<CS, CD, ChildEntitiesComponent>(
-                    &mut db.component_storage,
-                    &mut db.entity_component_directory,
-                    entity_id,
-                )?;
+                db.remove_component_from_entity::<ChildEntitiesComponent>(entity_id)?;
             } else {
-                get_entity_component_mut::<CS, CD, ChildEntitiesComponent>(
-                    &mut db.component_storage,
-                    &mut db.entity_component_directory,
-                    entity_id,
-                )?
-                .set_child_ids(valid_entities);
+                db.get_entity_component_mut::<ChildEntitiesComponent>(entity_id)?
+                    .set_child_ids(valid_entities);
             }
         }
 

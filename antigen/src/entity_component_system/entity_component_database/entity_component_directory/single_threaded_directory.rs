@@ -169,4 +169,19 @@ impl EntityComponentDirectory for SingleThreadedDirectory {
             )),
         }
     }
+
+    fn get_entity_component_data(
+        &self,
+        entity_id: &EntityID,
+    ) -> Result<HashMap<ComponentID, ComponentDataID>, String> {
+        let entity_components = match self.entity_components.get(&entity_id) {
+            Some(entity_components) => entity_components,
+            None => panic!(
+                "Error getting entity component data ID: No such entity {}",
+                entity_id
+            ),
+        };
+
+        Ok(entity_components.clone())
+    }
 }

@@ -1,8 +1,6 @@
 use antigen::{
     entity_component_system::entity_component_database::ComponentStorage,
     entity_component_system::entity_component_database::EntityComponentDirectory,
-    entity_component_system::get_entity_component,
-    entity_component_system::get_entity_component_mut,
     entity_component_system::SystemError,
     entity_component_system::{entity_component_database::EntityComponentDatabase, SystemTrait},
 };
@@ -32,26 +30,21 @@ where
         CS: ComponentStorage,
         CD: EntityComponentDirectory,
     {
-        let destruction_test_components = db.entity_component_directory.get_entities_by_predicate(|entity_id| {
-            db.entity_component_directory.entity_has_component::<DestructionTestInputComponent>(entity_id)
-        });
+        let destruction_test_components =
+            db.entity_component_directory
+                .get_entities_by_predicate(|entity_id| {
+                    db.entity_component_directory
+                        .entity_has_component::<DestructionTestInputComponent>(entity_id)
+                });
 
         for entity_id in destruction_test_components {
             let input_char = pancurses::Input::Character(
-                get_entity_component::<CS, CD, DestructionTestInputComponent>(
-                    &db.component_storage,
-                    &db.entity_component_directory,
-                    entity_id,
-                )?
-                .get_input_char(),
+                db.get_entity_component::<DestructionTestInputComponent>(entity_id)?
+                    .get_input_char(),
             );
 
-            let inputs: Vec<Input> =
-                get_entity_component_mut::<CS, CD, PancursesInputBufferComponent>(
-                    &mut db.component_storage,
-                    &mut db.entity_component_directory,
-                    entity_id,
-                )?
+            let inputs: Vec<Input> = db
+                .get_entity_component_mut::<PancursesInputBufferComponent>(entity_id)?
                 .get_inputs();
 
             for input in inputs {

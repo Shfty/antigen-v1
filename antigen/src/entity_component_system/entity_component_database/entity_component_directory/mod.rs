@@ -1,4 +1,6 @@
 mod single_threaded_directory;
+use std::collections::HashMap;
+
 pub use single_threaded_directory::SingleThreadedDirectory;
 
 use crate::entity_component_system::{
@@ -53,6 +55,11 @@ pub trait EntityComponentDirectory {
         entity_id: &EntityID,
         component_id: &ComponentID,
     ) -> Result<ComponentDataID, String>;
+
+    fn get_entity_component_data(
+        &self,
+        entity_id: &EntityID,
+    ) -> Result<HashMap<ComponentID, ComponentDataID>, String>;
 
     // Derived methods
     fn entity_has_component<T: ComponentTrait + 'static>(&self, entity_id: &EntityID) -> bool {

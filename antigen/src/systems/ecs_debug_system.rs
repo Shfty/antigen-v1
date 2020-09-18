@@ -1,4 +1,4 @@
-use std::{fmt::Debug, marker::PhantomData};
+use std::fmt::Debug;
 
 use crate::{
     components::ChildEntitiesComponent, components::ComponentDebugComponent,
@@ -10,8 +10,6 @@ use crate::{
     entity_component_system::entity_component_database::ComponentStorage,
     entity_component_system::entity_component_database::EntityComponentDatabase,
     entity_component_system::entity_component_database::EntityComponentDirectory,
-    entity_component_system::get_entity_component,
-    entity_component_system::get_entity_component_mut, entity_component_system::ComponentID,
     entity_component_system::EntityID,
 };
 use crate::{
@@ -20,92 +18,9 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct ECSDebugSystem<T> {
-    phantom: PhantomData<T>,
-}
+pub struct ECSDebugSystem;
 
-impl<T> ECSDebugSystem<T>
-where
-    T: EntityComponentDirectory,
-{
-    pub fn new<S, D>(db: &mut EntityComponentDatabase<S, D>) -> Self
-    where
-        S: ComponentStorage,
-        D: EntityComponentDirectory,
-    {
-        fn entity_created<CS, CD>(
-            component_storage: &mut CS,
-            entity_component_directory: &mut CD,
-            entity_id: EntityID,
-            debug_label: Option<&str>,
-        ) where
-            CS: ComponentStorage,
-            CD: EntityComponentDirectory,
-        {
-            if let Some(debug_label) = debug_label {
-                if let Some(entity_debug_entity) = entity_component_directory
-                    .get_entity_by_predicate(|entity_id| {
-                        entity_component_directory
-                            .entity_has_component::<EntityDebugComponent>(entity_id)
-                    })
-                {
-                    if let Ok(entity_debug_component) =
-                        get_entity_component_mut::<CS, CD, EntityDebugComponent>(
-                            component_storage,
-                            entity_component_directory,
-                            entity_debug_entity,
-                        )
-                    {
-                        entity_debug_component.register_entity(entity_id, debug_label.into());
-                    }
-                }
-            }
-        };
-
-        fn component_created<CS, CD>(
-            component_storage: &mut CS,
-            entity_component_directory: &mut CD,
-            component_id: ComponentID,
-            label: &str,
-            description: &str,
-        ) where
-            CS: ComponentStorage,
-            CD: EntityComponentDirectory,
-        {
-            if let Some(component_debug_entity) = entity_component_directory
-                .get_entity_by_predicate(|entity_id| {
-                    entity_component_directory
-                        .entity_has_component::<ComponentDebugComponent>(entity_id)
-                })
-            {
-                if let Ok(component_debug_component) =
-                    get_entity_component_mut::<CS, CD, ComponentDebugComponent>(
-                        component_storage,
-                        entity_component_directory,
-                        component_debug_entity,
-                    )
-                {
-                    component_debug_component.register_component(
-                        component_id,
-                        label.into(),
-                        description.into(),
-                    );
-                }
-            }
-        }
-
-        db.callback_manager
-            .register_entity_create_callback(entity_created);
-        db.callback_manager
-            .register_component_create_callback(component_created);
-
-        ECSDebugSystem {
-            phantom: PhantomData,
-        }
-    }
-}
-
-impl<CS, CD> SystemTrait<CS, CD> for ECSDebugSystem<CD>
+impl<CS, CD> SystemTrait<CS, CD> for ECSDebugSystem
 where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
@@ -131,14 +46,11 @@ where
                 })
         {
             // Populate strings for debug entity list entities
-            let entity_debug_component = match get_entity_component::<CS, CD, EntityDebugComponent>(
-                &db.component_storage,
-                &db.entity_component_directory,
-                entity_debug_entity,
-            ) {
-                Ok(entity_debug_component) => entity_debug_component,
-                Err(err) => return Err(err.into()),
-            };
+            let entity_debug_component =
+                match db.get_entity_component::<EntityDebugComponent>(entity_debug_entity) {
+                    Ok(entity_debug_component) => entity_debug_component,
+                    Err(err) => return Err(err.into()),
+                };
 
             let entity_strings: Vec<String> = debug_entities
                 .iter()
@@ -159,12 +71,8 @@ where
                 });
 
             for entity_id in debug_entity_list_entities {
-                get_entity_component_mut::<CS, CD, StringListComponent>(
-                    &mut db.component_storage,
-                    &mut db.entity_component_directory,
-                    entity_id,
-                )?
-                .set_data(entity_strings.clone());
+                db.get_entity_component_mut::<StringListComponent>(entity_id)?
+                    .set_data(entity_strings.clone());
             }
 
             let root_entities: Vec<EntityID> = debug_entities
@@ -189,11 +97,8 @@ where
                 CS: ComponentStorage,
                 CD: EntityComponentDirectory,
             {
-                let entity_debug_component = get_entity_component::<CS, CD, EntityDebugComponent>(
-                    &db.component_storage,
-                    &db.entity_component_directory,
-                    entity_debug_entity,
-                )?;
+                let entity_debug_component =
+                    db.get_entity_component::<EntityDebugComponent>(entity_debug_entity)?;
 
                 let depth = padding.len();
 
@@ -216,11 +121,7 @@ where
                 scene_tree_strings.push(label);
 
                 if let Ok(child_entities_component) =
-                    get_entity_component::<CS, CD, ChildEntitiesComponent>(
-                        &db.component_storage,
-                        &db.entity_component_directory,
-                        *entity_id,
-                    )
+                    db.get_entity_component::<ChildEntitiesComponent>(*entity_id)
                 {
                     let child_ids: Vec<EntityID> = child_entities_component.get_child_ids().clone();
                     let child_ids: Vec<EntityID> = child_ids
@@ -277,12 +178,8 @@ where
                 });
 
             for entity_id in debug_scene_tree_entities {
-                get_entity_component_mut::<CS, CD, StringListComponent>(
-                    &mut db.component_storage,
-                    &mut db.entity_component_directory,
-                    entity_id,
-                )?
-                .set_data(scene_tree_strings.clone());
+                db.get_entity_component_mut::<StringListComponent>(entity_id)?
+                    .set_data(scene_tree_strings.clone());
             }
         }
 
@@ -306,11 +203,8 @@ where
             });
 
         if let Some(entity_inspector_entity) = entity_inspector_entity {
-            let int_range_component = get_entity_component::<CS, CD, IntRangeComponent>(
-                &db.component_storage,
-                &db.entity_component_directory,
-                entity_inspector_entity,
-            )?;
+            let int_range_component =
+                db.get_entity_component::<IntRangeComponent>(entity_inspector_entity)?;
 
             if let Some(inspected_entity) =
                 debug_entities.get(int_range_component.get_index() as usize)
@@ -331,11 +225,7 @@ where
                             });
 
                     let component_debug_component =
-                        get_entity_component::<CS, CD, ComponentDebugComponent>(
-                            &db.component_storage,
-                            &db.entity_component_directory,
-                            component_debug_entity,
-                        )?;
+                        db.get_entity_component::<ComponentDebugComponent>(component_debug_entity)?;
 
                     components.sort_by(|lhs, rhs| {
                         let lhs_label = component_debug_component.get_label(lhs);
@@ -350,12 +240,8 @@ where
                         .collect();
 
                     for entity_id in debug_component_list_entities {
-                        get_entity_component_mut::<CS, CD, StringListComponent>(
-                            &mut db.component_storage,
-                            &mut db.entity_component_directory,
-                            entity_id,
-                        )?
-                        .set_data(component_strings.clone());
+                        db.get_entity_component_mut::<StringListComponent>(entity_id)?
+                            .set_data(component_strings.clone());
                     }
 
                     let component_inspector_entity = db
@@ -366,9 +252,7 @@ where
                         });
 
                     if let Some(component_inspector_entity) = component_inspector_entity {
-                        let int_range_component = get_entity_component::<CS, CD, IntRangeComponent>(
-                            &db.component_storage,
-                            &db.entity_component_directory,
+                        let int_range_component = db.get_entity_component::<IntRangeComponent>(
                             component_inspector_entity,
                         )?;
 
@@ -400,12 +284,8 @@ where
                                 });
 
                             for entity_id in entity_component_debug_entities {
-                                get_entity_component_mut::<CS, CD, StringListComponent>(
-                                    &mut db.component_storage,
-                                    &mut db.entity_component_directory,
-                                    entity_id,
-                                )?
-                                .set_data(vec![component_data_string.clone()]);
+                                db.get_entity_component_mut::<StringListComponent>(entity_id)?
+                                    .set_data(vec![component_data_string.clone()]);
                             }
                         }
                     }

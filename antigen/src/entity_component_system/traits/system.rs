@@ -33,5 +33,5 @@ where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
 {
-    fn run<'a>(&mut self, db: &'a mut EntityComponentDatabase<CS, CD>) -> Result<(), SystemError>;
+    fn run(&mut self, db: &mut EntityComponentDatabase<CS, CD>) -> Result<(), SystemError>;
 }

@@ -10,10 +10,10 @@ use super::{
 
 /// Trait for handling systems execution for a given EntityComponentSystem
 pub trait SystemRunner {
-    fn run<SS, CS, CD>(
+    fn run<'a, SS, CS, CD>(
         &mut self,
-        system_storage: &mut SS,
-        entity_component_database: &mut EntityComponentDatabase<CS, CD>,
+        system_storage: &'a mut SS,
+        entity_component_database: &'a mut EntityComponentDatabase<'a, CS, CD>,
     ) -> Result<(), SystemError>
     where
         SS: SystemStorage<CS, CD>,

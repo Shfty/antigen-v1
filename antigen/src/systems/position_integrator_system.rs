@@ -1,7 +1,6 @@
 use crate::entity_component_system::{
     entity_component_database::ComponentStorage,
-    entity_component_database::EntityComponentDirectory, get_entity_component,
-    get_entity_component_mut, SystemError, SystemTrait,
+    entity_component_database::EntityComponentDirectory, SystemError, SystemTrait,
 };
 use crate::{
     components::{PositionComponent, VelocityComponent},
@@ -33,24 +32,22 @@ where
         CS: ComponentStorage,
         CD: EntityComponentDirectory,
     {
-        let entities = db.entity_component_directory.get_entities_by_predicate(|entity_id| {
-            db.entity_component_directory.entity_has_component::<PositionComponent>(entity_id)
-                && db.entity_component_directory.entity_has_component::<VelocityComponent>(entity_id)
-        });
+        let entities = db
+            .entity_component_directory
+            .get_entities_by_predicate(|entity_id| {
+                db.entity_component_directory
+                    .entity_has_component::<PositionComponent>(entity_id)
+                    && db
+                        .entity_component_directory
+                        .entity_has_component::<VelocityComponent>(entity_id)
+            });
 
         for entity_id in entities {
-            let velocity = get_entity_component::<CS, CD, VelocityComponent>(
-                &db.component_storage,
-                &db.entity_component_directory,
-                entity_id,
-            )?
-            .get_velocity();
+            let velocity = db
+                .get_entity_component::<VelocityComponent>(entity_id)?
+                .get_velocity();
 
-            let position_component = get_entity_component_mut::<CS, CD, PositionComponent>(
-                &mut db.component_storage,
-                &mut db.entity_component_directory,
-                entity_id,
-            )?;
+            let position_component = db.get_entity_component_mut::<PositionComponent>(entity_id)?;
             position_component.set_position(position_component.get_position() + velocity);
         }
 

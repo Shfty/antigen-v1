@@ -1,7 +1,3 @@
-TODO: Finish refactoring EntityComponentDatabase into a thin interface w/mutable refs
-      Move ComponentStorage and EntityComponentDirectory into EntityComponentSystem
-TODO: Fix debug component registration getting missed
-
 TODO: System list window
       Need an entrypoint for getting system data into a component - should be able to pass system storage into 
 

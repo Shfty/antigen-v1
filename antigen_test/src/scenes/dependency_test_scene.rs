@@ -3,8 +3,7 @@ use antigen::{
         CharComponent, ParentEntityComponent, PositionComponent, SizeComponent, VelocityComponent,
         WindowComponent,
     },
-    entity_component_system::create_entity,
-    entity_component_system::insert_entity_component,
+    entity_component_system::EntityComponentDatabase,
     entity_component_system::Scene,
     entity_component_system::{
         entity_component_database::{ComponentStorage, EntityComponentDirectory},
@@ -48,8 +47,7 @@ impl Scene for DependencyTestScene {
         // pred: (WindowComponent, PancursesWindowComponent, SizeComponent)
         // ref: PancursesWindowComponent, SizeComponent, CharComponent, PancursesColorPairComponent, StringComponent
         // mut: SizeComponent, PancursesColorSetComponent, PancursesWindowComponent
-        let pancurses_window_system =
-            PancursesWindowSystem::new(&mut ecs.entity_component_database);
+        let pancurses_window_system = PancursesWindowSystem::new(&mut ecs.component_storage);
         ecs.push_system("Pancurses Window", pancurses_window_system);
 
         // pred: (WindowComponent, PancursesWindowComponent)
@@ -76,41 +74,17 @@ impl Scene for DependencyTestScene {
         Ok(())
     }
 
-    fn create_entities<CS, CD, SS, SR>(
-        ecs: &mut EntityComponentSystem<CS, CD, SS, SR>,
-    ) -> Result<(), String>
+    fn create_entities<CS, CD>(db: &mut EntityComponentDatabase<CS, CD>) -> Result<(), String>
     where
         CS: ComponentStorage,
         CD: EntityComponentDirectory,
-        SS: SystemStorage<CS, CD>,
-        SR: SystemRunner,
     {
         // Create Main Window
-        let main_window_entity = create_entity(
-            &mut ecs.entity_component_database.component_storage,
-            &mut ecs.entity_component_database.entity_component_directory,
-            &mut ecs.entity_component_database.callback_manager,
-            Some("Main Window"),
-        )?;
+        let main_window_entity = db.create_entity(Some("Main Window"))?;
         {
-            insert_entity_component(
-                &mut ecs.entity_component_database.component_storage,
-                &mut ecs.entity_component_database.entity_component_directory,
-                main_window_entity,
-                WindowComponent,
-            )?;
-            insert_entity_component(
-                &mut ecs.entity_component_database.component_storage,
-                &mut ecs.entity_component_database.entity_component_directory,
-                main_window_entity,
-                PancursesWindowComponent::default(),
-            )?;
-            insert_entity_component(
-                &mut ecs.entity_component_database.component_storage,
-                &mut ecs.entity_component_database.entity_component_directory,
-                main_window_entity,
-                SizeComponent::new(IVector2(64, 32)),
-            )?;
+            db.insert_entity_component(main_window_entity, WindowComponent)?;
+            db.insert_entity_component(main_window_entity, PancursesWindowComponent::default())?;
+            db.insert_entity_component(main_window_entity, SizeComponent::new(IVector2(64, 32)))?;
         }
 
         // Create Player
@@ -129,12 +103,10 @@ impl Scene for DependencyTestScene {
         .add_component(PancursesInputBufferComponent::default())?
         .finish();
 
-        let test_player_entity = player_assemblage
-            .create_and_assemble_entity(&mut ecs.entity_component_database, Some("Test Player"))?;
+        let test_player_entity =
+            player_assemblage.create_and_assemble_entity(db, Some("Test Player"))?;
         {
-            insert_entity_component(
-                &mut ecs.entity_component_database.component_storage,
-                &mut ecs.entity_component_database.entity_component_directory,
+            db.insert_entity_component(
                 test_player_entity,
                 ParentEntityComponent::new(main_window_entity),
             )?;

@@ -5,8 +5,6 @@ use crate::{
     components::MarginsComponent,
     components::SizeComponent,
     entity_component_system::entity_component_database::EntityComponentDatabase,
-    entity_component_system::get_entity_component,
-    entity_component_system::get_entity_component_mut,
     entity_component_system::EntityID,
     entity_component_system::{SystemError, SystemTrait},
     primitive_types::IVector2,
@@ -42,37 +40,32 @@ where
         CD: EntityComponentDirectory,
     {
         // Fetch anchor entities
-        let anchor_entities = db.entity_component_directory.get_entities_by_predicate(|entity_id| {
+        let anchor_entities =
             db.entity_component_directory
-                .entity_has_component::<AnchorsComponent>(entity_id)
-                && db
-                    .entity_component_directory
-                    .entity_has_component::<PositionComponent>(entity_id)
-                && db
-                    .entity_component_directory
-                    .entity_has_component::<ParentEntityComponent>(entity_id)
-        });
+                .get_entities_by_predicate(|entity_id| {
+                    db.entity_component_directory
+                        .entity_has_component::<AnchorsComponent>(entity_id)
+                        && db
+                            .entity_component_directory
+                            .entity_has_component::<PositionComponent>(entity_id)
+                        && db
+                            .entity_component_directory
+                            .entity_has_component::<ParentEntityComponent>(entity_id)
+                });
 
         // Sort into a HashMap based on tree depth
         let mut tree_depth_entities: HashMap<i64, Vec<EntityID>> = HashMap::new();
 
         for entity_id in &anchor_entities {
-            let parent_id = get_entity_component::<CS, CD, ParentEntityComponent>(
-                &db.component_storage,
-                &db.entity_component_directory,
-                *entity_id,
-            )?
-            .get_parent_id();
+            let parent_id = db
+                .get_entity_component::<ParentEntityComponent>(*entity_id)?
+                .get_parent_id();
 
             let mut candidate_id = parent_id;
             let mut depth = 0i64;
             loop {
                 depth += 1;
-                match get_entity_component::<CS, CD, ParentEntityComponent>(
-                    &db.component_storage,
-                    &db.entity_component_directory,
-                    candidate_id,
-                ) {
+                match db.get_entity_component::<ParentEntityComponent>(candidate_id) {
                     Ok(parent_entity_component) => {
                         candidate_id = parent_entity_component.get_parent_id();
                     }
@@ -102,42 +95,24 @@ where
 
         // Update position and size based on anchors
         for entity_id in anchor_entities {
-            let parent_id = get_entity_component::<CS, CD, ParentEntityComponent>(
-                &db.component_storage,
-                &db.entity_component_directory,
-                entity_id,
-            )?
-            .get_parent_id();
+            let parent_id = db
+                .get_entity_component::<ParentEntityComponent>(entity_id)?
+                .get_parent_id();
 
-            let parent_position_component = get_entity_component::<CS, CD, PositionComponent>(
-                &db.component_storage,
-                &db.entity_component_directory,
-                parent_id,
-            )?;
+            let parent_position_component =
+                db.get_entity_component::<PositionComponent>(parent_id)?;
             let IVector2(parent_pos_x, parent_pos_y) = parent_position_component.get_position();
 
-            let IVector2(parent_width, parent_height) =
-                get_entity_component::<CS, CD, SizeComponent>(
-                    &db.component_storage,
-                    &db.entity_component_directory,
-                    parent_id,
-                )?
+            let IVector2(parent_width, parent_height) = db
+                .get_entity_component::<SizeComponent>(parent_id)?
                 .get_size();
 
-            let (anchor_left, anchor_right, anchor_top, anchor_bottom) =
-                get_entity_component::<CS, CD, AnchorsComponent>(
-                    &db.component_storage,
-                    &db.entity_component_directory,
-                    entity_id,
-                )?
+            let (anchor_left, anchor_right, anchor_top, anchor_bottom) = db
+                .get_entity_component::<AnchorsComponent>(entity_id)?
                 .get_anchors();
 
             let (margin_left, margin_right, margin_top, margin_bottom) =
-                match get_entity_component::<CS, CD, MarginsComponent>(
-                    &db.component_storage,
-                    &db.entity_component_directory,
-                    entity_id,
-                ) {
+                match db.get_entity_component::<MarginsComponent>(entity_id) {
                     Ok(margins_component) => margins_component.get_margins(),
                     Err(_) => (0, 0, 0, 0),
                 };
@@ -145,12 +120,8 @@ where
             let x = margin_left + parent_pos_x + (parent_width as f32 * anchor_left).floor() as i64;
             let y = margin_top + parent_pos_y + (parent_height as f32 * anchor_top).floor() as i64;
 
-            get_entity_component_mut::<CS, CD, PositionComponent>(
-                &mut db.component_storage,
-                &mut db.entity_component_directory,
-                entity_id,
-            )?
-            .set_position(IVector2(x, y));
+            db.get_entity_component_mut::<PositionComponent>(entity_id)?
+                .set_position(IVector2(x, y));
 
             let width = (parent_width as f32 * (anchor_right - anchor_left)).ceil() as i64
                 - (margin_right + margin_left);
@@ -160,12 +131,8 @@ where
                 - (margin_bottom + margin_top);
             let height = std::cmp::max(height, 0);
 
-            get_entity_component_mut::<CS, CD, SizeComponent>(
-                &mut db.component_storage,
-                &mut db.entity_component_directory,
-                entity_id,
-            )?
-            .set_size(IVector2(width, height));
+            db.get_entity_component_mut::<SizeComponent>(entity_id)?
+                .set_size(IVector2(width, height));
         }
 
         Ok(())

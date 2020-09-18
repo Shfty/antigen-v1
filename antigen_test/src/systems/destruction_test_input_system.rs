@@ -32,8 +32,8 @@ where
         CS: ComponentStorage,
         CD: EntityComponentDirectory,
     {
-        let destruction_test_components = db.get_entities_by_predicate(|entity_id| {
-            db.entity_has_component::<DestructionTestInputComponent>(entity_id)
+        let destruction_test_components = db.entity_component_directory.get_entities_by_predicate(|entity_id| {
+            db.entity_component_directory.entity_has_component::<DestructionTestInputComponent>(entity_id)
         });
 
         for entity_id in destruction_test_components {

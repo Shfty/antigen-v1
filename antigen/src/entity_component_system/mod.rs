@@ -126,6 +126,29 @@ where
     component_storage.get_component_data_mut::<T>(&component_data_id)
 }
 
+// DESTROY
+pub fn remove_component_from_entity<'a, CS, CD, T>(
+    component_storage: &'a mut CS,
+    entity_component_directory: &mut CD,
+    entity_id: EntityID,
+) -> Result<(), String>
+where
+    CS: ComponentStorage,
+    CD: EntityComponentDirectory,
+    T: ComponentTrait + ComponentDebugTrait + 'static,
+{
+    let component_id = ComponentID::get::<T>();
+
+    let component_data_id =
+        entity_component_directory.get_entity_component_data_id(&entity_id, &component_id)?;
+
+    component_storage.remove_component_data(&component_id, &component_data_id)?;
+
+    entity_component_directory.destroy_entity_component(&entity_id, &component_id)?;
+
+    Ok(())
+}
+
 impl<CS, CD, SS, SR> EntityComponentSystem<CS, CD, SS, SR>
 where
     CS: ComponentStorage,

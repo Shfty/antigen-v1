@@ -5,6 +5,7 @@ use crate::{
     entity_component_system::get_entity_component,
     entity_component_system::get_entity_component_mut,
     entity_component_system::insert_entity_component,
+    entity_component_system::remove_component_from_entity,
     entity_component_system::EntityID,
     entity_component_system::{SystemError, SystemTrait},
 };
@@ -39,9 +40,12 @@ where
         CD: EntityComponentDirectory,
     {
         // Add existing children to their parent entities' children component
-        let entities_with_parents = db.get_entities_by_predicate(|entity_id| {
-            db.entity_has_component::<ParentEntityComponent>(entity_id)
-        });
+        let entities_with_parents =
+            db.entity_component_directory
+                .get_entities_by_predicate(|entity_id| {
+                    db.entity_component_directory
+                        .entity_has_component::<ParentEntityComponent>(entity_id)
+                });
 
         for entity_id in entities_with_parents {
             let parent_id = get_entity_component::<CS, CD, ParentEntityComponent>(
@@ -72,9 +76,12 @@ where
         }
 
         // Prune destroyed entities from existing children components
-        let entities_with_children = db.get_entities_by_predicate(|entity_id| {
-            db.entity_has_component::<ChildEntitiesComponent>(entity_id)
-        });
+        let entities_with_children =
+            db.entity_component_directory
+                .get_entities_by_predicate(|entity_id| {
+                    db.entity_component_directory
+                        .entity_has_component::<ChildEntitiesComponent>(entity_id)
+                });
 
         for entity_id in entities_with_children {
             let valid_entities: Vec<EntityID> =
@@ -96,7 +103,11 @@ where
 
             if valid_entities.is_empty() {
                 println!("No valid children, removing component");
-                db.remove_component_from_entity::<ChildEntitiesComponent>(entity_id)?;
+                remove_component_from_entity::<CS, CD, ChildEntitiesComponent>(
+                    &mut db.component_storage,
+                    &mut db.entity_component_directory,
+                    entity_id,
+                )?;
             } else {
                 get_entity_component_mut::<CS, CD, ChildEntitiesComponent>(
                     &mut db.component_storage,

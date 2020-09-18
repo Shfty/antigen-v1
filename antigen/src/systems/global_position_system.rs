@@ -33,10 +33,10 @@ where
         CS: ComponentStorage,
         CD: EntityComponentDirectory,
     {
-        let entities = db.get_entities_by_predicate(|entity_id| {
-            db.entity_has_component::<PositionComponent>(entity_id)
-                && db.entity_has_component::<ParentEntityComponent>(entity_id)
-                && db.entity_has_component::<GlobalPositionComponent>(entity_id)
+        let entities = db.entity_component_directory.get_entities_by_predicate(|entity_id| {
+            db.entity_component_directory.entity_has_component::<PositionComponent>(entity_id)
+                && db.entity_component_directory.entity_has_component::<ParentEntityComponent>(entity_id)
+                && db.entity_component_directory.entity_has_component::<GlobalPositionComponent>(entity_id)
         });
 
         for entity_id in entities {

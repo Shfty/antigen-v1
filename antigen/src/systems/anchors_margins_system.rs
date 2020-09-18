@@ -42,10 +42,15 @@ where
         CD: EntityComponentDirectory,
     {
         // Fetch anchor entities
-        let anchor_entities = db.get_entities_by_predicate(|entity_id| {
-            db.entity_has_component::<AnchorsComponent>(entity_id)
-                && db.entity_has_component::<PositionComponent>(entity_id)
-                && db.entity_has_component::<ParentEntityComponent>(entity_id)
+        let anchor_entities = db.entity_component_directory.get_entities_by_predicate(|entity_id| {
+            db.entity_component_directory
+                .entity_has_component::<AnchorsComponent>(entity_id)
+                && db
+                    .entity_component_directory
+                    .entity_has_component::<PositionComponent>(entity_id)
+                && db
+                    .entity_component_directory
+                    .entity_has_component::<ParentEntityComponent>(entity_id)
         });
 
         // Sort into a HashMap based on tree depth

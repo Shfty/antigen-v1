@@ -54,11 +54,11 @@ where
         CS: ComponentStorage,
         CD: EntityComponentDirectory,
     {
-        let list_control_entities = db.get_entities_by_predicate(|entity_id| {
-            db.entity_has_component::<ListComponent>(entity_id)
-                && db.entity_has_component::<PositionComponent>(entity_id)
-                && db.entity_has_component::<SizeComponent>(entity_id)
-                && db.entity_has_component::<ParentEntityComponent>(entity_id)
+        let list_control_entities = db.entity_component_directory.get_entities_by_predicate(|entity_id| {
+            db.entity_component_directory.entity_has_component::<ListComponent>(entity_id)
+                && db.entity_component_directory.entity_has_component::<PositionComponent>(entity_id)
+                && db.entity_component_directory.entity_has_component::<SizeComponent>(entity_id)
+                && db.entity_component_directory.entity_has_component::<ParentEntityComponent>(entity_id)
         });
 
         for list_control_entity in list_control_entities {
@@ -173,7 +173,7 @@ where
                         PancursesColorPairComponent::new(PancursesColorPair::default()),
                     )?;
 
-                    if db.entity_has_component::<DebugExcludeComponent>(&list_control_entity) {
+                    if db.entity_component_directory.entity_has_component::<DebugExcludeComponent>(&list_control_entity) {
                         insert_entity_component(
                             &mut db.component_storage,
                             &mut db.entity_component_directory,

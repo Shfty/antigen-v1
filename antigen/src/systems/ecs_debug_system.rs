@@ -115,14 +115,21 @@ where
         CS: ComponentStorage,
         CD: EntityComponentDirectory,
     {
-        let mut debug_entities: Vec<EntityID> = db.get_entities_by_predicate(|entity_id| {
-            !db.entity_has_component::<DebugExcludeComponent>(entity_id)
-        });
+        let mut debug_entities: Vec<EntityID> = db
+            .entity_component_directory
+            .get_entities_by_predicate(|entity_id| {
+                !db.entity_component_directory
+                    .entity_has_component::<DebugExcludeComponent>(entity_id)
+            });
         debug_entities.sort();
 
-        if let Some(entity_debug_entity) = db.get_entity_by_predicate(|entity_id| {
-            db.entity_has_component::<EntityDebugComponent>(entity_id)
-        }) {
+        if let Some(entity_debug_entity) =
+            db.entity_component_directory
+                .get_entity_by_predicate(|entity_id| {
+                    db.entity_component_directory
+                        .entity_has_component::<EntityDebugComponent>(entity_id)
+                })
+        {
             // Populate strings for debug entity list entities
             let entity_debug_component = match get_entity_component::<CS, CD, EntityDebugComponent>(
                 &db.component_storage,
@@ -141,10 +148,15 @@ where
                 })
                 .collect();
 
-            let debug_entity_list_entities = db.get_entities_by_predicate(|entity_id| {
-                db.entity_has_component::<DebugEntityListComponent>(entity_id)
-                    && db.entity_has_component::<StringListComponent>(entity_id)
-            });
+            let debug_entity_list_entities = db
+                .entity_component_directory
+                .get_entities_by_predicate(|entity_id| {
+                    db.entity_component_directory
+                        .entity_has_component::<DebugEntityListComponent>(entity_id)
+                        && db
+                            .entity_component_directory
+                            .entity_has_component::<StringListComponent>(entity_id)
+                });
 
             for entity_id in debug_entity_list_entities {
                 get_entity_component_mut::<CS, CD, StringListComponent>(
@@ -157,7 +169,10 @@ where
 
             let root_entities: Vec<EntityID> = debug_entities
                 .iter()
-                .filter(|entity_id| !db.entity_has_component::<ParentEntityComponent>(entity_id))
+                .filter(|entity_id| {
+                    !db.entity_component_directory
+                        .entity_has_component::<ParentEntityComponent>(entity_id)
+                })
                 .copied()
                 .collect();
 
@@ -211,7 +226,8 @@ where
                     let child_ids: Vec<EntityID> = child_ids
                         .iter()
                         .filter(|child_id| {
-                            !db.entity_has_component::<DebugExcludeComponent>(child_id)
+                            !db.entity_component_directory
+                                .entity_has_component::<DebugExcludeComponent>(child_id)
                         })
                         .copied()
                         .collect();
@@ -226,7 +242,13 @@ where
                             }
                             .into(),
                         );
-                        traverse_tree(db, child_entity, entity_debug_entity, scene_tree_strings, padding)?;
+                        traverse_tree(
+                            db,
+                            child_entity,
+                            entity_debug_entity,
+                            scene_tree_strings,
+                            padding,
+                        )?;
                     }
                 }
 
@@ -235,13 +257,24 @@ where
 
             // Populate strings for debug scene tree entities
             for root_entity in &root_entities {
-                traverse_tree(db, root_entity, entity_debug_entity, &mut scene_tree_strings, Vec::new())?;
+                traverse_tree(
+                    db,
+                    root_entity,
+                    entity_debug_entity,
+                    &mut scene_tree_strings,
+                    Vec::new(),
+                )?;
             }
 
-            let debug_scene_tree_entities = db.get_entities_by_predicate(|entity_id| {
-                db.entity_has_component::<DebugSceneTreeComponent>(entity_id)
-                    && db.entity_has_component::<StringListComponent>(entity_id)
-            });
+            let debug_scene_tree_entities = db
+                .entity_component_directory
+                .get_entities_by_predicate(|entity_id| {
+                    db.entity_component_directory
+                        .entity_has_component::<DebugSceneTreeComponent>(entity_id)
+                        && db
+                            .entity_component_directory
+                            .entity_has_component::<StringListComponent>(entity_id)
+                });
 
             for entity_id in debug_scene_tree_entities {
                 get_entity_component_mut::<CS, CD, StringListComponent>(
@@ -254,15 +287,23 @@ where
         }
 
         // Populate entity components list
-        let entity_inspector_entity = db.get_entity_by_predicate(|entity_id| {
-            db.entity_has_component::<EntityInspectorComponent>(entity_id)
-        });
+        let entity_inspector_entity =
+            db.entity_component_directory
+                .get_entity_by_predicate(|entity_id| {
+                    db.entity_component_directory
+                        .entity_has_component::<EntityInspectorComponent>(entity_id)
+                });
 
         // Populate strings for debug entity list entities
-        let debug_component_list_entities = db.get_entities_by_predicate(|entity_id| {
-            db.entity_has_component::<DebugComponentListComponent>(entity_id)
-                && db.entity_has_component::<StringListComponent>(entity_id)
-        });
+        let debug_component_list_entities = db
+            .entity_component_directory
+            .get_entities_by_predicate(|entity_id| {
+                db.entity_component_directory
+                    .entity_has_component::<DebugComponentListComponent>(entity_id)
+                    && db
+                        .entity_component_directory
+                        .entity_has_component::<StringListComponent>(entity_id)
+            });
 
         if let Some(entity_inspector_entity) = entity_inspector_entity {
             let int_range_component = get_entity_component::<CS, CD, IntRangeComponent>(
@@ -274,14 +315,20 @@ where
             if let Some(inspected_entity) =
                 debug_entities.get(int_range_component.get_index() as usize)
             {
-                let component_debug_entity = db.get_entity_by_predicate(|entity_id| {
-                    db.entity_has_component::<ComponentDebugComponent>(entity_id)
-                });
+                let component_debug_entity =
+                    db.entity_component_directory
+                        .get_entity_by_predicate(|entity_id| {
+                            db.entity_component_directory
+                                .entity_has_component::<ComponentDebugComponent>(entity_id)
+                        });
 
                 if let Some(component_debug_entity) = component_debug_entity {
-                    let mut components = db.get_components_by_predicate(|component_id| {
-                        db.entity_has_component_by_id(inspected_entity, component_id)
-                    });
+                    let mut components =
+                        db.entity_component_directory
+                            .get_components_by_predicate(|component_id| {
+                                db.entity_component_directory
+                                    .entity_has_component_by_id(inspected_entity, component_id)
+                            });
 
                     let component_debug_component =
                         get_entity_component::<CS, CD, ComponentDebugComponent>(
@@ -311,9 +358,12 @@ where
                         .set_data(component_strings.clone());
                     }
 
-                    let component_inspector_entity = db.get_entity_by_predicate(|entity_id| {
-                        db.entity_has_component::<ComponentInspectorComponent>(entity_id)
-                    });
+                    let component_inspector_entity = db
+                        .entity_component_directory
+                        .get_entity_by_predicate(|entity_id| {
+                            db.entity_component_directory
+                                .entity_has_component::<ComponentInspectorComponent>(entity_id)
+                        });
 
                     if let Some(component_inspector_entity) = component_inspector_entity {
                         let int_range_component = get_entity_component::<CS, CD, IntRangeComponent>(
@@ -325,21 +375,28 @@ where
                         if let Some(inspected_component) =
                             components.get(int_range_component.get_index() as usize)
                         {
-                            let component_data_id = db.get_entity_component_data_id(
-                                inspected_entity,
-                                inspected_component,
-                            )?;
+                            let component_data_id =
+                                db.entity_component_directory.get_entity_component_data_id(
+                                    inspected_entity,
+                                    inspected_component,
+                                )?;
 
-                            let component_data_string =
-                                db.get_component_data_string(&component_data_id)?;
+                            let component_data_string = db
+                                .component_storage
+                                .get_component_data_string(&component_data_id)?;
                             let component_data_string =
                                 format!("{}: {}", component_data_id, component_data_string);
 
-                            let entity_component_debug_entities =
-                                db.get_entities_by_predicate(|entity_id| {
-                                    db.entity_has_component::<DebugComponentDataListComponent>(
-                                        entity_id,
-                                    ) && db.entity_has_component::<StringListComponent>(entity_id)
+                            let entity_component_debug_entities = db
+                                .entity_component_directory
+                                .get_entities_by_predicate(|entity_id| {
+                                    db.entity_component_directory
+                                        .entity_has_component::<DebugComponentDataListComponent>(
+                                            entity_id,
+                                        )
+                                        && db
+                                            .entity_component_directory
+                                            .entity_has_component::<StringListComponent>(entity_id)
                                 });
 
                             for entity_id in entity_component_debug_entities {

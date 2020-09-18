@@ -7,7 +7,7 @@ pub mod system_storage;
 pub use entity_component_database::{
     Assemblage, AssemblageID, ComponentDataID, EntityComponentDatabase,
 };
-use entity_component_database::{CallbackManager, ComponentStorage, EntityComponentDirectory};
+use entity_component_database::{ComponentStorage, EntityComponentDirectory};
 pub use system_runner::SystemRunner;
 use system_storage::SystemStorage;
 pub use traits::{
@@ -21,135 +21,18 @@ use crate::{
 
 pub struct EntityComponentSystem<CS, CD, SS, SR>
 where
-    CS: ComponentStorage,
-    CD: EntityComponentDirectory,
+    CS: ComponentStorage + 'static,
+    CD: EntityComponentDirectory + 'static,
     SS: SystemStorage<CS, CD>,
     SR: SystemRunner,
 {
-    pub entity_component_database: EntityComponentDatabase<CS, CD>,
+    pub component_storage: CS,
+    pub entity_component_directory: CD,
     pub system_storage: SS,
     pub system_runner: SR,
 }
 
-// CREATE
-pub fn create_entity<CS, CD>(
-    component_storage: &mut CS,
-    entity_component_directory: &mut CD,
-    callback_manager: &mut CallbackManager<CS, CD>,
-    debug_label: Option<&str>,
-) -> Result<EntityID, String>
-where
-    CS: ComponentStorage,
-    CD: EntityComponentDirectory,
-{
-    let entity_id = entity_component_directory.create_entity()?;
-    callback_manager.call_entity_create_callbacks(
-        component_storage,
-        entity_component_directory,
-        entity_id,
-        debug_label,
-    );
-    Ok(entity_id)
-}
-
-// INSERT
-pub fn insert_component<CS, CD, T>(
-    component_storage: &mut CS,
-    entity_component_directory: &mut CD,
-    callback_manager: &mut CallbackManager<CS, CD>,
-) -> Result<ComponentID, String>
-where
-    CS: ComponentStorage,
-    CD: EntityComponentDirectory,
-    T: ComponentTrait + ComponentDebugTrait + 'static,
-{
-    let component_id = entity_component_directory.insert_component::<T>()?;
-    callback_manager.call_component_create_callbacks::<T>(
-        component_storage,
-        entity_component_directory,
-        component_id,
-    );
-    Ok(component_id)
-}
-
-pub fn insert_entity_component<'a, S, D, T>(
-    component_storage: &'a mut S,
-    entity_component_directory: &mut D,
-    entity_id: EntityID,
-    component_data: T,
-) -> Result<&'a mut T, String>
-where
-    S: ComponentStorage,
-    D: EntityComponentDirectory,
-    T: ComponentTrait + ComponentDebugTrait + 'static,
-{
-    if !entity_component_directory.is_valid_component::<T>() {
-        entity_component_directory.insert_component::<T>()?;
-    }
-
-    let component_data_id = component_storage.insert_component(component_data)?;
-    entity_component_directory.insert_entity_component::<T>(&entity_id, component_data_id)?;
-
-    component_storage.get_component_data_mut::<T>(&component_data_id)
-}
-
-// GET
-pub fn get_entity_component<'a, CS, CD, T>(
-    component_storage: &'a CS,
-    entity_component_directory: &CD,
-    entity_id: EntityID,
-) -> Result<&'a T, String>
-where
-    CS: ComponentStorage,
-    CD: EntityComponentDirectory,
-    T: ComponentTrait + 'static,
-{
-    let component_data_id = entity_component_directory
-        .get_entity_component_data_id(&entity_id, &ComponentID::get::<T>())?;
-
-    component_storage.get_component_data(&component_data_id)
-}
-
-pub fn get_entity_component_mut<'a, CS, CD, T>(
-    component_storage: &'a mut CS,
-    entity_component_directory: &mut CD,
-    entity_id: EntityID,
-) -> Result<&'a mut T, String>
-where
-    CS: ComponentStorage,
-    CD: EntityComponentDirectory,
-    T: ComponentTrait + 'static,
-{
-    let component_data_id = entity_component_directory
-        .get_entity_component_data_id(&entity_id, &ComponentID::get::<T>())?;
-
-    component_storage.get_component_data_mut::<T>(&component_data_id)
-}
-
-// DESTROY
-pub fn remove_component_from_entity<'a, CS, CD, T>(
-    component_storage: &'a mut CS,
-    entity_component_directory: &mut CD,
-    entity_id: EntityID,
-) -> Result<(), String>
-where
-    CS: ComponentStorage,
-    CD: EntityComponentDirectory,
-    T: ComponentTrait + ComponentDebugTrait + 'static,
-{
-    let component_id = ComponentID::get::<T>();
-
-    let component_data_id =
-        entity_component_directory.get_entity_component_data_id(&entity_id, &component_id)?;
-
-    component_storage.remove_component_data(&component_id, &component_data_id)?;
-
-    entity_component_directory.destroy_entity_component(&entity_id, &component_id)?;
-
-    Ok(())
-}
-
-impl<CS, CD, SS, SR> EntityComponentSystem<CS, CD, SS, SR>
+impl<'a, CS, CD, SS, SR> EntityComponentSystem<CS, CD, SS, SR>
 where
     CS: ComponentStorage,
     CD: EntityComponentDirectory + 'static,
@@ -165,63 +48,31 @@ where
     where
         SR: SystemRunner + 'static,
     {
-        let entity_component_database =
-            EntityComponentDatabase::new(component_storage, entity_component_directory);
-
         let mut ecs = EntityComponentSystem {
-            entity_component_database,
-            system_runner,
+            component_storage,
+            entity_component_directory,
             system_storage,
+            system_runner,
         };
 
-        ecs.system_storage.insert_system(
-            "ECS Debug",
-            ECSDebugSystem::new(&mut ecs.entity_component_database),
-        );
+        let ecs_debug_system = ECSDebugSystem;
+        ecs.system_storage
+            .insert_system("ECS Debug", ecs_debug_system);
 
-        let entity_debug_entity = create_entity(
-            &mut ecs.entity_component_database.component_storage,
-            &mut ecs.entity_component_database.entity_component_directory,
-            &mut ecs.entity_component_database.callback_manager,
-            None,
-        )?;
+        let mut db = ecs.get_entity_component_database();
+
+        let entity_debug_entity = db.create_entity(None)?;
         {
-            insert_entity_component(
-                &mut ecs.entity_component_database.component_storage,
-                &mut ecs.entity_component_database.entity_component_directory,
-                entity_debug_entity,
-                EntityDebugComponent::default(),
-            )?
-            .register_entity(entity_debug_entity, "Entity Debug".into());
+            db.insert_entity_component(entity_debug_entity, EntityDebugComponent::default())?
+                .register_entity(entity_debug_entity, "Entity Debug".into());
 
-            insert_entity_component(
-                &mut ecs.entity_component_database.component_storage,
-                &mut ecs.entity_component_database.entity_component_directory,
-                entity_debug_entity,
-                DebugExcludeComponent,
-            )?;
+            db.insert_entity_component(entity_debug_entity, DebugExcludeComponent)?;
         }
 
-        let component_debug_entity = create_entity(
-            &mut ecs.entity_component_database.component_storage,
-            &mut ecs.entity_component_database.entity_component_directory,
-            &mut ecs.entity_component_database.callback_manager,
-            "Component Debug".into(),
-        )?;
+        let component_debug_entity = db.create_entity("Component Debug".into())?;
         {
-            insert_entity_component(
-                &mut ecs.entity_component_database.component_storage,
-                &mut ecs.entity_component_database.entity_component_directory,
-                component_debug_entity,
-                ComponentDebugComponent::default(),
-            )?;
-
-            insert_entity_component(
-                &mut ecs.entity_component_database.component_storage,
-                &mut ecs.entity_component_database.entity_component_directory,
-                component_debug_entity,
-                DebugExcludeComponent,
-            )?;
+            db.insert_entity_component(component_debug_entity, ComponentDebugComponent::default())?;
+            db.insert_entity_component(component_debug_entity, DebugExcludeComponent)?;
         }
 
         Ok(ecs)
@@ -234,15 +85,25 @@ where
         self.system_storage.insert_system(name, system)
     }
 
-    pub fn run(&mut self) -> Result<(), SystemError> {
-        self.system_runner.run(
-            &mut self.system_storage,
-            &mut self.entity_component_database,
+    pub fn run(&'a mut self) -> Result<(), SystemError> {
+        let mut entity_component_database = EntityComponentDatabase::new(
+            &mut self.component_storage,
+            &mut self.entity_component_directory,
+        );
+
+        self.system_runner
+            .run(&mut self.system_storage, &mut entity_component_database)
+    }
+
+    pub fn get_entity_component_database(&'a mut self) -> EntityComponentDatabase<CS, CD> {
+        EntityComponentDatabase::new(
+            &mut self.component_storage,
+            &mut self.entity_component_directory,
         )
     }
 }
 
-impl<CS, CD, SS, SR> Default for EntityComponentSystem<CS, CD, SS, SR>
+impl<'a, CS, CD, SS, SR> Default for EntityComponentSystem<CS, CD, SS, SR>
 where
     CS: ComponentStorage + Default + 'static,
     CD: EntityComponentDirectory + Default + 'static,

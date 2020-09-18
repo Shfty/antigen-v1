@@ -4,10 +4,8 @@ use std::{
 };
 
 use crate::{
-    entity_component_system::create_entity, entity_component_system::insert_entity_component,
     entity_component_system::ComponentDebugTrait, entity_component_system::ComponentID,
-    entity_component_system::ComponentTrait,
-    entity_component_system::EntityID, uid::UID,
+    entity_component_system::ComponentTrait, entity_component_system::EntityID, uid::UID,
 };
 
 use super::{ComponentStorage, EntityComponentDatabase, EntityComponentDirectory};
@@ -33,8 +31,8 @@ impl AddAssign<UID> for AssemblageID {
 
 pub struct AssemblageBuilder<CS, CD>
 where
-    CS: ComponentStorage,
-    CD: EntityComponentDirectory,
+    CS: ComponentStorage + 'static,
+    CD: EntityComponentDirectory + 'static,
 {
     assemblage: Assemblage<CS, CD>,
     component_data: HashMap<ComponentID, ComponentConstructor<CS, CD>>,
@@ -59,16 +57,8 @@ where
         self.component_data.insert(
             ComponentID::get::<C>(),
             Box::new(
-                move |component_storage: &mut CS,
-                      entity_component_directory: &mut CD,
-                      entity_id|
-                      -> Result<(), String> {
-                    match insert_entity_component(
-                        component_storage,
-                        entity_component_directory,
-                        entity_id,
-                        component_data.clone(),
-                    ) {
+                move |db: &mut EntityComponentDatabase<CS, CD>, entity_id| -> Result<(), String> {
+                    match db.insert_entity_component(entity_id, component_data.clone()) {
                         Ok(_) => Ok(()),
                         Err(err) => Err(err),
                     }
@@ -85,13 +75,13 @@ where
 }
 
 type ComponentConstructor<CS, CD> =
-    Box<dyn FnMut(&mut CS, &mut CD, EntityID) -> Result<(), String>>;
+    Box<dyn FnMut(&mut EntityComponentDatabase<CS, CD>, EntityID) -> Result<(), String>>;
 
 /// An object template as defined by a set of components with given default values
 pub struct Assemblage<S, D>
 where
-    S: ComponentStorage,
-    D: EntityComponentDirectory,
+    S: ComponentStorage + 'static,
+    D: EntityComponentDirectory + 'static,
 {
     pub name: String,
     pub description: String,
@@ -129,12 +119,7 @@ where
         CS: ComponentStorage,
         CD: EntityComponentDirectory,
     {
-        let entity_id = create_entity(
-            &mut db.component_storage,
-            &mut db.entity_component_directory,
-            &mut db.callback_manager,
-            debug_label,
-        )?;
+        let entity_id = db.create_entity(debug_label)?;
         self.assemble_entity(db, entity_id)
     }
 
@@ -148,11 +133,7 @@ where
         CD: EntityComponentDirectory,
     {
         for component_constructor in &mut self.component_constructors.values_mut() {
-            component_constructor(
-                &mut db.component_storage,
-                &mut db.entity_component_directory,
-                entity_id,
-            )?;
+            component_constructor(db, entity_id)?;
         }
 
         Ok(entity_id)

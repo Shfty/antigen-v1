@@ -17,7 +17,7 @@ pub use debug::{
     ComponentDebugComponent, ComponentInspectorComponent, DebugComponentDataListComponent,
     DebugComponentListComponent, DebugEntityListComponent, DebugExcludeComponent,
     DebugSceneTreeComponent, DebugSystemListComponent, EntityDebugComponent,
-    EntityInspectorComponent, SystemInspectorComponent,
+    EntityInspectorComponent, SystemDebugComponent, SystemInspectorComponent,
 };
 pub use global_position_component::GlobalPositionComponent;
 pub use int_range_component::IntRangeComponent;

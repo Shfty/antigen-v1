@@ -1,7 +1,7 @@
-use crate::{
-    entity_component_system::entity_component_database::ComponentStorage,
-    entity_component_system::entity_component_database::EntityComponentDirectory,
-    entity_component_system::SystemTrait,
+use std::collections::HashMap;
+
+use crate::entity_component_system::{
+    ComponentStorage, EntityComponentDirectory, SystemID, SystemTrait,
 };
 
 use super::SystemStorage;
@@ -11,22 +11,22 @@ where
     S: ComponentStorage,
     D: EntityComponentDirectory,
 {
-    systems: Vec<(String, Box<dyn SystemTrait<S, D>>)>,
+    systems: HashMap<SystemID, Box<dyn SystemTrait<S, D>>>,
 }
 
-impl<S, D> HeapSystemStorage<S, D>
+impl<'a, S, D> HeapSystemStorage<S, D>
 where
     S: ComponentStorage,
     D: EntityComponentDirectory,
 {
     pub fn new() -> HeapSystemStorage<S, D> {
         HeapSystemStorage {
-            systems: Vec::new(),
+            systems: HashMap::new(),
         }
     }
 }
 
-impl<S, D> Default for HeapSystemStorage<S, D>
+impl<'a, S, D> Default for HeapSystemStorage<S, D>
 where
     S: ComponentStorage,
     D: EntityComponentDirectory,
@@ -36,29 +36,24 @@ where
     }
 }
 
-impl<CS, CD> SystemStorage<CS, CD> for HeapSystemStorage<CS, CD>
+impl<'a, CS, CD> SystemStorage<CS, CD> for HeapSystemStorage<CS, CD>
 where
     CS: ComponentStorage + 'static,
     CD: EntityComponentDirectory + 'static,
 {
-    fn insert_system<T>(&mut self, name: &str, system: T)
+    fn insert_system<T>(&mut self, system: T) -> SystemID
     where
         T: SystemTrait<CS, CD> + 'static,
     {
-        self.systems.push((name.into(), Box::new(system)));
+        let id = SystemID::next();
+        self.systems.insert(id, Box::new(system));
+        id
     }
 
-    fn get_system_names(&self) -> Vec<String> {
-        self.systems.iter().map(|(name, _)| name).cloned().collect()
-    }
-
-    fn get_system(&mut self, name: &str) -> Result<&mut dyn SystemTrait<CS, CD>, String> {
-        let (_, system) = self
-            .systems
+    fn get_systems(&mut self) -> HashMap<SystemID, &mut (dyn SystemTrait<CS, CD> + 'static)> {
+        self.systems
             .iter_mut()
-            .find(|(candidate_name, _)| candidate_name == name)
-            .ok_or(format!("Error getting system {}: No such system", name))?;
-
-        Ok(system.as_mut())
+            .map(|(system_id, system)| (*system_id, system.as_mut()))
+            .collect()
     }
 }

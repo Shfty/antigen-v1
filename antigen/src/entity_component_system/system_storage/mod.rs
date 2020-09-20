@@ -1,23 +1,21 @@
 mod heap_system_storage;
 
+use std::collections::HashMap;
+
 pub use heap_system_storage::HeapSystemStorage;
 
-use super::{
-    entity_component_database::ComponentStorage,
-    entity_component_database::EntityComponentDirectory, SystemTrait,
-};
+use super::{ComponentStorage, EntityComponentDirectory, SystemID, SystemTrait};
 
 /// Trait for handling systems execution for a given EntityComponentSystem
 pub trait SystemStorage<CS, CD> {
-    fn insert_system<T>(&mut self, name: &str, system: T)
+    fn insert_system<T>(&mut self, system: T) -> SystemID
     where
         CS: ComponentStorage,
         CD: EntityComponentDirectory,
         T: SystemTrait<CS, CD> + 'static;
 
-    fn get_system_names(&self) -> Vec<String>;
-    fn get_system(&mut self, name: &str) -> Result<&mut dyn SystemTrait<CS, CD>, String>
+    fn get_systems(&mut self) -> HashMap<SystemID, &mut (dyn SystemTrait<CS, CD> + 'static)>
     where
-        CS: ComponentStorage,
-        CD: EntityComponentDirectory;
+        CS: ComponentStorage + 'static,
+        CD: EntityComponentDirectory + 'static;
 }

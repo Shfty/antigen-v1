@@ -12,13 +12,12 @@ use antigen::{
         SizeComponent, StringComponent, StringListComponent, VelocityComponent, WindowComponent,
         ZIndexComponent,
     },
+    entity_component_system::ComponentStorage,
+    entity_component_system::EntityComponentDirectory,
     entity_component_system::Scene,
     entity_component_system::{
-        entity_component_database::{
-            ComponentStorage, EntityComponentDatabase, EntityComponentDirectory,
-        },
-        system_storage::SystemStorage,
-        Assemblage, EntityComponentSystem, EntityID, SystemRunner,
+        system_interface::SystemInterface, system_storage::SystemStorage, Assemblage,
+        EntityComponentSystem, EntityID, SystemRunner,
     },
     primitive_types::IVector2,
     systems::{
@@ -62,23 +61,23 @@ impl Scene for AntigenDebugScene {
         SR: SystemRunner + 'static,
     {
         let pancurses_window_system = PancursesWindowSystem::new(&mut ecs.component_storage);
-        ecs.push_system("Pancurses Window", pancurses_window_system);
-        ecs.push_system("Pancurses Input", PancursesInputSystem::new(1));
-        ecs.push_system("Pancurses Input Axis", PancursesInputAxisSystem::new());
-        ecs.push_system("Destruction Test Input", DestructionTestInputSystem::new());
-        ecs.push_system("Local Mouse Position", LocalMousePositionSystem::new());
-        ecs.push_system("List", ListSystem::new());
-        ecs.push_system("Input Velocity", InputVelocitySystem::new());
-        ecs.push_system("Position Integrator", PositionIntegratorSystem::new());
-        ecs.push_system("Anchors Margins", AnchorsMarginsSystem::new());
-        ecs.push_system("Global Position", GlobalPositionSystem::new());
-        ecs.push_system("Child Entities", ChildEntitiesSystem::new());
-        ecs.push_system("Pancurses Renderer", PancursesRendererSystem::new());
+        ecs.push_system(pancurses_window_system);
+        ecs.push_system(PancursesInputSystem::new(1));
+        ecs.push_system(PancursesInputAxisSystem::new());
+        ecs.push_system(DestructionTestInputSystem::new());
+        ecs.push_system(LocalMousePositionSystem::new());
+        ecs.push_system(ListSystem::new());
+        ecs.push_system(InputVelocitySystem::new());
+        ecs.push_system(PositionIntegratorSystem::new());
+        ecs.push_system(AnchorsMarginsSystem::new());
+        ecs.push_system(GlobalPositionSystem::new());
+        ecs.push_system(ChildEntitiesSystem::new());
+        ecs.push_system(PancursesRendererSystem::new());
 
         Ok(())
     }
 
-    fn create_entities<CS, CD>(db: &mut EntityComponentDatabase<CS, CD>) -> Result<(), String>
+    fn create_entities<CS, CD>(db: &mut SystemInterface<CS, CD>) -> Result<(), String>
     where
         CS: ComponentStorage,
         CD: EntityComponentDirectory,
@@ -138,7 +137,7 @@ impl Scene for AntigenDebugScene {
 }
 
 fn create_string_control<CS, CD>(
-    db: &mut EntityComponentDatabase<CS, CD>,
+    db: &mut SystemInterface<CS, CD>,
     string_assemblage: &mut Assemblage<CS, CD>,
     debug_label: Option<&str>,
     text: &str,
@@ -160,7 +159,7 @@ where
 }
 
 fn create_window_entity<S, D>(
-    db: &mut EntityComponentDatabase<S, D>,
+    db: &mut SystemInterface<S, D>,
     debug_label: Option<&str>,
     position: IVector2,
     size: IVector2,
@@ -262,7 +261,7 @@ where
 }
 
 fn create_game_window<CS, CD>(
-    db: &mut EntityComponentDatabase<CS, CD>,
+    db: &mut SystemInterface<CS, CD>,
     assemblages: &mut HashMap<EntityAssemblage, Assemblage<CS, CD>>,
     parent_window_entity: EntityID,
 ) -> Result<EntityID, String>
@@ -334,7 +333,7 @@ where
 }
 
 fn create_debug_window<CS, CD>(
-    db: &mut EntityComponentDatabase<CS, CD>,
+    db: &mut SystemInterface<CS, CD>,
     assemblages: &mut HashMap<EntityAssemblage, Assemblage<CS, CD>>,
     parent_window_entity: EntityID,
     list_index_entity: Option<EntityID>,
@@ -421,7 +420,7 @@ where
 }
 
 fn create_entity_list_window<S, D>(
-    db: &mut EntityComponentDatabase<S, D>,
+    db: &mut SystemInterface<S, D>,
     assemblages: &mut HashMap<EntityAssemblage, Assemblage<S, D>>,
     parent_window_entity: EntityID,
     entity_inspector_entity: EntityID,
@@ -444,7 +443,7 @@ where
 }
 
 fn create_scene_tree_window<S, D>(
-    db: &mut EntityComponentDatabase<S, D>,
+    db: &mut SystemInterface<S, D>,
     assemblages: &mut HashMap<EntityAssemblage, Assemblage<S, D>>,
     parent_window_entity: EntityID,
     _entity_inspector_entity: EntityID,
@@ -467,7 +466,7 @@ where
 }
 
 fn create_component_list_window<S, D>(
-    db: &mut EntityComponentDatabase<S, D>,
+    db: &mut SystemInterface<S, D>,
     assemblages: &mut HashMap<EntityAssemblage, Assemblage<S, D>>,
     parent_window_entity: EntityID,
     component_inspector_entity: EntityID,
@@ -492,7 +491,7 @@ where
 }
 
 fn create_component_data_list_window<S, D>(
-    db: &mut EntityComponentDatabase<S, D>,
+    db: &mut SystemInterface<S, D>,
     assemblages: &mut HashMap<EntityAssemblage, Assemblage<S, D>>,
     parent_window_entity: EntityID,
 ) -> Result<EntityID, String>
@@ -514,7 +513,7 @@ where
 }
 
 fn create_system_list_window<S, D>(
-    db: &mut EntityComponentDatabase<S, D>,
+    db: &mut SystemInterface<S, D>,
     assemblages: &mut HashMap<EntityAssemblage, Assemblage<S, D>>,
     parent_window_entity: EntityID,
     system_inspector_entity: EntityID,

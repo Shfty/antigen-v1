@@ -6,14 +6,14 @@ use antigen::{
 #[derive(Debug, Copy, Clone)]
 pub struct PancursesMouseComponent {
     position: IVector2,
-    button_mask: i64,
+    button_mask_buffer: [i64; 2],
 }
 
 impl<'a> PancursesMouseComponent {
     pub fn new() -> Self {
         PancursesMouseComponent {
             position: IVector2::default(),
-            button_mask: 0,
+            button_mask_buffer: [0, 0],
         }
     }
 
@@ -22,7 +22,7 @@ impl<'a> PancursesMouseComponent {
     }
 
     pub fn get_button_mask(&self) -> i64 {
-        self.button_mask
+        self.button_mask_buffer[1]
     }
 
     pub fn set_mouse_x(&mut self, x: i64) -> &mut Self {
@@ -36,8 +36,14 @@ impl<'a> PancursesMouseComponent {
     }
 
     pub fn set_button_mask(&mut self, button_mask: i64) -> &mut Self {
-        self.button_mask = button_mask;
+        self.button_mask_buffer[0] = self.button_mask_buffer[1];
+        self.button_mask_buffer[1] = button_mask;
         self
+    }
+
+    pub fn was_button_just_pressed(&self, button_mask: i64) -> bool {
+        self.button_mask_buffer[1] & button_mask > 0
+            && self.button_mask_buffer[0] & button_mask == 0
     }
 }
 

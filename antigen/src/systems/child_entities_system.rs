@@ -1,13 +1,12 @@
 use crate::{
     components::ChildEntitiesComponent,
-    entity_component_system::entity_component_database::ComponentStorage,
-    entity_component_system::entity_component_database::EntityComponentDirectory,
+    entity_component_system::ComponentStorage,
+    entity_component_system::EntityComponentDirectory,
     entity_component_system::EntityID,
     entity_component_system::{SystemError, SystemTrait},
-};
+entity_component_system::SystemDebugTrait};
 use crate::{
-    components::ParentEntityComponent,
-    entity_component_system::entity_component_database::EntityComponentDatabase,
+    components::ParentEntityComponent, entity_component_system::system_interface::SystemInterface,
 };
 
 #[derive(Debug)]
@@ -30,7 +29,7 @@ where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
 {
-    fn run(&mut self, db: &mut EntityComponentDatabase<CS, CD>) -> Result<(), SystemError>
+    fn run(&mut self, db: &mut SystemInterface<CS, CD>) -> Result<(), SystemError>
     where
         CS: ComponentStorage,
         CD: EntityComponentDirectory,
@@ -92,5 +91,11 @@ where
         }
 
         Ok(())
+    }
+}
+
+impl SystemDebugTrait for ChildEntitiesSystem {
+    fn get_name() -> &'static str {
+        "Child Entities"
     }
 }

@@ -6,11 +6,11 @@ mod systems;
 use std::time::Duration;
 
 use antigen::{
+    entity_component_system::HeapComponentStorage,
     entity_component_system::Scene,
+    entity_component_system::SingleThreadedDirectory,
     entity_component_system::{
-        entity_component_database::{HeapComponentStorage, SingleThreadedDirectory},
-        system_runner::SingleThreadedSystemRunner,
-        system_storage::HeapSystemStorage,
+        system_runner::SingleThreadedSystemRunner, system_storage::HeapSystemStorage,
         EntityComponentSystem, SystemError,
     },
     profiler::Profiler,
@@ -41,9 +41,15 @@ fn main_internal() -> Result<(), SystemError> {
     // Main loop
     let frame_time_target = Duration::from_secs_f32(1.0 / 60.0);
     loop {
-        let main_loop_profiler = Profiler::start("Main Loop");
+        let main_loop_profiler = Profiler::start();
         ecs.run()?;
         let delta = main_loop_profiler.finish();
+        println!(
+            "Main loop took ({}ns / {}us / {}ms)",
+            delta.as_nanos(),
+            delta.as_micros(),
+            delta.as_millis()
+        );
 
         // Sleep if framerate target is exceeded - prevents deadlock when pancurses stops being able to poll input after window close
         if delta < frame_time_target {

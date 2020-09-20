@@ -1,10 +1,9 @@
 use crate::entity_component_system::{
-    entity_component_database::ComponentStorage,
-    entity_component_database::EntityComponentDirectory, SystemError, SystemTrait,
-};
+    ComponentStorage, EntityComponentDirectory, SystemError, SystemTrait,
+SystemDebugTrait};
 use crate::{
     components::{PositionComponent, VelocityComponent},
-    entity_component_system::entity_component_database::EntityComponentDatabase,
+    entity_component_system::system_interface::SystemInterface,
 };
 
 #[derive(Debug)]
@@ -27,7 +26,7 @@ where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
 {
-    fn run(&mut self, db: &mut EntityComponentDatabase<CS, CD>) -> Result<(), SystemError>
+    fn run(&mut self, db: &mut SystemInterface<CS, CD>) -> Result<(), SystemError>
     where
         CS: ComponentStorage,
         CD: EntityComponentDirectory,
@@ -52,5 +51,11 @@ where
         }
 
         Ok(())
+    }
+}
+
+impl SystemDebugTrait for PositionIntegratorSystem {
+    fn get_name() -> &'static str {
+        "Position Integrator"
     }
 }

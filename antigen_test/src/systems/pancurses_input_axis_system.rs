@@ -4,11 +4,11 @@ use crate::components::{
 };
 use antigen::{
     components::IntRangeComponent,
-    entity_component_system::entity_component_database::ComponentStorage,
-    entity_component_system::entity_component_database::EntityComponentDatabase,
-    entity_component_system::entity_component_database::EntityComponentDirectory,
+    entity_component_system::system_interface::SystemInterface,
+    entity_component_system::ComponentStorage,
+    entity_component_system::EntityComponentDirectory,
     entity_component_system::{SystemError, SystemTrait},
-};
+entity_component_system::SystemDebugTrait};
 
 #[derive(Debug)]
 pub struct PancursesInputAxisSystem;
@@ -24,7 +24,7 @@ where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
 {
-    fn run(&mut self, db: &mut EntityComponentDatabase<CS, CD>) -> Result<(), SystemError>
+    fn run(&mut self, db: &mut SystemInterface<CS, CD>) -> Result<(), SystemError>
     where
         CS: ComponentStorage,
         CD: EntityComponentDirectory,
@@ -74,5 +74,11 @@ where
         }
 
         Ok(())
+    }
+}
+
+impl SystemDebugTrait for PancursesInputAxisSystem {
+    fn get_name() -> &'static str {
+        "Pancurses Input Axis"
     }
 }

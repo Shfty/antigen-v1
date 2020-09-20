@@ -1,8 +1,9 @@
 use antigen::{
-    entity_component_system::entity_component_database::ComponentStorage,
-    entity_component_system::entity_component_database::EntityComponentDirectory,
+    entity_component_system::ComponentStorage,
+    entity_component_system::EntityComponentDirectory,
+    entity_component_system::SystemDebugTrait,
     entity_component_system::SystemError,
-    entity_component_system::{entity_component_database::EntityComponentDatabase, SystemTrait},
+    entity_component_system::{system_interface::SystemInterface, SystemTrait},
 };
 use pancurses::Input;
 
@@ -25,7 +26,7 @@ where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
 {
-    fn run(&mut self, db: &mut EntityComponentDatabase<CS, CD>) -> Result<(), SystemError>
+    fn run(&mut self, db: &mut SystemInterface<CS, CD>) -> Result<(), SystemError>
     where
         CS: ComponentStorage,
         CD: EntityComponentDirectory,
@@ -55,5 +56,11 @@ where
         }
 
         Ok(())
+    }
+}
+
+impl SystemDebugTrait for DestructionTestInputSystem {
+    fn get_name() -> &'static str {
+        "Destruction Test Input"
     }
 }

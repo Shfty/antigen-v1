@@ -3,6 +3,8 @@ mod pancurses_color;
 mod scenes;
 mod systems;
 
+mod pancurses_keys;
+
 use std::time::Duration;
 
 use antigen::{
@@ -44,12 +46,6 @@ fn main_internal() -> Result<(), SystemError> {
         let main_loop_profiler = Profiler::start();
         ecs.run()?;
         let delta = main_loop_profiler.finish();
-        println!(
-            "Main loop took ({}ns / {}us / {}ms)",
-            delta.as_nanos(),
-            delta.as_micros(),
-            delta.as_millis()
-        );
 
         // Sleep if framerate target is exceeded - prevents deadlock when pancurses stops being able to poll input after window close
         if delta < frame_time_target {

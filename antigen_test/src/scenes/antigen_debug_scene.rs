@@ -3,6 +3,7 @@ use std::{collections::HashMap, ops::Range};
 use antigen::{
     components::DebugSceneTreeComponent,
     components::DebugSystemListComponent,
+    components::EventQueueComponent,
     components::SystemInspectorComponent,
     components::{
         AnchorsComponent, CharComponent, ComponentInspectorComponent,
@@ -19,24 +20,29 @@ use antigen::{
         system_interface::SystemInterface, system_storage::SystemStorage, Assemblage,
         EntityComponentSystem, EntityID, SystemRunner,
     },
+    events::AntigenEvent,
     primitive_types::IVector2,
+    systems::EventQueueSystem,
     systems::{
         AnchorsMarginsSystem, ChildEntitiesSystem, GlobalPositionSystem, PositionIntegratorSystem,
     },
 };
 
-use crate::components::{
-    control_component::ControlComponent,
-    destruction_test_input_component::DestructionTestInputComponent, fill_component::FillComponent,
-    list_component::ListComponent, local_mouse_position_component::LocalMousePositionComponent,
-    pancurses_color_pair_component::PancursesColorPairComponent,
-    pancurses_input_buffer_component::PancursesInputBufferComponent,
-    pancurses_window_component::PancursesWindowComponent,
-};
 use crate::pancurses_color::{PancursesColor, PancursesColorPair};
 use crate::systems::{
     DestructionTestInputSystem, InputVelocitySystem, ListSystem, LocalMousePositionSystem,
     PancursesInputAxisSystem, PancursesInputSystem, PancursesRendererSystem, PancursesWindowSystem,
+};
+use crate::{
+    components::{
+        control_component::ControlComponent,
+        destruction_test_input_component::DestructionTestInputComponent,
+        fill_component::FillComponent, list_component::ListComponent,
+        local_mouse_position_component::LocalMousePositionComponent,
+        pancurses_color_pair_component::PancursesColorPairComponent,
+        pancurses_window_component::PancursesWindowComponent,
+    },
+    systems::QuitSystem,
 };
 
 #[derive(Eq, PartialEq, Hash)]
@@ -60,9 +66,13 @@ impl Scene for AntigenDebugScene {
         SS: SystemStorage<CS, CD> + 'static,
         SR: SystemRunner + 'static,
     {
+        ecs.push_system(EventQueueSystem::<AntigenEvent>::new());
+
         let pancurses_window_system = PancursesWindowSystem::new(&mut ecs.component_storage);
         ecs.push_system(pancurses_window_system);
+
         ecs.push_system(PancursesInputSystem::new(1));
+        ecs.push_system(QuitSystem);
         ecs.push_system(PancursesInputAxisSystem::new());
         ecs.push_system(DestructionTestInputSystem::new());
         ecs.push_system(LocalMousePositionSystem::new());
@@ -85,6 +95,12 @@ impl Scene for AntigenDebugScene {
         let mut assemblages = create_assemblages()?;
 
         // Create Main Window
+        let antigen_event_queue_entity = db.create_entity("Antigen Event Queue".into())?;
+        db.insert_entity_component(
+            antigen_event_queue_entity,
+            EventQueueComponent::<AntigenEvent>::new(),
+        )?;
+
         let main_window_entity = create_window_entity(
             db,
             Some("Main Window"),
@@ -132,6 +148,21 @@ impl Scene for AntigenDebugScene {
             system_inspector_entity,
         )?;
 
+        Ok(())
+    }
+
+    fn load<'a, CS, CD, SS, SR>(
+        ecs: &'a mut EntityComponentSystem<CS, CD, SS, SR>,
+    ) -> Result<(), String>
+    where
+        CS: ComponentStorage,
+        CD: EntityComponentDirectory + 'static,
+        SS: SystemStorage<CS, CD> + 'static,
+        SR: SystemRunner + 'static,
+    {
+        Self::register_systems(ecs)?;
+        let mut entity_component_database = ecs.get_system_interface();
+        Self::create_entities(&mut entity_component_database)?;
         Ok(())
     }
 }
@@ -202,7 +233,6 @@ where
             PancursesColor::new(1000, 1000, 1000),
         )))?
         .add_component(CharComponent::new('@'))?
-        .add_component(PancursesInputBufferComponent::default())?
         .add_component(PositionComponent::new(IVector2(1, 1)))?
         .add_component(VelocityComponent::new(IVector2(1, 1)))?
         .finish(),
@@ -252,8 +282,7 @@ where
             "Destruction Test",
             "Assemblage for destroying entities when space is pressed",
         )
-        .add_component(DestructionTestInputComponent::new(' '))?
-        .add_component(PancursesInputBufferComponent::default())?
+        .add_component(DestructionTestInputComponent::new(antigen::Key::Space))?
         .finish(),
     );
 

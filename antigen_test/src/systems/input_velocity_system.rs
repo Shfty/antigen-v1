@@ -1,11 +1,12 @@
-use crate::components::pancurses_input_buffer_component::PancursesInputBufferComponent;
 use antigen::{
+    components::EventQueueComponent,
     components::VelocityComponent,
     entity_component_system::system_interface::SystemInterface,
     entity_component_system::ComponentStorage,
     entity_component_system::EntityComponentDirectory,
     entity_component_system::SystemDebugTrait,
     entity_component_system::{SystemError, SystemTrait},
+    events::AntigenEvent,
     primitive_types::IVector2,
 };
 
@@ -28,36 +29,51 @@ where
         CS: ComponentStorage,
         CD: EntityComponentDirectory,
     {
-        let entities = db
-            .entity_component_directory
-            .get_entities_by_predicate(|entity_id| {
-                db.entity_component_directory
-                    .entity_has_component::<PancursesInputBufferComponent>(entity_id)
-                    && db
-                        .entity_component_directory
-                        .entity_has_component::<VelocityComponent>(entity_id)
-            });
+        let antigen_event_queue_entity =
+            db.entity_component_directory
+                .get_entity_by_predicate(|entity_id| {
+                    db.entity_component_directory
+                        .entity_has_component::<EventQueueComponent<AntigenEvent>>(entity_id)
+                });
 
-        for entity_id in entities {
-            let pancurses_input_buffer_component =
-                db.get_entity_component::<PancursesInputBufferComponent>(entity_id)?;
-
+        if let Some(antigen_event_queue_entity) = antigen_event_queue_entity {
             let mut move_input: IVector2 = IVector2(0, 0);
-            for input in pancurses_input_buffer_component.get_inputs() {
+            for input in db
+                .get_entity_component::<EventQueueComponent<AntigenEvent>>(
+                    antigen_event_queue_entity,
+                )?
+                .get_events()
+            {
                 match input {
-                    pancurses::Input::KeyLeft => move_input.0 -= 1,
-                    pancurses::Input::KeyRight => move_input.0 += 1,
-                    pancurses::Input::KeyUp => move_input.1 -= 1,
-                    pancurses::Input::KeyDown => move_input.1 += 1,
+                    AntigenEvent::KeyPress {
+                        key_code: antigen::Key::Left,
+                    } => move_input.0 -= 1,
+                    AntigenEvent::KeyPress {
+                        key_code: antigen::Key::Right,
+                    } => move_input.0 += 1,
+                    AntigenEvent::KeyPress {
+                        key_code: antigen::Key::Up,
+                    } => move_input.1 -= 1,
+                    AntigenEvent::KeyPress {
+                        key_code: antigen::Key::Down,
+                    } => move_input.1 += 1,
                     _ => (),
                 }
             }
-
             move_input.0 = std::cmp::min(std::cmp::max(move_input.0, -1), 1);
             move_input.1 = std::cmp::min(std::cmp::max(move_input.1, -1), 1);
 
-            db.get_entity_component_mut::<VelocityComponent>(entity_id)?
-                .set_velocity(move_input);
+            let entities = db
+                .entity_component_directory
+                .get_entities_by_predicate(|entity_id| {
+                    db.entity_component_directory
+                        .entity_has_component::<VelocityComponent>(entity_id)
+                });
+
+            for entity_id in entities {
+                db.get_entity_component_mut::<VelocityComponent>(entity_id)?
+                    .set_velocity(move_input);
+            }
         }
 
         Ok(())

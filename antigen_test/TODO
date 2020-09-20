@@ -1,15 +1,36 @@
-TODO: Separate global counters for entity, component data, and system UIDs
+TODO: Refactor ECS debug system into independent entity + scene tree / component / system / component data systems
+TODO: Component data inspector
+TODO: Don't hide all debug entities / components / systems / data from the debugger - only hide data that will recursively overflow lists
+
+TODO: Filtering for debug components
+      Entities
+        If a component is selected, filter out entities that don't have it
+        If component data is selected, filter out other entities
+        If a system is selected, filter out entities that don't have components that it processes (pending system dependency setup)
+      Scene tree
+        Use the same rules as entities
+      Components
+        If an entity is selected, filter out components that don't have a data entry for it
+        If component data is selected, filter out other components
+        If a system is selected, filter out components that it doesn't process (pending system dependency setup)
+      Component data
+        If an entity is selected, filter out data from other entities
+        If a component is selected, filter out data from other components
+        If a system is selected, filter out data from components that system doesn't process (pending system dependency setup)
+
+TODO: Scrolling for lists
+
+TODO: Refactor local mouse position system to use event queue instead of directly reading PancursesMouseComponent
+TODO: Refactor list system to use event queue instead of directly reading PancursesMouseComponent
 
 TODO: Event synthesis for list hover / click
-      Global 'event queue' entity w/component containing array of boxed event traits (heap allocating on every event seems like a bad idea..?)
-      Emitter systems push events into the array
-      Receiver systems iterate through the array, respond to, and optionally consume events
-      How to avoid memory leaks from un-consumed events? Clear at beginning of frame and assume emitters will always run before receivers?
 
-TODO: Click to set inspected entity / component
+TODO: Key event synthesis
+      Will need a mapping between pancurses keys and a to-be-determined antigen key implementation
 
 TODO: Profiler window
       Will need a way to represent a line graph in pancurses
+      Setup bitmap / shader abstractions for rendering RGB cells based on a buffer or closure
 
 TODO: Clipping rects for UI controls
     

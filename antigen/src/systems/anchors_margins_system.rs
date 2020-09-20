@@ -1,18 +1,14 @@
 use std::collections::HashMap;
 
+use crate::{components::{ParentEntityComponent, PositionComponent}, entity_component_system::EntityComponentDirectory, entity_component_system::ComponentStorage, entity_component_system::SystemDebugTrait};
 use crate::{
     components::AnchorsComponent,
     components::MarginsComponent,
     components::SizeComponent,
-    entity_component_system::entity_component_database::EntityComponentDatabase,
+    entity_component_system::system_interface::SystemInterface,
     entity_component_system::EntityID,
     entity_component_system::{SystemError, SystemTrait},
     primitive_types::IVector2,
-};
-use crate::{
-    components::{ParentEntityComponent, PositionComponent},
-    entity_component_system::entity_component_database::ComponentStorage,
-    entity_component_system::entity_component_database::EntityComponentDirectory,
 };
 
 #[derive(Debug)]
@@ -35,7 +31,7 @@ where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
 {
-    fn run(&mut self, db: &mut EntityComponentDatabase<CS, CD>) -> Result<(), SystemError>
+    fn run(&mut self, db: &mut SystemInterface<CS, CD>) -> Result<(), SystemError>
     where
         CD: EntityComponentDirectory,
     {
@@ -136,5 +132,11 @@ where
         }
 
         Ok(())
+    }
+}
+
+impl SystemDebugTrait for AnchorsMarginsSystem {
+    fn get_name() -> &'static str {
+        "Anchors / Margins"
     }
 }

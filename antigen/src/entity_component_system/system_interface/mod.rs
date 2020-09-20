@@ -1,17 +1,9 @@
-mod assemblage;
-mod component_storage;
-mod entity_component_directory;
-
-pub use assemblage::{Assemblage, AssemblageID};
-pub use component_storage::{ComponentDataID, ComponentStorage, HeapComponentStorage};
-pub use entity_component_directory::{EntityComponentDirectory, SingleThreadedDirectory};
-
 use crate::components::{ComponentDebugComponent, EntityDebugComponent};
 
-use super::{ComponentDebugTrait, ComponentID, ComponentTrait, EntityID};
+use super::{ComponentDebugTrait, ComponentID, ComponentTrait, EntityID, ComponentStorage, EntityComponentDirectory};
 
 /// Ties together component data storage, entity-component lookup, and callback handling
-pub struct EntityComponentDatabase<'a, CS, CD>
+pub struct SystemInterface<'a, CS, CD>
 where
     CS: ComponentStorage + 'static,
     CD: EntityComponentDirectory + 'static,
@@ -20,20 +12,20 @@ where
     pub entity_component_directory: &'a mut CD,
 }
 
-impl<'a, CS, CD> EntityComponentDatabase<'a, CS, CD>
+impl<'a, CS, CD> SystemInterface<'a, CS, CD>
 where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
 {
     pub fn new(component_storage: &'a mut CS, entity_component_directory: &'a mut CD) -> Self {
-        EntityComponentDatabase {
+        SystemInterface {
             component_storage,
             entity_component_directory,
         }
     }
 }
 
-impl<'a, CS, CD> EntityComponentDatabase<'a, CS, CD>
+impl<'a, CS, CD> SystemInterface<'a, CS, CD>
 where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,

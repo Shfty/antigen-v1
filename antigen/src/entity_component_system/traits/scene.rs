@@ -1,8 +1,7 @@
 use crate::entity_component_system::{
-    entity_component_database::{ComponentStorage, EntityComponentDirectory},
     system_storage::SystemStorage,
-    EntityComponentDatabase, EntityComponentSystem, SystemRunner,
-};
+    SystemInterface, EntityComponentSystem, SystemRunner,
+ComponentStorage, EntityComponentDirectory};
 
 /// A collection of systems and assembled entities
 pub trait Scene {
@@ -16,7 +15,7 @@ pub trait Scene {
         SR: SystemRunner + 'static,
     {
         Self::register_systems(ecs)?;
-        let mut entity_component_database = ecs.get_entity_component_database();
+        let mut entity_component_database = ecs.get_system_interface();
         Self::create_entities(&mut entity_component_database)?;
         Ok(())
     }
@@ -30,7 +29,7 @@ pub trait Scene {
         SS: SystemStorage<CS, CD> + 'static,
         SR: SystemRunner + 'static;
 
-    fn create_entities<CS, CD>(db: &mut EntityComponentDatabase<CS, CD>) -> Result<(), String>
+    fn create_entities<CS, CD>(db: &mut SystemInterface<CS, CD>) -> Result<(), String>
     where
         CS: ComponentStorage,
         CD: EntityComponentDirectory;

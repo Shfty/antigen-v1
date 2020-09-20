@@ -1,22 +1,28 @@
 mod traits;
 
-pub mod entity_component_database;
+pub mod system_interface;
 pub mod system_runner;
 pub mod system_storage;
 
-pub use entity_component_database::{
-    Assemblage, AssemblageID, ComponentDataID, EntityComponentDatabase,
-};
-use entity_component_database::{ComponentStorage, EntityComponentDirectory};
+mod assemblage;
+mod component_storage;
+mod entity_component_directory;
+
+pub use assemblage::{Assemblage, AssemblageID};
+pub use component_storage::{ComponentDataID, ComponentStorage, HeapComponentStorage};
+pub use entity_component_directory::{EntityComponentDirectory, SingleThreadedDirectory};
+
+pub use system_interface::SystemInterface;
 pub use system_runner::SystemRunner;
-use system_storage::SystemStorage;
+pub use system_storage::SystemStorage;
 pub use traits::{
-    ComponentDebugTrait, ComponentID, ComponentTrait, EntityID, Scene, SystemError, SystemTrait,
+    ComponentDebugTrait, ComponentID, ComponentTrait, EntityID, Scene, SystemDebugTrait,
+    SystemError, SystemID, SystemTrait,
 };
 
 use crate::{
     components::ComponentDebugComponent, components::DebugExcludeComponent,
-    components::EntityDebugComponent, systems::ECSDebugSystem,
+    components::EntityDebugComponent, components::SystemDebugComponent, systems::ECSDebugSystem,
 };
 
 pub struct EntityComponentSystem<CS, CD, SS, SR>
@@ -56,10 +62,9 @@ where
         };
 
         let ecs_debug_system = ECSDebugSystem;
-        ecs.system_storage
-            .insert_system("ECS Debug", ecs_debug_system);
+        ecs.system_storage.insert_system(ecs_debug_system);
 
-        let mut db = ecs.get_entity_component_database();
+        let mut db = ecs.get_system_interface();
 
         let entity_debug_entity = db.create_entity(None)?;
         {
@@ -75,18 +80,39 @@ where
             db.insert_entity_component(component_debug_entity, DebugExcludeComponent)?;
         }
 
+        let component_debug_entity = db.create_entity("System Debug".into())?;
+        {
+            db.insert_entity_component(component_debug_entity, SystemDebugComponent::default())?;
+            db.insert_entity_component(component_debug_entity, DebugExcludeComponent)?;
+        }
+
         Ok(ecs)
     }
 
-    pub fn push_system<T>(&mut self, name: &str, system: T)
+    pub fn push_system<T>(&mut self, system: T)
     where
-        T: SystemTrait<CS, CD> + 'static,
+        T: SystemTrait<CS, CD> + SystemDebugTrait + 'static,
     {
-        self.system_storage.insert_system(name, system)
+        let system_id = self.system_storage.insert_system(system);
+
+        if let Some(system_debug_entity) =
+            self.entity_component_directory
+                .get_entity_by_predicate(|entity_id| {
+                    self.entity_component_directory
+                        .entity_has_component::<SystemDebugComponent>(entity_id)
+                })
+        {
+            if let Ok(system_debug_component) = self
+                .get_system_interface()
+                .get_entity_component_mut::<SystemDebugComponent>(system_debug_entity)
+            {
+                system_debug_component.register_system(system_id, T::get_name());
+            }
+        }
     }
 
     pub fn run(&'a mut self) -> Result<(), SystemError> {
-        let mut entity_component_database = EntityComponentDatabase::new(
+        let mut entity_component_database = SystemInterface::new(
             &mut self.component_storage,
             &mut self.entity_component_directory,
         );
@@ -95,8 +121,8 @@ where
             .run(&mut self.system_storage, &mut entity_component_database)
     }
 
-    pub fn get_entity_component_database(&'a mut self) -> EntityComponentDatabase<CS, CD> {
-        EntityComponentDatabase::new(
+    pub fn get_system_interface(&'a mut self) -> SystemInterface<CS, CD> {
+        SystemInterface::new(
             &mut self.component_storage,
             &mut self.entity_component_directory,
         )

@@ -3,12 +3,12 @@ use antigen::{
         CharComponent, ParentEntityComponent, PositionComponent, SizeComponent, VelocityComponent,
         WindowComponent,
     },
-    entity_component_system::EntityComponentDatabase,
+    entity_component_system::ComponentStorage,
+    entity_component_system::EntityComponentDirectory,
     entity_component_system::Scene,
+    entity_component_system::SystemInterface,
     entity_component_system::{
-        entity_component_database::{ComponentStorage, EntityComponentDirectory},
-        system_storage::SystemStorage,
-        Assemblage, EntityComponentSystem, SystemRunner,
+        system_storage::SystemStorage, Assemblage, EntityComponentSystem, SystemRunner,
     },
     primitive_types::IVector2,
     systems::PositionIntegratorSystem,
@@ -48,33 +48,33 @@ impl Scene for DependencyTestScene {
         // ref: PancursesWindowComponent, SizeComponent, CharComponent, PancursesColorPairComponent, StringComponent
         // mut: SizeComponent, PancursesColorSetComponent, PancursesWindowComponent
         let pancurses_window_system = PancursesWindowSystem::new(&mut ecs.component_storage);
-        ecs.push_system("Pancurses Window", pancurses_window_system);
+        ecs.push_system(pancurses_window_system);
 
         // pred: (WindowComponent, PancursesWindowComponent)
         // ref: PancursesWindowComponent
         // mut: PancursesMouseComponent, PancursesInputBufferComponent
-        ecs.push_system("Pancurses Input", PancursesInputSystem::new(1));
+        ecs.push_system(PancursesInputSystem::new(1));
 
         // pred: (PancursesInputBufferComponent, VelocityComponent)
         // ref: PancursesInputBufferComponent
         // mut: VelocityComponent
-        ecs.push_system("Input Velocity", InputVelocitySystem::new());
+        ecs.push_system(InputVelocitySystem::new());
 
         // pred: (PositionComponent, VelocityComponent)
         // ref: VelocityComponent
         // mut: PositionComponent
-        ecs.push_system("Position Integrator", PositionIntegratorSystem::new());
+        ecs.push_system(PositionIntegratorSystem::new());
 
         // pred: PancursesColorSetComponent, (ControlComponent, ParentEntityComponent, PositionComponent), (WindowComponent, PancursesWindowComponent, SizeComponent)
         // ref: ParentEntityComponent, ZIndexComponent, ChildEntitiesComponent, PancursesWindowComponent, ParentEntityComponent, PancursesWindowComponent,
         //      ParentEntityComponent, GlobalPositionComponent, PositionComponent, PancursesColorPairComponent, CharComponent, SizeComponent, StringComponent, PancursesWindowComponent
         // mut: PancursesColorSetComponent
-        ecs.push_system("Pancurses Renderer", PancursesRendererSystem::new());
+        ecs.push_system(PancursesRendererSystem::new());
 
         Ok(())
     }
 
-    fn create_entities<CS, CD>(db: &mut EntityComponentDatabase<CS, CD>) -> Result<(), String>
+    fn create_entities<CS, CD>(db: &mut SystemInterface<CS, CD>) -> Result<(), String>
     where
         CS: ComponentStorage,
         CD: EntityComponentDirectory,

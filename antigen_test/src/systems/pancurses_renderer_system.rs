@@ -11,20 +11,16 @@ use crate::{
     pancurses_color::PancursesColorPair,
 };
 use antigen::{
-    components::ChildEntitiesComponent,
-    components::ParentEntityComponent,
-    components::WindowComponent,
-    components::ZIndexComponent,
     components::{
-        CharComponent, GlobalPositionComponent, PositionComponent, SizeComponent, StringComponent,
+        CharComponent, ChildEntitiesComponent, GlobalPositionComponent, ParentEntityComponent,
+        PositionComponent, SizeComponent, StringComponent, WindowComponent, ZIndexComponent,
     },
-    entity_component_system::entity_component_database::ComponentStorage,
-    entity_component_system::entity_component_database::EntityComponentDatabase,
-    entity_component_system::entity_component_database::EntityComponentDirectory,
-    entity_component_system::EntityID,
-    entity_component_system::{SystemError, SystemTrait},
+    entity_component_system::{
+        system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory, EntityID,
+        SystemError, SystemTrait,
+    },
     primitive_types::IVector2,
-};
+entity_component_system::SystemDebugTrait};
 use pancurses::{ToChtype, Window};
 
 #[derive(Debug)]
@@ -174,7 +170,7 @@ where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
 {
-    fn run(&mut self, db: &mut EntityComponentDatabase<CS, CD>) -> Result<(), SystemError>
+    fn run(&mut self, db: &mut SystemInterface<CS, CD>) -> Result<(), SystemError>
     where
         CS: ComponentStorage,
         CD: EntityComponentDirectory,
@@ -225,7 +221,7 @@ where
         let mut z_layers: HashMap<i64, Vec<EntityID>> = HashMap::new();
 
         fn populate_z_layers<CS, CD>(
-            db: &EntityComponentDatabase<CS, CD>,
+            db: &SystemInterface<CS, CD>,
             entity_id: EntityID,
             z_layers: &mut HashMap<i64, Vec<EntityID>>,
             z_index: i64,
@@ -429,5 +425,11 @@ where
         }
 
         Ok(())
+    }
+}
+
+impl SystemDebugTrait for PancursesRendererSystem {
+    fn get_name() -> &'static str {
+        "Pancurses Renderer"
     }
 }

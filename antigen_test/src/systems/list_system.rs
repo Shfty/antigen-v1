@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
     components::local_mouse_position_component::LocalMousePositionComponent,
+    components::pancurses_mouse_component::PancursesMouseComponent,
     components::{
         control_component::ControlComponent, list_component::ListComponent,
         pancurses_color_pair_component::PancursesColorPairComponent,
@@ -18,10 +19,11 @@ use antigen::{
     components::SizeComponent,
     components::StringComponent,
     components::StringListComponent,
-    entity_component_system::entity_component_database::ComponentStorage,
-    entity_component_system::entity_component_database::EntityComponentDatabase,
-    entity_component_system::entity_component_database::EntityComponentDirectory,
+    entity_component_system::system_interface::SystemInterface,
+    entity_component_system::ComponentStorage,
+    entity_component_system::EntityComponentDirectory,
     entity_component_system::EntityID,
+    entity_component_system::SystemDebugTrait,
     entity_component_system::{SystemError, SystemTrait},
     primitive_types::IVector2,
 };
@@ -45,11 +47,28 @@ where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
 {
-    fn run<'a>(&mut self, db: &'a mut EntityComponentDatabase<CS, CD>) -> Result<(), SystemError>
+    fn run<'a>(&mut self, db: &'a mut SystemInterface<CS, CD>) -> Result<(), SystemError>
     where
         CS: ComponentStorage,
         CD: EntityComponentDirectory,
     {
+        let mouse_state = if let Some(entity_id) = db
+            .entity_component_directory
+            .get_entity_by_predicate(|entity_id| {
+                db.entity_component_directory
+                    .entity_has_component::<PancursesMouseComponent>(entity_id)
+            }) {
+            if let Ok(pancurses_mouse_component) =
+                db.get_entity_component::<PancursesMouseComponent>(entity_id)
+            {
+                Some(pancurses_mouse_component.was_button_just_pressed(2))
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
         let list_control_entities =
             db.entity_component_directory
                 .get_entities_by_predicate(|entity_id| {
@@ -164,8 +183,49 @@ where
                     Err(_) => None,
                 };
 
+                let hovered_item = if let Some(IVector2(mouse_x, mouse_y)) = local_mouse_position {
+                    let range_x = 0i64..width;
+                    let range_y = 0i64..height as i64;
+                    if range_x.contains(&mouse_x) && range_y.contains(&mouse_y) {
+                        Some(mouse_y)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+
+                if let Some(list_index_entity) = list_index_entity {
+                    if let Ok(int_range_component) =
+                        db.get_entity_component_mut::<IntRangeComponent>(list_index_entity)
+                    {
+                        int_range_component.set_range(-1..(string_list.len() as i64));
+
+                        if let Some(true) = mouse_state {
+                            if let Some(hovered_item) = hovered_item {
+                                if hovered_item < string_list.len() as i64 {
+                                    int_range_component.set_index(hovered_item);
+                                } else {
+                                    int_range_component.set_index(-1);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                let focused_item = match list_index_entity {
+                    Some(list_index_entity) => {
+                        match db.get_entity_component_mut::<IntRangeComponent>(list_index_entity) {
+                            Ok(int_range_component) => Some(int_range_component.get_index()),
+                            Err(_) => None,
+                        }
+                    }
+                    None => None,
+                };
+
                 let mut y = 0i64;
                 for (string_index, strings) in string_list.iter().enumerate() {
+                    let string_index = string_index as i64;
                     let mut done = false;
                     for string in strings {
                         let string_entity = string_entities[y as usize];
@@ -179,34 +239,15 @@ where
                             .set_data(string.clone());
 
                         // Update color pair based on focused item
-                        let focused_item = match list_index_entity {
-                            Some(list_index_entity) => {
-                                match db.get_entity_component_mut::<IntRangeComponent>(
-                                    list_index_entity,
-                                ) {
-                                    Ok(int_range_component) => {
-                                        let len = string_list.len();
-                                        int_range_component.set_range(0..(len as i64));
-                                        if let Some(IVector2(mouse_x, mouse_y)) =
-                                            local_mouse_position
-                                        {
-                                            let range_x = 0i64..width;
-                                            if range_x.contains(&mouse_x) && mouse_y == y {
-                                                int_range_component.set_index(string_index as i64);
-                                            }
-                                        }
-                                        Some(int_range_component.get_index())
-                                    }
-                                    Err(_) => None,
-                                }
-                            }
-                            None => None,
-                        };
-
-                        let data = if Some(string_index as i64) == focused_item {
+                        let data = if Some(string_index) == focused_item {
                             PancursesColorPair::new(
                                 PancursesColor::new(0, 0, 0),
                                 PancursesColor::new(1000, 1000, 1000),
+                            )
+                        } else if Some(string_index) == hovered_item {
+                            PancursesColorPair::new(
+                                PancursesColor::new(1000, 1000, 1000),
+                                PancursesColor::new(500, 500, 500),
                             )
                         } else {
                             PancursesColorPair::default()
@@ -241,5 +282,11 @@ where
         }
 
         Ok(())
+    }
+}
+
+impl SystemDebugTrait for ListSystem {
+    fn get_name() -> &'static str {
+        "List"
     }
 }

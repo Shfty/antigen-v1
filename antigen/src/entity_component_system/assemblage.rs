@@ -8,7 +8,7 @@ use crate::{
     entity_component_system::ComponentTrait, entity_component_system::EntityID, uid::UID,
 };
 
-use super::{ComponentStorage, EntityComponentDatabase, EntityComponentDirectory};
+use super::{ComponentStorage, SystemInterface, EntityComponentDirectory};
 
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub struct AssemblageID(pub UID);
@@ -57,7 +57,7 @@ where
         self.component_data.insert(
             ComponentID::get::<C>(),
             Box::new(
-                move |db: &mut EntityComponentDatabase<CS, CD>, entity_id| -> Result<(), String> {
+                move |db: &mut SystemInterface<CS, CD>, entity_id| -> Result<(), String> {
                     match db.insert_entity_component(entity_id, component_data.clone()) {
                         Ok(_) => Ok(()),
                         Err(err) => Err(err),
@@ -75,7 +75,7 @@ where
 }
 
 type ComponentConstructor<CS, CD> =
-    Box<dyn FnMut(&mut EntityComponentDatabase<CS, CD>, EntityID) -> Result<(), String>>;
+    Box<dyn FnMut(&mut SystemInterface<CS, CD>, EntityID) -> Result<(), String>>;
 
 /// An object template as defined by a set of components with given default values
 pub struct Assemblage<S, D>
@@ -112,7 +112,7 @@ where
 
     pub fn create_and_assemble_entity<'a>(
         &mut self,
-        db: &'a mut EntityComponentDatabase<CS, CD>,
+        db: &'a mut SystemInterface<CS, CD>,
         debug_label: Option<&str>,
     ) -> Result<EntityID, String>
     where
@@ -125,7 +125,7 @@ where
 
     pub fn assemble_entity<'a>(
         &mut self,
-        db: &'a mut EntityComponentDatabase<CS, CD>,
+        db: &'a mut SystemInterface<CS, CD>,
         entity_id: EntityID,
     ) -> Result<EntityID, String>
     where

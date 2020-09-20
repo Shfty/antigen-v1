@@ -1,8 +1,7 @@
-TODO: System list window
-      Need an entrypoint for getting system data into a component - should be able to pass system storage into 
+TODO: Separate global counters for entity, component data, and system UIDs
 
 TODO: Event synthesis for list hover / click
-      Global 'event queue' entity w/component containing array of boxed event traits (heap allocating on every event seems like a bad idea)
+      Global 'event queue' entity w/component containing array of boxed event traits (heap allocating on every event seems like a bad idea..?)
       Emitter systems push events into the array
       Receiver systems iterate through the array, respond to, and optionally consume events
       How to avoid memory leaks from un-consumed events? Clear at beginning of frame and assume emitters will always run before receivers?
@@ -10,10 +9,10 @@ TODO: Event synthesis for list hover / click
 TODO: Click to set inspected entity / component
 
 TODO: Profiler window
-      Will need a component / system based approach for this
+      Will need a way to represent a line graph in pancurses
 
 TODO: Clipping rects for UI controls
-
+    
 TODO: Register entity fetches and associated logic at System registration time to allow for runtime lookup optimization
     Ex:
         db

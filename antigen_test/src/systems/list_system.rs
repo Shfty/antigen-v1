@@ -187,7 +187,14 @@ where
                     let range_x = 0i64..width;
                     let range_y = 0i64..height as i64;
                     if range_x.contains(&mouse_x) && range_y.contains(&mouse_y) {
-                        Some(mouse_y)
+                        string_list
+                            .iter()
+                            .fold(vec![], |mut acc, next| {
+                                acc.push(acc.last().unwrap_or(&0) + next.len());
+                                acc
+                            })
+                            .into_iter()
+                            .position(|i| i > mouse_y as usize)
                     } else {
                         None
                     }
@@ -203,8 +210,8 @@ where
 
                         if let Some(true) = mouse_state {
                             if let Some(hovered_item) = hovered_item {
-                                if hovered_item < string_list.len() as i64 {
-                                    int_range_component.set_index(hovered_item);
+                                if hovered_item < string_list.len() {
+                                    int_range_component.set_index(hovered_item as i64);
                                 } else {
                                     int_range_component.set_index(-1);
                                 }
@@ -226,6 +233,7 @@ where
                 let mut y = 0i64;
                 for (string_index, strings) in string_list.iter().enumerate() {
                     let string_index = string_index as i64;
+
                     let mut done = false;
                     for string in strings {
                         let string_entity = string_entities[y as usize];
@@ -244,7 +252,7 @@ where
                                 PancursesColor::new(0, 0, 0),
                                 PancursesColor::new(1000, 1000, 1000),
                             )
-                        } else if Some(string_index) == hovered_item {
+                        } else if Some(string_index as usize) == hovered_item {
                             PancursesColorPair::new(
                                 PancursesColor::new(1000, 1000, 1000),
                                 PancursesColor::new(500, 500, 500),

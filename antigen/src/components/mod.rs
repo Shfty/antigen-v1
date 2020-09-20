@@ -1,5 +1,6 @@
 mod anchors_component;
 mod debug;
+mod event_queue_component;
 mod global_position_component;
 mod int_range_component;
 mod margins_component;
@@ -19,6 +20,7 @@ pub use debug::{
     DebugSceneTreeComponent, DebugSystemListComponent, EntityDebugComponent,
     EntityInspectorComponent, SystemDebugComponent, SystemInspectorComponent,
 };
+pub use event_queue_component::EventQueueComponent;
 pub use global_position_component::GlobalPositionComponent;
 pub use int_range_component::IntRangeComponent;
 pub use margins_component::MarginsComponent;

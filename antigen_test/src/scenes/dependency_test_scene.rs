@@ -14,15 +14,17 @@ use antigen::{
     systems::PositionIntegratorSystem,
 };
 
-use crate::components::{
-    control_component::ControlComponent,
-    pancurses_color_pair_component::PancursesColorPairComponent,
-    pancurses_input_buffer_component::PancursesInputBufferComponent,
-    pancurses_window_component::PancursesWindowComponent,
-};
 use crate::pancurses_color::{PancursesColor, PancursesColorPair};
 use crate::systems::{
     InputVelocitySystem, PancursesInputSystem, PancursesRendererSystem, PancursesWindowSystem,
+};
+use crate::{
+    components::{
+        control_component::ControlComponent,
+        pancurses_color_pair_component::PancursesColorPairComponent,
+        pancurses_window_component::PancursesWindowComponent,
+    },
+    systems::QuitSystem,
 };
 
 pub struct DependencyTestScene;
@@ -52,11 +54,13 @@ impl Scene for DependencyTestScene {
 
         // pred: (WindowComponent, PancursesWindowComponent)
         // ref: PancursesWindowComponent
-        // mut: PancursesMouseComponent, PancursesInputBufferComponent
+        // mut: PancursesMouseComponent, EventQueueComponent<AntigenEvent>
         ecs.push_system(PancursesInputSystem::new(1));
 
-        // pred: (PancursesInputBufferComponent, VelocityComponent)
-        // ref: PancursesInputBufferComponent
+        ecs.push_system(QuitSystem);
+
+        // pred: VelocityComponent
+        // ref: EventQueueComponent<AntigenEvent>
         // mut: VelocityComponent
         ecs.push_system(InputVelocitySystem::new());
 
@@ -100,7 +104,6 @@ impl Scene for DependencyTestScene {
             PancursesColor::new(1000, 600, 1000),
             PancursesColor::new(1000, 1000, 1000),
         )))?
-        .add_component(PancursesInputBufferComponent::default())?
         .finish();
 
         let test_player_entity =

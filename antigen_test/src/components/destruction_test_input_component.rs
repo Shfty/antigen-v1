@@ -1,17 +1,17 @@
 use antigen::entity_component_system::{ComponentDebugTrait, ComponentTrait};
 
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct DestructionTestInputComponent {
-    input_char: char,
+    input_key: antigen::Key,
 }
 
 impl DestructionTestInputComponent {
-    pub fn new(input_char: char) -> Self {
-        DestructionTestInputComponent { input_char }
+    pub fn new(input_key: antigen::Key) -> Self {
+        DestructionTestInputComponent { input_key }
     }
 
-    pub fn get_input_char(&self) -> char {
-        self.input_char
+    pub fn get_input_key(&self) -> antigen::Key {
+        self.input_key
     }
 }
 

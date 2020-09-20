@@ -183,21 +183,25 @@ where
                     Err(_) => None,
                 };
 
-                let hovered_item = if let Some(IVector2(mouse_x, mouse_y)) = local_mouse_position {
-                    let range_x = 0i64..width;
-                    let range_y = 0i64..height as i64;
-                    if range_x.contains(&mouse_x) && range_y.contains(&mouse_y) {
-                        string_list
-                            .iter()
-                            .fold(vec![], |mut acc, next| {
-                                acc.push(acc.last().unwrap_or(&0) + next.len());
-                                acc
-                            })
-                            .into_iter()
-                            .position(|i| i > mouse_y as usize)
-                    } else {
-                        None
+                let contains_mouse = match local_mouse_position {
+                    Some(IVector2(mouse_x, mouse_y)) => {
+                        let range_x = 0i64..width;
+                        let range_y = 0i64..height as i64;
+                        range_x.contains(&mouse_x) && range_y.contains(&mouse_y)
                     }
+                    None => false,
+                };
+
+                let hovered_item = if contains_mouse {
+                    let IVector2(_, mouse_y) = local_mouse_position.unwrap();
+                    string_list
+                        .iter()
+                        .fold(vec![], |mut acc, next| {
+                            acc.push(acc.last().unwrap_or(&0) + next.len());
+                            acc
+                        })
+                        .into_iter()
+                        .position(|i| i > mouse_y as usize)
                 } else {
                     None
                 };
@@ -209,8 +213,8 @@ where
                         int_range_component.set_range(-1..(string_list.len() as i64));
 
                         if let Some(true) = mouse_state {
-                            if let Some(hovered_item) = hovered_item {
-                                if hovered_item < string_list.len() {
+                            if contains_mouse {
+                                if let Some(hovered_item) = hovered_item {
                                     int_range_component.set_index(hovered_item as i64);
                                 } else {
                                     int_range_component.set_index(-1);

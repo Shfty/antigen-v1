@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, time::Duration};
 
 use crate::{
     components::ChildEntitiesComponent, components::ComponentDebugComponent,
@@ -310,10 +310,11 @@ where
 
             let system_strings = system_debug_component.get_labels();
             let system_durations = system_debug_component.get_durations();
+            let total_duration: Duration = system_durations.values().sum();
 
             let mut system_strings: Vec<(&SystemID, &String)> = system_strings.iter().collect();
             system_strings.sort_by(|(lhs_id, _), (rhs_id, _)| lhs_id.cmp(rhs_id));
-            let system_strings: Vec<String> = system_strings
+            let mut system_strings: Vec<String> = system_strings
                 .iter()
                 .flat_map(|(system_id, system_name)| {
                     let duration = system_durations.get(system_id)?;
@@ -328,6 +329,15 @@ where
                     ))
                 })
                 .collect();
+
+            system_strings.push("".into());
+
+            system_strings.push(format!(
+                "Total: {}ms / {}us / {}ns",
+                total_duration.as_millis(),
+                total_duration.as_micros(),
+                total_duration.as_nanos(),
+            ));
 
             let debug_system_list_entities = db
                 .entity_component_directory

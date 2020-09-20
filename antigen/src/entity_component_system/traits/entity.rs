@@ -1,12 +1,13 @@
 use crate::uid::UID;
-use std::fmt::Display;
+use std::{fmt::Display, sync::atomic::AtomicUsize, sync::atomic::Ordering};
 
 #[derive(Debug, Copy, Clone, Hash, Ord, PartialOrd, Eq, PartialEq)]
 pub struct EntityID(pub UID);
 
 impl EntityID {
     pub fn next() -> Self {
-        EntityID(crate::uid::new())
+        static COUNTER: AtomicUsize = AtomicUsize::new(1);
+        EntityID(COUNTER.fetch_add(1, Ordering::Relaxed))
     }
 }
 

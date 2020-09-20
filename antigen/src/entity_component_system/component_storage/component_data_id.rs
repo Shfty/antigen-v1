@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, sync::atomic::AtomicUsize, sync::atomic::Ordering};
 
 use crate::uid::UID;
 
@@ -7,7 +7,8 @@ pub struct ComponentDataID(pub UID);
 
 impl ComponentDataID {
     pub fn next() -> Self {
-        ComponentDataID(crate::uid::new())
+        static COUNTER: AtomicUsize = AtomicUsize::new(1);
+        ComponentDataID(COUNTER.fetch_add(1, Ordering::Relaxed))
     }
 }
 

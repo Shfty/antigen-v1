@@ -1,4 +1,8 @@
-use std::fmt::{Debug, Display};
+use std::{
+    fmt::{Debug, Display},
+    sync::atomic::AtomicUsize,
+    sync::atomic::Ordering,
+};
 
 use crate::{
     entity_component_system::ComponentStorage, entity_component_system::EntityComponentDirectory,
@@ -28,7 +32,8 @@ pub struct SystemID(pub UID);
 
 impl SystemID {
     pub fn next() -> Self {
-        SystemID(crate::uid::new())
+        static COUNTER: AtomicUsize = AtomicUsize::new(1);
+        SystemID(COUNTER.fetch_add(1, Ordering::Relaxed))
     }
 }
 

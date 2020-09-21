@@ -6,7 +6,7 @@ pub struct EntityID(pub UID);
 
 impl EntityID {
     pub fn next() -> Self {
-        static COUNTER: AtomicUsize = AtomicUsize::new(1);
+        static COUNTER: AtomicUsize = AtomicUsize::new(0);
         EntityID(COUNTER.fetch_add(1, Ordering::Relaxed))
     }
 }

@@ -1,42 +1,42 @@
 use std::collections::HashMap;
 
-use crate::{
-    components::local_mouse_position_component::LocalMousePositionComponent,
-    components::pancurses_mouse_component::PancursesMouseComponent,
-    components::{
-        control_component::ControlComponent, list_component::ListComponent,
-        pancurses_color_pair_component::PancursesColorPairComponent,
-    },
-    pancurses_color::PancursesColor,
-    pancurses_color::PancursesColorPair,
+use crate::components::{
+    control_component::ControlComponent, list_component::ListComponent,
+    local_mouse_position_component::LocalMousePositionComponent,
 };
 use antigen::{
-    components::DebugExcludeComponent,
-    components::GlobalPositionComponent,
-    components::IntRangeComponent,
-    components::ParentEntityComponent,
-    components::PositionComponent,
-    components::SizeComponent,
-    components::StringComponent,
-    components::StringListComponent,
-    entity_component_system::system_interface::SystemInterface,
-    entity_component_system::ComponentStorage,
-    entity_component_system::EntityComponentDirectory,
-    entity_component_system::EntityID,
-    entity_component_system::SystemDebugTrait,
-    entity_component_system::{SystemError, SystemTrait},
-    primitive_types::IVector2,
+    components::ColorComponent,
+    components::EventQueueComponent,
+    components::{
+        DebugExcludeComponent, GlobalPositionComponent, IntRangeComponent, ParentEntityComponent,
+        PositionComponent, SizeComponent, StringComponent, StringListComponent,
+    },
+    entity_component_system::{
+        system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory, EntityID,
+        SystemDebugTrait, SystemError, SystemTrait,
+    },
+    events::AntigenEvent,
+    primitive_types::ColorRGB,
+    primitive_types::Vector2I,
 };
 
 #[derive(Debug)]
 pub struct ListSystem {
-    // Maps list control entities -> string entities -> strings
+    // Maps list control entities -> rectangle entities
+    list_focus_entities: HashMap<EntityID, EntityID>,
+
+    // Maps list control entities -> rectangle entities
+    list_hover_entities: HashMap<EntityID, EntityID>,
+
+    // Maps list control entities -> string entities
     list_string_entities: HashMap<EntityID, Vec<EntityID>>,
 }
 
 impl ListSystem {
     pub fn new() -> Self {
         ListSystem {
+            list_focus_entities: HashMap::new(),
+            list_hover_entities: HashMap::new(),
             list_string_entities: HashMap::new(),
         }
     }
@@ -52,23 +52,6 @@ where
         CS: ComponentStorage,
         CD: EntityComponentDirectory,
     {
-        let mouse_state = if let Some(entity_id) = db
-            .entity_component_directory
-            .get_entity_by_predicate(|entity_id| {
-                db.entity_component_directory
-                    .entity_has_component::<PancursesMouseComponent>(entity_id)
-            }) {
-            if let Ok(pancurses_mouse_component) =
-                db.get_entity_component::<PancursesMouseComponent>(entity_id)
-            {
-                Some(pancurses_mouse_component.was_button_just_pressed(2))
-            } else {
-                None
-            }
-        } else {
-            None
-        };
-
         let list_control_entities =
             db.entity_component_directory
                 .get_entities_by_predicate(|entity_id| {
@@ -86,6 +69,49 @@ where
                 });
 
         for list_control_entity in list_control_entities {
+            if !self.list_hover_entities.contains_key(&list_control_entity) {
+                let list_hover_entity = db.create_entity(Some("List Focus Entity"))?;
+                db.insert_entity_component(list_hover_entity, ControlComponent)?;
+                db.insert_entity_component(list_hover_entity, PositionComponent::default())?;
+                db.insert_entity_component(list_hover_entity, SizeComponent::default())?;
+                db.insert_entity_component(list_hover_entity, GlobalPositionComponent::default())?;
+                db.insert_entity_component(
+                    list_hover_entity,
+                    ColorComponent::new(ColorRGB(0.5, 0.5, 0.5)),
+                )?;
+                db.insert_entity_component(
+                    list_hover_entity,
+                    ParentEntityComponent::new(list_control_entity),
+                )?;
+                self.list_hover_entities
+                    .insert(list_control_entity, list_hover_entity);
+            }
+
+            let list_hover_entity = self
+                .list_hover_entities
+                .get(&list_control_entity)
+                .ok_or("Error getting list hover entity")?;
+
+            if !self.list_focus_entities.contains_key(&list_control_entity) {
+                let list_focus_entity = db.create_entity(Some("List Focus Entity"))?;
+                db.insert_entity_component(list_focus_entity, ControlComponent)?;
+                db.insert_entity_component(list_focus_entity, PositionComponent::default())?;
+                db.insert_entity_component(list_focus_entity, SizeComponent::default())?;
+                db.insert_entity_component(list_focus_entity, GlobalPositionComponent::default())?;
+                db.insert_entity_component(
+                    list_focus_entity,
+                    ParentEntityComponent::new(list_control_entity),
+                )?;
+                self.list_focus_entities
+                    .insert(list_control_entity, list_focus_entity);
+            }
+
+            let list_focus_entity = self
+                .list_focus_entities
+                .get(&list_control_entity)
+                .ok_or("Error getting list focus entity")?;
+
+            // Fetch entity references
             let (string_list_entity, list_index_entity) =
                 match db.get_entity_component::<ListComponent>(list_control_entity) {
                     Ok(pancurses_list_control_component) => (
@@ -96,13 +122,16 @@ where
                 };
 
             if let Some(string_list_entity) = string_list_entity {
-                let IVector2(width, height) =
+                // The list entity is valid
+
+                // Fetch width and height
+                let Vector2I(width, height) =
                     match db.get_entity_component::<SizeComponent>(list_control_entity) {
                         Ok(size_component) => size_component.get_size(),
                         Err(err) => return Err(err.into()),
                     };
 
-                // If we have a string list entity, fetch its strings
+                // Fetch strings
                 let string_list: Vec<Vec<String>> = db
                     .get_entity_component::<StringListComponent>(string_list_entity)?
                     .get_data()
@@ -119,8 +148,7 @@ where
                     })
                     .collect();
 
-                let string_count: usize = string_list.iter().map(|strings| strings.len()).sum();
-
+                // If this list doesn't have a vector of item entity references, create one
                 if self
                     .list_string_entities
                     .get(&list_control_entity)
@@ -130,18 +158,17 @@ where
                         .insert(list_control_entity, Vec::new());
                 }
 
-                let string_entities = match self.list_string_entities.get_mut(&list_control_entity)
-                {
-                    Some(string_entities) => string_entities,
-                    None => {
-                        return Err(format!(
-                            "Failed to get list string entities for list control entity {}",
-                            list_control_entity
-                        )
-                        .into())
-                    }
-                };
+                // Fetch vector of item entity references
+                let string_entities = self
+                    .list_string_entities
+                    .get_mut(&list_control_entity)
+                    .ok_or(format!(
+                        "Failed to get list string entities for list control entity {}",
+                        list_control_entity
+                    ))?;
 
+                // Create item entities for uninitialized lines
+                let string_count: usize = string_list.iter().map(|strings| strings.len()).sum();
                 while string_entities.len() < string_count {
                     let string_entity = db.create_entity(Some("List String Entity"))?;
                     db.insert_entity_component(string_entity, ControlComponent)?;
@@ -152,10 +179,7 @@ where
                         ParentEntityComponent::new(list_control_entity),
                     )?;
                     db.insert_entity_component(string_entity, StringComponent::default())?;
-                    db.insert_entity_component(
-                        string_entity,
-                        PancursesColorPairComponent::new(PancursesColorPair::default()),
-                    )?;
+                    db.insert_entity_component(string_entity, ColorComponent::default())?;
 
                     if db
                         .entity_component_directory
@@ -167,13 +191,14 @@ where
                     string_entities.push(string_entity);
                 }
 
-                // Create or update string components for this set of strings
+                // Destroy item entities for lines that no longer exist
                 while string_entities.len() > string_count {
                     if let Some(string_entity) = string_entities.pop() {
                         db.destroy_entity(string_entity)?;
                     }
                 }
 
+                // Fetch local mouse position
                 let local_mouse_position = match db
                     .get_entity_component::<LocalMousePositionComponent>(list_control_entity)
                 {
@@ -183,8 +208,9 @@ where
                     Err(_) => None,
                 };
 
+                // Determine whether the mouse is inside this control
                 let contains_mouse = match local_mouse_position {
-                    Some(IVector2(mouse_x, mouse_y)) => {
+                    Some(Vector2I(mouse_x, mouse_y)) => {
                         let range_x = 0i64..width;
                         let range_y = 0i64..height as i64;
                         range_x.contains(&mouse_x) && range_y.contains(&mouse_y)
@@ -192,8 +218,9 @@ where
                     None => false,
                 };
 
+                // Convert the list of string vectors into a list of line heights, find the index of the first one lower than the mouse
                 let hovered_item = if contains_mouse {
-                    let IVector2(_, mouse_y) = local_mouse_position.unwrap();
+                    let Vector2I(_, mouse_y) = local_mouse_position.unwrap();
                     string_list
                         .iter()
                         .fold(vec![], |mut acc, next| {
@@ -206,24 +233,56 @@ where
                     None
                 };
 
+                // Update the list's IntRangeComponent to match the list size
                 if let Some(list_index_entity) = list_index_entity {
                     if let Ok(int_range_component) =
                         db.get_entity_component_mut::<IntRangeComponent>(list_index_entity)
                     {
                         int_range_component.set_range(-1..(string_list.len() as i64));
+                    }
+                }
 
-                        if let Some(true) = mouse_state {
-                            if contains_mouse {
-                                if let Some(hovered_item) = hovered_item {
-                                    int_range_component.set_index(hovered_item as i64);
-                                } else {
-                                    int_range_component.set_index(-1);
+                // If the mouse was clicked inside this control, update the selected index
+                if contains_mouse {
+                    let event_queue_entity =
+                        db.entity_component_directory
+                            .get_entity_by_predicate(|entity_id| {
+                                db.entity_component_directory
+                                    .entity_has_component::<EventQueueComponent<AntigenEvent>>(
+                                        entity_id,
+                                    )
+                            });
+
+                    if let Some(event_queue_entity) = event_queue_entity {
+                        let event_queue_component = db
+                            .get_entity_component::<EventQueueComponent<AntigenEvent>>(
+                                event_queue_entity,
+                            )?;
+
+                        for event in event_queue_component.get_events().clone() {
+                            if let AntigenEvent::MousePress { button_mask: 1 } = event {
+                                if let Some(list_index_entity) = list_index_entity {
+                                    if let Ok(int_range_component) = db
+                                        .get_entity_component_mut::<IntRangeComponent>(
+                                            list_index_entity,
+                                        )
+                                    {
+                                        int_range_component
+                                            .set_range(-1..(string_list.len() as i64));
+
+                                        if let Some(hovered_item) = hovered_item {
+                                            int_range_component.set_index(hovered_item as i64);
+                                        } else {
+                                            int_range_component.set_index(-1);
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
                 }
 
+                // Fetch the selected index from the list's IntRangeComponent
                 let focused_item = match list_index_entity {
                     Some(list_index_entity) => {
                         match db.get_entity_component_mut::<IntRangeComponent>(list_index_entity) {
@@ -234,6 +293,38 @@ where
                     None => None,
                 };
 
+                db.get_entity_component_mut::<PositionComponent>(*list_hover_entity)?
+                    .set_position(Vector2I(
+                        0,
+                        if let Some(hovered_item) = hovered_item {
+                            hovered_item as i64
+                        } else {
+                            0
+                        },
+                    ));
+
+                db.get_entity_component_mut::<SizeComponent>(*list_hover_entity)?
+                    .set_size(if hovered_item.is_some() {
+                        Vector2I(width, 1)
+                    } else {
+                        Vector2I(0, 0)
+                    });
+
+                db.get_entity_component_mut::<PositionComponent>(*list_focus_entity)?
+                    .set_position(Vector2I(0, focused_item.unwrap_or(0) as i64));
+
+                db.get_entity_component_mut::<SizeComponent>(*list_focus_entity)?
+                    .set_size(if let Some(focused_item) = focused_item {
+                        if focused_item >= 0 {
+                            Vector2I(width, 1)
+                        } else {
+                            Vector2I(0, 0)
+                        }
+                    } else {
+                        Vector2I(0, 0)
+                    });
+
+                // Iterate over the lists of strings and update their position, text and color
                 let mut y = 0i64;
                 for (string_index, strings) in string_list.iter().enumerate() {
                     let string_index = string_index as i64;
@@ -244,28 +335,23 @@ where
 
                         // Update each string entity's position
                         db.get_entity_component_mut::<PositionComponent>(string_entity)?
-                            .set_position(IVector2(0, y));
+                            .set_position(Vector2I(0, y));
 
                         // Update each string entity's text
                         db.get_entity_component_mut::<StringComponent>(string_entity)?
                             .set_data(string.clone());
 
                         // Update color pair based on focused item
+                        /*
                         let data = if Some(string_index) == focused_item {
-                            PancursesColorPair::new(
-                                PancursesColor::new(0, 0, 0),
-                                PancursesColor::new(1000, 1000, 1000),
-                            )
-                        } else if Some(string_index as usize) == hovered_item {
-                            PancursesColorPair::new(
-                                PancursesColor::new(1000, 1000, 1000),
-                                PancursesColor::new(500, 500, 500),
-                            )
+                            ColorRGB(0.0, 0.0, 0.0)
                         } else {
-                            PancursesColorPair::default()
+                            ColorRGB(1.0, 1.0, 1.0)
                         };
+                        */
+                        let data = ColorRGB(1.0, 1.0, 1.0);
 
-                        db.get_entity_component_mut::<PancursesColorPairComponent>(string_entity)?
+                        db.get_entity_component_mut::<ColorComponent>(string_entity)?
                             .set_data(data);
 
                         y += 1;
@@ -284,11 +370,7 @@ where
                 .get(&list_control_entity)
                 .is_some()
             {
-                println!(
-                    "Clearing string entities for list control entity {:?}",
-                    &list_control_entity
-                );
-                // The list control's string list entity has been cleared, remove it from the set of string entities
+                // The list control's string list has been removed, remove it from the set of string entities
                 self.list_string_entities.remove(&list_control_entity);
             }
         }

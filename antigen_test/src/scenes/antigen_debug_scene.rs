@@ -1,9 +1,9 @@
 use std::{collections::HashMap, ops::Range};
 
 use antigen::{
+    components::ColorComponent,
     components::DebugSceneTreeComponent,
     components::DebugSystemListComponent,
-    components::EventQueueComponent,
     components::SystemInspectorComponent,
     components::{
         AnchorsComponent, CharComponent, ComponentInspectorComponent,
@@ -21,17 +21,18 @@ use antigen::{
         EntityComponentSystem, EntityID, SystemRunner,
     },
     events::AntigenEvent,
-    primitive_types::IVector2,
+    primitive_types::ColorRGB,
+    primitive_types::Vector2I,
     systems::EventQueueSystem,
     systems::{
         AnchorsMarginsSystem, ChildEntitiesSystem, GlobalPositionSystem, PositionIntegratorSystem,
     },
 };
 
-use crate::pancurses_color::{PancursesColor, PancursesColorPair};
 use crate::systems::{
-    DestructionTestInputSystem, InputVelocitySystem, ListSystem, LocalMousePositionSystem,
-    PancursesInputAxisSystem, PancursesInputSystem, PancursesRendererSystem, PancursesWindowSystem,
+    DestructionTestInputSystem, InputAxisSystem, InputVelocitySystem, ListSystem,
+    LocalMousePositionSystem, PancursesInputBufferSystem, PancursesKeyboardSystem,
+    PancursesMouseSystem, PancursesRendererSystem, PancursesWindowSystem,
 };
 use crate::{
     components::{
@@ -39,10 +40,9 @@ use crate::{
         destruction_test_input_component::DestructionTestInputComponent,
         fill_component::FillComponent, list_component::ListComponent,
         local_mouse_position_component::LocalMousePositionComponent,
-        pancurses_color_pair_component::PancursesColorPairComponent,
         pancurses_window_component::PancursesWindowComponent,
     },
-    systems::QuitSystem,
+    systems::QuitKeySystem,
 };
 
 #[derive(Eq, PartialEq, Hash)]
@@ -67,17 +67,21 @@ impl Scene for AntigenDebugScene {
         SR: SystemRunner + 'static,
     {
         ecs.push_system(EventQueueSystem::<AntigenEvent>::new());
+        ecs.push_system(EventQueueSystem::<pancurses::Input>::new());
 
+        ecs.push_system(PancursesInputBufferSystem::new(1));
+        ecs.push_system(PancursesKeyboardSystem);
+        ecs.push_system(PancursesMouseSystem::new());
         let pancurses_window_system = PancursesWindowSystem::new(&mut ecs.component_storage);
         ecs.push_system(pancurses_window_system);
 
-        ecs.push_system(PancursesInputSystem::new(1));
-        ecs.push_system(QuitSystem);
-        ecs.push_system(PancursesInputAxisSystem::new());
+        ecs.push_system(QuitKeySystem::new(antigen::keyboard::Key::Escape));
+        ecs.push_system(InputAxisSystem::new());
         ecs.push_system(DestructionTestInputSystem::new());
         ecs.push_system(LocalMousePositionSystem::new());
         ecs.push_system(ListSystem::new());
         ecs.push_system(InputVelocitySystem::new());
+
         ecs.push_system(PositionIntegratorSystem::new());
         ecs.push_system(AnchorsMarginsSystem::new());
         ecs.push_system(GlobalPositionSystem::new());
@@ -94,32 +98,26 @@ impl Scene for AntigenDebugScene {
     {
         let mut assemblages = create_assemblages()?;
 
-        // Create Main Window
-        let antigen_event_queue_entity = db.create_entity("Antigen Event Queue".into())?;
-        db.insert_entity_component(
-            antigen_event_queue_entity,
-            EventQueueComponent::<AntigenEvent>::new(),
-        )?;
-
+        // Create main window
         let main_window_entity = create_window_entity(
             db,
             Some("Main Window"),
-            IVector2::default(),
-            IVector2(256, 64),
+            Vector2I::default(),
+            Vector2I(256, 64),
             None,
         )?;
 
         let entity_inspector_entity = db.create_entity(Some("Entity Inspector"))?;
         db.insert_entity_component(entity_inspector_entity, EntityInspectorComponent)?;
-        db.insert_entity_component(entity_inspector_entity, IntRangeComponent::default())?;
+        db.insert_entity_component(entity_inspector_entity, IntRangeComponent::new(-1..-1))?;
 
         let component_inspector_entity = db.create_entity(Some("Component Inspector"))?;
         db.insert_entity_component(component_inspector_entity, ComponentInspectorComponent)?;
-        db.insert_entity_component(component_inspector_entity, IntRangeComponent::default())?;
+        db.insert_entity_component(component_inspector_entity, IntRangeComponent::new(-1..-1))?;
 
         let system_inspector_entity = db.create_entity(Some("System Inspector"))?;
         db.insert_entity_component(system_inspector_entity, SystemInspectorComponent)?;
-        db.insert_entity_component(system_inspector_entity, IntRangeComponent::default())?;
+        db.insert_entity_component(system_inspector_entity, IntRangeComponent::new(-1..-1))?;
 
         create_game_window(db, &mut assemblages, main_window_entity)?;
         create_entity_list_window(
@@ -184,7 +182,7 @@ where
         .set_data(text.into());
 
     db.get_entity_component_mut::<PositionComponent>(entity_id)?
-        .set_position(IVector2(x, y));
+        .set_position(Vector2I(x, y));
 
     Ok(entity_id)
 }
@@ -192,8 +190,8 @@ where
 fn create_window_entity<S, D>(
     db: &mut SystemInterface<S, D>,
     debug_label: Option<&str>,
-    position: IVector2,
-    size: IVector2,
+    position: Vector2I,
+    size: Vector2I,
     parent_window_entity_id: Option<EntityID>,
 ) -> Result<EntityID, String>
 where
@@ -228,13 +226,10 @@ where
             "Controllable ASCII character with position and velocity",
         )
         .add_component(ControlComponent)?
-        .add_component(PancursesColorPairComponent::new(PancursesColorPair::new(
-            PancursesColor::new(1000, 600, 1000),
-            PancursesColor::new(1000, 1000, 1000),
-        )))?
+        .add_component(ColorComponent::new(ColorRGB(1.0, 0.6, 1.0)))?
         .add_component(CharComponent::new('@'))?
-        .add_component(PositionComponent::new(IVector2(1, 1)))?
-        .add_component(VelocityComponent::new(IVector2(1, 1)))?
+        .add_component(PositionComponent::new(Vector2I(1, 1)))?
+        .add_component(VelocityComponent::new(Vector2I(1, 1)))?
         .finish(),
     );
 
@@ -255,10 +250,7 @@ where
             .add_component(SizeComponent::default())?
             .add_component(CharComponent::default())?
             .add_component(FillComponent)?
-            .add_component(PancursesColorPairComponent::new(PancursesColorPair::new(
-                PancursesColor::new(0, 0, 0),
-                PancursesColor::new(753, 753, 753),
-            )))?
+            .add_component(ColorComponent::new(ColorRGB(0.753, 0.753, 0.753)))?
             .finish(),
     );
 
@@ -269,10 +261,7 @@ where
             .add_component(PositionComponent::default())?
             .add_component(SizeComponent::default())?
             .add_component(CharComponent::default())?
-            .add_component(PancursesColorPairComponent::new(PancursesColorPair::new(
-                PancursesColor::new(0, 0, 0),
-                PancursesColor::new(753, 753, 753),
-            )))?
+            .add_component(ColorComponent::new(ColorRGB(0.753, 0.753, 0.753)))?
             .finish(),
     );
 
@@ -282,7 +271,9 @@ where
             "Destruction Test",
             "Assemblage for destroying entities when space is pressed",
         )
-        .add_component(DestructionTestInputComponent::new(antigen::Key::Space))?
+        .add_component(DestructionTestInputComponent::new(
+            antigen::keyboard::Key::Space,
+        ))?
         .finish(),
     );
 
@@ -312,6 +303,24 @@ where
         AnchorsComponent::new(0.0..0.5, 0.0..1.0),
     )?;
 
+    // Create Test Rect
+    let test_rect_entity = assemblages
+        .get_mut(&EntityAssemblage::RectControl)
+        .unwrap()
+        .create_and_assemble_entity(db, Some("Test Rect Control"))?;
+    {
+        db.get_entity_component_mut::<PositionComponent>(test_rect_entity)?
+            .set_position(Vector2I(1, 5));
+
+        db.get_entity_component_mut::<SizeComponent>(test_rect_entity)?
+            .set_size(Vector2I(20, 5));
+        db.insert_entity_component(
+            test_rect_entity,
+            ParentEntityComponent::new(game_window_entity),
+        )?;
+        db.insert_entity_component(test_rect_entity, GlobalPositionComponent::default())?;
+    }
+
     // Create Test Player
     let test_player_entity = assemblages
         .get_mut(&EntityAssemblage::Player)
@@ -330,7 +339,7 @@ where
         .create_and_assemble_entity(db, Some("Test String Control"))?;
     {
         db.get_entity_component_mut::<PositionComponent>(test_string_entity)?
-            .set_position(IVector2(1, 1));
+            .set_position(Vector2I(1, 1));
         db.get_entity_component_mut::<StringComponent>(test_string_entity)?
             .set_data("Testing One Two Three".into());
         db.insert_entity_component(
@@ -338,24 +347,6 @@ where
             ParentEntityComponent::new(test_player_entity),
         )?;
         db.insert_entity_component(test_string_entity, GlobalPositionComponent::default())?;
-    }
-
-    // Create Test Rect
-    let test_rect_entity = assemblages
-        .get_mut(&EntityAssemblage::RectControl)
-        .unwrap()
-        .create_and_assemble_entity(db, Some("Test Rect Control"))?;
-    {
-        db.get_entity_component_mut::<PositionComponent>(test_rect_entity)?
-            .set_position(IVector2(1, 5));
-
-        db.get_entity_component_mut::<SizeComponent>(test_rect_entity)?
-            .set_size(IVector2(20, 5));
-        db.insert_entity_component(
-            test_rect_entity,
-            ParentEntityComponent::new(test_player_entity),
-        )?;
-        db.insert_entity_component(test_rect_entity, GlobalPositionComponent::default())?;
     }
 
     Ok(game_window_entity)
@@ -378,35 +369,36 @@ where
         .get_mut(&EntityAssemblage::RectControl)
         .unwrap()
         .create_and_assemble_entity(db, Some(&format!("{} Window", window_name)))?;
-    db.get_entity_component_mut::<PancursesColorPairComponent>(entity_list_window_entity)?
-        .set_data(PancursesColorPair::new(
-            PancursesColor::new(0, 0, 0),
-            PancursesColor::new(0, 0, 0),
-        ));
-    db.insert_entity_component(entity_list_window_entity, PositionComponent::default())?;
-    db.insert_entity_component(entity_list_window_entity, ZIndexComponent::new(1))?;
-    db.insert_entity_component(entity_list_window_entity, SizeComponent::default())?;
-    db.insert_entity_component(
-        entity_list_window_entity,
-        ParentEntityComponent::new(parent_window_entity),
-    )?;
-    db.insert_entity_component(
-        entity_list_window_entity,
-        AnchorsComponent::new(anchor_horizontal, anchor_vertical),
-    )?;
+    {
+        db.get_entity_component_mut::<ColorComponent>(entity_list_window_entity)?
+            .set_data(ColorRGB(0.0, 0.0, 0.0));
+        db.insert_entity_component(entity_list_window_entity, PositionComponent::default())?;
+        db.insert_entity_component(entity_list_window_entity, ZIndexComponent::new(1))?;
+        db.insert_entity_component(entity_list_window_entity, SizeComponent::default())?;
+        db.insert_entity_component(
+            entity_list_window_entity,
+            ParentEntityComponent::new(parent_window_entity),
+        )?;
+        db.insert_entity_component(
+            entity_list_window_entity,
+            AnchorsComponent::new(anchor_horizontal, anchor_vertical),
+        )?;
+    }
 
     let entity_list_border_entity = assemblages
         .get_mut(&EntityAssemblage::BorderControl)
         .unwrap()
         .create_and_assemble_entity(db, Some(&format!("{} Border", window_name)))?;
-    db.insert_entity_component(
-        entity_list_border_entity,
-        ParentEntityComponent::new(entity_list_window_entity),
-    )?;
-    db.insert_entity_component(
-        entity_list_border_entity,
-        AnchorsComponent::new(0.0..1.0, 0.0..1.0),
-    )?;
+    {
+        db.insert_entity_component(
+            entity_list_border_entity,
+            ParentEntityComponent::new(entity_list_window_entity),
+        )?;
+        db.insert_entity_component(
+            entity_list_border_entity,
+            AnchorsComponent::new(0.0..1.0, 0.0..1.0),
+        )?;
+    }
 
     // Create Debug Window Title
     let entity_list_title_entity = create_string_control(
@@ -418,32 +410,36 @@ where
         &format!("{}\n========", window_name),
         (2, 1),
     )?;
-    db.insert_entity_component(
-        entity_list_title_entity,
-        ParentEntityComponent::new(entity_list_border_entity),
-    )?;
-    db.insert_entity_component(entity_list_title_entity, GlobalPositionComponent::default())?;
+    {
+        db.insert_entity_component(
+            entity_list_title_entity,
+            ParentEntityComponent::new(entity_list_border_entity),
+        )?;
+        db.insert_entity_component(entity_list_title_entity, GlobalPositionComponent::default())?;
+    }
 
     // Create Entity List
     let entity_list_entity = db.create_entity(Some(window_name))?;
-    db.insert_entity_component(
-        entity_list_entity,
-        ListComponent::new(Some(entity_list_entity), list_index_entity),
-    )?;
-    db.insert_entity_component(entity_list_entity, PositionComponent::default())?;
-    db.insert_entity_component(entity_list_entity, SizeComponent::default())?;
-    db.insert_entity_component(
-        entity_list_entity,
-        ParentEntityComponent::new(entity_list_border_entity),
-    )?;
-    db.insert_entity_component(
-        entity_list_entity,
-        AnchorsComponent::new(0.0..1.0, 0.0..1.0),
-    )?;
-    db.insert_entity_component(entity_list_entity, MarginsComponent::new(2, 2, 3, 1))?;
-    db.insert_entity_component(entity_list_entity, StringListComponent::default())?;
-    db.insert_entity_component(entity_list_entity, LocalMousePositionComponent::default())?;
-    db.insert_entity_component(entity_list_entity, DebugExcludeComponent)?;
+    {
+        db.insert_entity_component(
+            entity_list_entity,
+            ListComponent::new(Some(entity_list_entity), list_index_entity),
+        )?;
+        db.insert_entity_component(entity_list_entity, PositionComponent::default())?;
+        db.insert_entity_component(entity_list_entity, SizeComponent::default())?;
+        db.insert_entity_component(
+            entity_list_entity,
+            ParentEntityComponent::new(entity_list_border_entity),
+        )?;
+        db.insert_entity_component(
+            entity_list_entity,
+            AnchorsComponent::new(0.0..1.0, 0.0..1.0),
+        )?;
+        db.insert_entity_component(entity_list_entity, MarginsComponent::new(2, 2, 3, 1))?;
+        db.insert_entity_component(entity_list_entity, StringListComponent::default())?;
+        db.insert_entity_component(entity_list_entity, LocalMousePositionComponent::default())?;
+        db.insert_entity_component(entity_list_entity, DebugExcludeComponent)?;
+    }
 
     Ok(entity_list_entity)
 }
@@ -475,7 +471,7 @@ fn create_scene_tree_window<S, D>(
     db: &mut SystemInterface<S, D>,
     assemblages: &mut HashMap<EntityAssemblage, Assemblage<S, D>>,
     parent_window_entity: EntityID,
-    _entity_inspector_entity: EntityID,
+    entity_inspector_entity: EntityID,
 ) -> Result<EntityID, String>
 where
     S: ComponentStorage,

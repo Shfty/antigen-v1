@@ -9,7 +9,7 @@ pub struct IntRangeComponent {
 
 impl IntRangeComponent {
     pub fn new(range: Range<i64>) -> Self {
-        IntRangeComponent { index: 0, range }
+        IntRangeComponent { index: range.start, range }
     }
 
     pub fn get_index(&self) -> i64 {

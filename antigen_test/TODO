@@ -1,6 +1,18 @@
-TODO: Refactor ECS debug system into independent entity + scene tree / component / system / component data systems
+TODO: Re-add list item assemblage support to allow for debug excluding items, but not their parent lists
+
+
+TODO: Refactor pancurses renderer to use a framebuffer-like approach
+      Use a Vector2I > (Option<Background Color>, Option<Foreground Color>, Option<Char>) map to store only cells that are populated
+      For a given Z layer, draw rects first, then strings
+      Use background color for rects, foreground color for strings
+      Overwrite background color when inserting a rect, but not when inserting a string
+      Write framebuffer directly to curses
+
+TODO: Refactor pancurses renderer such that color / color pair registration is internal
+      Map RGB colors to the pre-registered color set using PancursesPalette
+      Make use of dithered ASCII characters to emulate unregistered colors
+
 TODO: Component data inspector
-TODO: Don't hide all debug entities / components / systems / data from the debugger - only hide data that will recursively overflow lists
 
 TODO: Filtering for debug components
       Entities
@@ -20,20 +32,20 @@ TODO: Filtering for debug components
 
 TODO: Scrolling for lists
 
-TODO: Refactor local mouse position system to use event queue instead of directly reading PancursesMouseComponent
-TODO: Refactor list system to use event queue instead of directly reading PancursesMouseComponent
-
 TODO: Event synthesis for list hover / click
-
-TODO: Key event synthesis
-      Will need a mapping between pancurses keys and a to-be-determined antigen key implementation
+      Rather than supplying generic hover / click events, list control components should take them as a generic parameter
+      This way, arbitrary events can be pushed into the queue for handling by other systems - comparable to Godot's signal/slot setup
+      Each list should be able to push multiple events in response to hover / click
 
 TODO: Profiler window
       Will need a way to represent a line graph in pancurses
       Setup bitmap / shader abstractions for rendering RGB cells based on a buffer or closure
 
 TODO: Clipping rects for UI controls
-    
+TODO: Refactor list system to only update when hover, selection, list item count or contents have changed
+
+TODO: Respect global position for string control clipping (a.k.a. fix the debug scene test string when the player moves offscreen to the left)
+
 TODO: Register entity fetches and associated logic at System registration time to allow for runtime lookup optimization
     Ex:
         db

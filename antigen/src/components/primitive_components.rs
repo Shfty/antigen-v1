@@ -1,9 +1,13 @@
-use crate::entity_component_system::{ComponentDebugTrait, ComponentTrait};
+use crate::{
+    entity_component_system::{ComponentDebugTrait, ComponentTrait},
+    primitive_types::ColorRGB,
+};
 use std::fmt::Debug;
 
 pub type CharComponent = PrimitiveComponent<char>;
 pub type StringComponent = PrimitiveComponent<String>;
 pub type StringListComponent = PrimitiveComponent<Vec<String>>;
+pub type ColorComponent = PrimitiveComponent<ColorRGB>;
 
 #[derive(Debug, Copy, Clone)]
 pub struct PrimitiveComponent<T>
@@ -42,12 +46,18 @@ where
 
 impl<T> ComponentTrait for PrimitiveComponent<T> where T: Debug + Clone + 'static {}
 
-impl<T> ComponentDebugTrait for PrimitiveComponent<T> where T: Debug + Clone + 'static {
+impl<T> ComponentDebugTrait for PrimitiveComponent<T>
+where
+    T: Debug + Clone + 'static,
+{
     fn get_name() -> String {
         std::any::type_name::<T>().into()
     }
 
     fn get_description() -> String {
-        format!("Primitive component containing a {}", std::any::type_name::<T>())
+        format!(
+            "Primitive component containing a {}",
+            std::any::type_name::<T>()
+        )
     }
 }

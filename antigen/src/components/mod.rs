@@ -26,7 +26,7 @@ pub use int_range_component::IntRangeComponent;
 pub use margins_component::MarginsComponent;
 pub use position_component::PositionComponent;
 pub use primitive_components::{
-    CharComponent, PrimitiveComponent, StringComponent, StringListComponent,
+    CharComponent, ColorComponent, PrimitiveComponent, StringComponent, StringListComponent,
 };
 pub use scene_tree::{ChildEntitiesComponent, ParentEntityComponent};
 pub use size_component::SizeComponent;

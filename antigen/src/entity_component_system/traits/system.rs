@@ -32,7 +32,7 @@ pub struct SystemID(pub UID);
 
 impl SystemID {
     pub fn next() -> Self {
-        static COUNTER: AtomicUsize = AtomicUsize::new(1);
+        static COUNTER: AtomicUsize = AtomicUsize::new(0);
         SystemID(COUNTER.fetch_add(1, Ordering::Relaxed))
     }
 }

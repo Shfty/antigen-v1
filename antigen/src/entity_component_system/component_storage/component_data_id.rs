@@ -7,7 +7,7 @@ pub struct ComponentDataID(pub UID);
 
 impl ComponentDataID {
     pub fn next() -> Self {
-        static COUNTER: AtomicUsize = AtomicUsize::new(1);
+        static COUNTER: AtomicUsize = AtomicUsize::new(0);
         ComponentDataID(COUNTER.fetch_add(1, Ordering::Relaxed))
     }
 }

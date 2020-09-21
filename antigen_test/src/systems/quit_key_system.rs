@@ -9,9 +9,17 @@ use antigen::{
 };
 
 #[derive(Debug)]
-pub struct QuitSystem;
+pub struct QuitKeySystem {
+    key: antigen::keyboard::Key,
+}
 
-impl<CS, CD> SystemTrait<CS, CD> for QuitSystem
+impl QuitKeySystem {
+    pub fn new(key: antigen::keyboard::Key) -> Self {
+        QuitKeySystem { key }
+    }
+}
+
+impl<CS, CD> SystemTrait<CS, CD> for QuitKeySystem
 where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
@@ -34,7 +42,7 @@ where
 
             for event in event_queue_component.get_events() {
                 if let AntigenEvent::KeyPress { key_code } = event {
-                    if *key_code == antigen::Key::Escape {
+                    if *key_code == self.key {
                         return Err(SystemError::Quit);
                     }
                 }
@@ -45,7 +53,7 @@ where
     }
 }
 
-impl SystemDebugTrait for QuitSystem {
+impl SystemDebugTrait for QuitKeySystem {
     fn get_name() -> &'static str {
         "Quit"
     }

@@ -47,17 +47,34 @@ where
         CS: ComponentStorage,
         CD: EntityComponentDirectory,
     {
-        let entities = db
+        let event_queue_component =
+            db.entity_component_directory
+                .get_entity_by_predicate(|entity_id| {
+                    db.entity_component_directory
+                        .entity_has_component::<EventQueueComponent<T>>(entity_id)
+                });
+
+        if event_queue_component.is_none() {
+            let event_queue_entity = db.create_entity(Some(&format!(
+                "Event Queue ({})",
+                std::any::type_name::<T>()
+            )))?;
+            db.insert_entity_component(event_queue_entity, EventQueueComponent::<T>::new())?;
+        }
+
+        let event_queue_entity = db
             .entity_component_directory
-            .get_entities_by_predicate(|entity_id| {
+            .get_entity_by_predicate(|entity_id| {
                 db.entity_component_directory
                     .entity_has_component::<EventQueueComponent<T>>(entity_id)
-            });
+            })
+            .ok_or(format!(
+                "Failed to get event queue entity for type {}",
+                std::any::type_name::<T>()
+            ))?;
 
-        for entity_id in entities {
-            db.get_entity_component_mut::<EventQueueComponent<T>>(entity_id)?
-                .clear_events();
-        }
+        db.get_entity_component_mut::<EventQueueComponent<T>>(event_queue_entity)?
+            .clear_events();
 
         Ok(())
     }

@@ -1,8 +1,8 @@
-use std::{collections::HashMap, time::Duration};
+use std::{collections::HashMap, fmt::Debug, time::Duration};
 
 use crate::entity_component_system::{ComponentDebugTrait, ComponentTrait, SystemID};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct SystemDebugComponent {
     labels: HashMap<SystemID, String>,
     durations: HashMap<SystemID, Duration>,
@@ -31,6 +31,12 @@ impl SystemDebugComponent {
 
     pub fn set_duration(&mut self, system_id: SystemID, duration: Duration) {
         self.durations.insert(system_id, duration);
+    }
+}
+
+impl Debug for SystemDebugComponent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SystemDebugComponent").finish()
     }
 }
 

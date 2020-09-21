@@ -7,7 +7,7 @@ use antigen::{
     entity_component_system::SystemDebugTrait,
     entity_component_system::{SystemError, SystemTrait},
     events::AntigenEvent,
-    primitive_types::IVector2,
+    primitive_types::Vector2I,
 };
 
 #[derive(Debug)]
@@ -37,7 +37,7 @@ where
                 });
 
         if let Some(antigen_event_queue_entity) = antigen_event_queue_entity {
-            let mut move_input: IVector2 = IVector2(0, 0);
+            let mut move_input: Vector2I = Vector2I(0, 0);
             for input in db
                 .get_entity_component::<EventQueueComponent<AntigenEvent>>(
                     antigen_event_queue_entity,
@@ -46,16 +46,16 @@ where
             {
                 match input {
                     AntigenEvent::KeyPress {
-                        key_code: antigen::Key::Left,
+                        key_code: antigen::keyboard::Key::Left,
                     } => move_input.0 -= 1,
                     AntigenEvent::KeyPress {
-                        key_code: antigen::Key::Right,
+                        key_code: antigen::keyboard::Key::Right,
                     } => move_input.0 += 1,
                     AntigenEvent::KeyPress {
-                        key_code: antigen::Key::Up,
+                        key_code: antigen::keyboard::Key::Up,
                     } => move_input.1 -= 1,
                     AntigenEvent::KeyPress {
-                        key_code: antigen::Key::Down,
+                        key_code: antigen::keyboard::Key::Down,
                     } => move_input.1 += 1,
                     _ => (),
                 }

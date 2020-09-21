@@ -8,7 +8,7 @@ use crate::{
     entity_component_system::system_interface::SystemInterface,
     entity_component_system::EntityID,
     entity_component_system::{SystemError, SystemTrait},
-    primitive_types::IVector2,
+    primitive_types::Vector2I,
 };
 
 #[derive(Debug)]
@@ -97,9 +97,9 @@ where
 
             let parent_position_component =
                 db.get_entity_component::<PositionComponent>(parent_id)?;
-            let IVector2(parent_pos_x, parent_pos_y) = parent_position_component.get_position();
+            let Vector2I(parent_pos_x, parent_pos_y) = parent_position_component.get_position();
 
-            let IVector2(parent_width, parent_height) = db
+            let Vector2I(parent_width, parent_height) = db
                 .get_entity_component::<SizeComponent>(parent_id)?
                 .get_size();
 
@@ -117,7 +117,7 @@ where
             let y = margin_top + parent_pos_y + (parent_height as f32 * anchor_top).floor() as i64;
 
             db.get_entity_component_mut::<PositionComponent>(entity_id)?
-                .set_position(IVector2(x, y));
+                .set_position(Vector2I(x, y));
 
             let width = (parent_width as f32 * (anchor_right - anchor_left)).ceil() as i64
                 - (margin_right + margin_left);
@@ -128,7 +128,7 @@ where
             let height = std::cmp::max(height, 0);
 
             db.get_entity_component_mut::<SizeComponent>(entity_id)?
-                .set_size(IVector2(width, height));
+                .set_size(Vector2I(width, height));
         }
 
         Ok(())

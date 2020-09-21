@@ -4,23 +4,25 @@ use crate::{
     components::fill_component::FillComponent,
     components::pancurses_color_set_component::PancursesColorSetComponent,
     components::{
-        control_component::ControlComponent,
-        pancurses_color_pair_component::PancursesColorPairComponent,
-        pancurses_window_component::PancursesWindowComponent,
+        control_component::ControlComponent, pancurses_window_component::PancursesWindowComponent,
     },
+    pancurses_color::PancursesColor,
     pancurses_color::PancursesColorPair,
 };
 use antigen::{
+    components::ColorComponent,
     components::{
         CharComponent, ChildEntitiesComponent, GlobalPositionComponent, ParentEntityComponent,
         PositionComponent, SizeComponent, StringComponent, WindowComponent, ZIndexComponent,
     },
+    entity_component_system::SystemDebugTrait,
     entity_component_system::{
         system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory, EntityID,
         SystemError, SystemTrait,
     },
-    primitive_types::IVector2,
-entity_component_system::SystemDebugTrait};
+    primitive_types::ColorRGB,
+    primitive_types::Vector2I,
+};
 use pancurses::{ToChtype, Window};
 
 #[derive(Debug)]
@@ -34,13 +36,13 @@ impl PancursesRendererSystem {
     fn render_string(
         &self,
         window: &Window,
-        window_size: IVector2,
-        position: IVector2,
+        window_size: Vector2I,
+        position: Vector2I,
         string: &str,
         color_pair: i16,
     ) {
-        let IVector2(window_width, window_height) = window_size;
-        let IVector2(x, y) = position;
+        let Vector2I(window_width, window_height) = window_size;
+        let Vector2I(x, y) = position;
 
         let len = string.len() as i64;
 
@@ -79,16 +81,16 @@ impl PancursesRendererSystem {
     fn render_rect(
         &self,
         window: &Window,
-        window_size: IVector2,
-        position: IVector2,
-        size: IVector2,
-        background_char: char,
+        window_size: Vector2I,
+        position: Vector2I,
+        size: Vector2I,
+        char: char,
         color_pair: i16,
         filled: bool,
     ) {
-        let IVector2(window_width, window_height) = window_size;
-        let IVector2(pos_x, pos_y) = position;
-        let IVector2(width, height) = size;
+        let Vector2I(window_width, window_height) = window_size;
+        let Vector2I(pos_x, pos_y) = position;
+        let Vector2I(width, height) = size;
 
         let mut w = width;
         let width_delta = (pos_x + w) - window_width;
@@ -118,47 +120,35 @@ impl PancursesRendererSystem {
             return;
         }
 
-        let background_char = background_char.to_chtype();
+        let char = char.to_chtype();
         if filled {
             if w >= h {
                 for y in y..y + h {
                     window.mv(y as i32, x as i32);
-                    window.hline(
-                        background_char | pancurses::COLOR_PAIR(color_pair as u64),
-                        w as i32,
-                    );
+                    window.hline(char | pancurses::COLOR_PAIR(color_pair as u64), w as i32);
                 }
             } else {
                 for x in x..x + w {
                     window.mv(y as i32, x as i32);
-                    window.vline(
-                        background_char | pancurses::COLOR_PAIR(color_pair as u64),
-                        h as i32,
-                    );
+                    window.vline(char | pancurses::COLOR_PAIR(color_pair as u64), h as i32);
                 }
             }
         } else {
             window.mv(y as i32, x as i32);
-            window.hline(
-                background_char | pancurses::COLOR_PAIR(color_pair as u64),
-                w as i32,
-            );
+            window.hline(char | pancurses::COLOR_PAIR(color_pair as u64), w as i32);
 
             window.mv((y + h - 1) as i32, x as i32);
-            window.hline(
-                background_char | pancurses::COLOR_PAIR(color_pair as u64),
-                w as i32,
-            );
+            window.hline(char | pancurses::COLOR_PAIR(color_pair as u64), w as i32);
 
             window.mv((y + 1) as i32, x as i32);
             window.vline(
-                background_char | pancurses::COLOR_PAIR(color_pair as u64),
+                char | pancurses::COLOR_PAIR(color_pair as u64),
                 (h - 2) as i32,
             );
 
             window.mv((y + 1) as i32, (x + w - 1) as i32);
             window.vline(
-                background_char | pancurses::COLOR_PAIR(color_pair as u64),
+                char | pancurses::COLOR_PAIR(color_pair as u64),
                 (h - 2) as i32,
             );
         }
@@ -224,17 +214,12 @@ where
             db: &SystemInterface<CS, CD>,
             entity_id: EntityID,
             z_layers: &mut HashMap<i64, Vec<EntityID>>,
-            z_index: i64,
+            mut z_index: i64,
         ) -> Result<(), String>
         where
             CS: ComponentStorage,
             CD: EntityComponentDirectory,
         {
-            let z_index = match db.get_entity_component::<ZIndexComponent>(entity_id) {
-                Ok(z_index_component) => z_index_component.get_z(),
-                Err(_) => z_index,
-            };
-
             let z_layer = match z_layers.get_mut(&z_index) {
                 Some(z_layer) => z_layer,
                 None => {
@@ -246,7 +231,17 @@ where
                 }
             };
 
-            z_layer.push(entity_id);
+            if db
+                .get_entity_component::<ControlComponent>(entity_id)
+                .is_ok()
+            {
+                z_index = match db.get_entity_component::<ZIndexComponent>(entity_id) {
+                    Ok(z_index_component) => z_index_component.get_z(),
+                    Err(_) => z_index,
+                };
+
+                z_layer.push(entity_id);
+            }
 
             if let Ok(child_entities_component) =
                 db.get_entity_component::<ChildEntitiesComponent>(entity_id)
@@ -331,7 +326,7 @@ where
             };
 
             // Get Position
-            let IVector2(x, y) = if let Ok(global_position_component) =
+            let Vector2I(x, y) = if let Ok(global_position_component) =
                 db.get_entity_component::<GlobalPositionComponent>(entity_id)
             {
                 global_position_component.get_global_position()
@@ -343,20 +338,29 @@ where
             };
 
             // Get Color
-            let color_pair = match db.get_entity_component::<PancursesColorPairComponent>(entity_id)
-            {
-                Ok(pancurses_color_pair_component) => *pancurses_color_pair_component.get_data(),
-                Err(_) => PancursesColorPair::default(),
+            let color = match db.get_entity_component::<ColorComponent>(entity_id) {
+                Ok(color_component) => *color_component.get_data(),
+                Err(_) => ColorRGB(1.0, 1.0, 1.0),
             };
 
-            let color_pair_idx = db
-                .get_entity_component_mut::<PancursesColorSetComponent>(color_set_entity)?
-                .get_color_pair_idx(&color_pair);
-
-            let background_char = match db.get_entity_component::<CharComponent>(entity_id) {
+            let char = match db.get_entity_component::<CharComponent>(entity_id) {
                 Ok(char_component) => *char_component.get_data(),
                 Err(_) => ' ',
             };
+
+            let string_color_pair_idx = db
+                .get_entity_component_mut::<PancursesColorSetComponent>(color_set_entity)?
+                .get_color_pair_idx(&PancursesColorPair::new(
+                    color.into(),
+                    PancursesColor::new(0, 0, 0),
+                ));
+
+            let rect_color_pair_idx = db
+                .get_entity_component_mut::<PancursesColorSetComponent>(color_set_entity)?
+                .get_color_pair_idx(&PancursesColorPair::new(
+                    PancursesColor::new(0, 0, 0),
+                    color.into(),
+                ));
 
             let window_component =
                 db.get_entity_component::<PancursesWindowComponent>(parent_id)?;
@@ -369,21 +373,20 @@ where
                     .entity_component_directory
                     .entity_has_component::<SizeComponent>(&entity_id)
                 {
-                    //let filled = *filled;
                     let filled = db
                         .entity_component_directory
                         .entity_has_component::<FillComponent>(&entity_id);
 
-                    let IVector2(width, height) = db
+                    let Vector2I(width, height) = db
                         .get_entity_component::<SizeComponent>(entity_id)?
                         .get_size();
                     self.render_rect(
                         window,
-                        IVector2(window_width, window_height),
-                        IVector2(x, y),
-                        IVector2(width, height),
-                        background_char,
-                        color_pair_idx,
+                        Vector2I(window_width, window_height),
+                        Vector2I(x, y),
+                        Vector2I(width, height),
+                        char,
+                        rect_color_pair_idx,
                         filled,
                     );
                 } else if db
@@ -408,10 +411,10 @@ where
                     for (i, string) in string.split('\n').enumerate() {
                         self.render_string(
                             window,
-                            IVector2(window_width, window_height),
-                            IVector2(x, y + i as i64),
+                            Vector2I(window_width, window_height),
+                            Vector2I(x, y + i as i64),
                             string,
-                            color_pair_idx,
+                            string_color_pair_idx,
                         )
                     }
                 }

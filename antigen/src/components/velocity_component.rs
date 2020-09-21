@@ -1,20 +1,20 @@
-use crate::{primitive_types::IVector2, entity_component_system::{ComponentDebugTrait, ComponentTrait}};
+use crate::{primitive_types::Vector2I, entity_component_system::{ComponentDebugTrait, ComponentTrait}};
 
 #[derive(Debug, Copy, Clone)]
 pub struct VelocityComponent {
-    data: IVector2
+    data: Vector2I
 }
 
 impl VelocityComponent {
-    pub fn new(data: IVector2) -> Self {
+    pub fn new(data: Vector2I) -> Self {
         VelocityComponent { data }
     }
 
-    pub fn get_velocity(&self) -> IVector2 {
+    pub fn get_velocity(&self) -> Vector2I {
         self.data
     }
 
-    pub fn set_velocity(&mut self, velocity: IVector2) -> &mut Self {
+    pub fn set_velocity(&mut self, velocity: Vector2I) -> &mut Self {
         self.data = velocity;
         self
     }
@@ -22,7 +22,7 @@ impl VelocityComponent {
 
 impl Default for VelocityComponent {
     fn default() -> Self {
-        VelocityComponent::new(IVector2::default())
+        VelocityComponent::new(Vector2I::default())
     }
 }
 

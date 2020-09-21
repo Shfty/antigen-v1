@@ -1,24 +1,19 @@
 use crate::{
     components::pancurses_color_set_component::PancursesColorSetComponent,
-    components::pancurses_mouse_component::PancursesMouseComponent,
-    components::{
-        pancurses_color_pair_component::PancursesColorPairComponent,
-        pancurses_window_component::PancursesWindowComponent,
-    },
+    components::pancurses_window_component::PancursesWindowComponent,
     pancurses_color::{PancursesColor, PancursesColorPair},
 };
 use antigen::{
-    components::StringComponent,
-    components::WindowComponent,
-    components::{CharComponent, SizeComponent},
-    entity_component_system::system_interface::SystemInterface,
-    entity_component_system::ComponentStorage,
-    entity_component_system::ComponentTrait,
-    entity_component_system::EntityComponentDirectory,
-    entity_component_system::EntityID,
-    entity_component_system::{SystemError, SystemTrait},
-    primitive_types::IVector2,
-entity_component_system::SystemDebugTrait};
+    components::ColorComponent,
+    components::EventQueueComponent,
+    components::{CharComponent, SizeComponent, StringComponent, WindowComponent},
+    entity_component_system::{
+        system_interface::SystemInterface, ComponentStorage, ComponentTrait,
+        EntityComponentDirectory, EntityID, SystemDebugTrait, SystemError, SystemTrait,
+    },
+    primitive_types::ColorRGB,
+    primitive_types::Vector2I,
+};
 use pancurses::ToChtype;
 use std::collections::HashMap;
 
@@ -58,7 +53,7 @@ impl PancursesWindowSystem {
             return Ok(());
         }
 
-        let IVector2(width, height) = db
+        let Vector2I(width, height) = db
             .get_entity_component::<SizeComponent>(entity_id)?
             .get_size();
 
@@ -67,11 +62,10 @@ impl PancursesWindowSystem {
             Err(_) => ' ',
         };
 
-        let background_color_pair =
-            match db.get_entity_component::<PancursesColorPairComponent>(entity_id) {
-                Ok(pancurses_color_pair_component) => *pancurses_color_pair_component.get_data(),
-                Err(_) => PancursesColorPair::default(),
-            };
+        let background_color = match db.get_entity_component::<ColorComponent>(entity_id) {
+            Ok(color_component) => *color_component.get_data(),
+            Err(_) => ColorRGB(0.0, 0.0, 0.0),
+        };
 
         let title = match db.get_entity_component::<StringComponent>(entity_id) {
             Ok(string_component) => string_component.get_data(),
@@ -112,9 +106,6 @@ impl PancursesWindowSystem {
             PancursesColorSetComponent::new(colors, color_pairs),
         )?;
 
-        let mouse_entity = db.create_entity(Some("Pancurses Mouse"))?;
-        db.insert_entity_component(mouse_entity, PancursesMouseComponent::new())?;
-
         let pancurses_color_set_entity =
             db.entity_component_directory
                 .get_entity_by_predicate(|entity_id| {
@@ -123,7 +114,10 @@ impl PancursesWindowSystem {
                 });
         let background_color_pair = if let Some(entity_id) = pancurses_color_set_entity {
             db.get_entity_component_mut::<PancursesColorSetComponent>(entity_id)?
-                .get_color_pair_idx(&background_color_pair)
+                .get_color_pair_idx(&PancursesColorPair::new(
+                    ColorRGB(1.0, 1.0, 1.0).into(),
+                    background_color.into(),
+                ))
         } else {
             return Err("No pancurses color set entity".into());
         };
@@ -149,31 +143,74 @@ where
         CS: ComponentStorage,
         CD: EntityComponentDirectory,
     {
-        // Get window entities, update internal window state
-        let window_entities =
+        let pancurses_event_queue_entity =
             db.entity_component_directory
-                .get_entities_by_predicate(|entity_id| {
+                .get_entity_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<WindowComponent>(entity_id)
-                        && db
-                            .entity_component_directory
-                            .entity_has_component::<PancursesWindowComponent>(entity_id)
-                        && db
-                            .entity_component_directory
-                            .entity_has_component::<SizeComponent>(entity_id)
+                        .entity_has_component::<EventQueueComponent<pancurses::Input>>(entity_id)
                 });
 
-        for entity_id in window_entities {
-            self.try_create_window(db, entity_id)?;
+        if let Some(pancurses_event_queue_entity) = pancurses_event_queue_entity {
+            let pancurses_event_queue_component = db
+                .get_entity_component::<EventQueueComponent<pancurses::Input>>(
+                    pancurses_event_queue_entity,
+                )?;
 
+            for event in pancurses_event_queue_component.get_events() {
+                if let pancurses::Input::KeyResize = event {
+                    pancurses::resize_term(0, 0);
+                }
+            }
+        }
+
+        // Get window entities, update internal window state
+        let window_entity = db
+            .entity_component_directory
+            .get_entity_by_predicate(|entity_id| {
+                db.entity_component_directory
+                    .entity_has_component::<WindowComponent>(entity_id)
+                    && db
+                        .entity_component_directory
+                        .entity_has_component::<PancursesWindowComponent>(entity_id)
+                    && db
+                        .entity_component_directory
+                        .entity_has_component::<SizeComponent>(entity_id)
+            });
+
+        if let Some(window_entity) = window_entity {
+            // Make sure the window exists
+            self.try_create_window(db, window_entity)?;
+
+            // Process any pending resize inputs
+            let pancurses_event_queue_entity = db
+                .entity_component_directory
+                .get_entity_by_predicate(|entity_id| {
+                    db.entity_component_directory
+                        .entity_has_component::<EventQueueComponent<pancurses::Input>>(entity_id)
+                });
+
+            if let Some(pancurses_event_queue_entity) = pancurses_event_queue_entity {
+                let pancurses_event_queue_component = db
+                    .get_entity_component::<EventQueueComponent<pancurses::Input>>(
+                        pancurses_event_queue_entity,
+                    )?;
+
+                for event in pancurses_event_queue_component.get_events() {
+                    if let pancurses::Input::KeyResize = event {
+                        pancurses::resize_term(0, 0);
+                    }
+                }
+            }
+
+            // Update window component size
             if let Some(window) = db
-                .get_entity_component::<PancursesWindowComponent>(entity_id)?
+                .get_entity_component::<PancursesWindowComponent>(window_entity)?
                 .get_window()
             {
                 let (window_height, window_width) = window.get_max_yx();
 
-                db.get_entity_component_mut::<SizeComponent>(entity_id)?
-                    .set_size(IVector2(window_width as i64, window_height as i64));
+                db.get_entity_component_mut::<SizeComponent>(window_entity)?
+                    .set_size(Vector2I(window_width as i64, window_height as i64));
             }
         }
 

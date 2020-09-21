@@ -1,7 +1,4 @@
-use std::{
-    any::TypeId,
-    collections::{HashMap, HashSet},
-};
+use std::collections::{HashMap, HashSet};
 
 use super::ComponentID;
 
@@ -51,7 +48,7 @@ impl EntityComponentDirectory for SingleThreadedDirectory {
 
     // INSERT
     fn insert_component<T: ComponentTrait + 'static>(&mut self) -> Result<ComponentID, String> {
-        let component_id = ComponentID(TypeId::of::<T>());
+        let component_id = ComponentID::get::<T>();
         self.components.insert(component_id);
 
         Ok(component_id)

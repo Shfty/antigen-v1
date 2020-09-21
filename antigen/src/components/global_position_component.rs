@@ -1,23 +1,23 @@
 use crate::{
     entity_component_system::{ComponentDebugTrait, ComponentTrait},
-    primitive_types::IVector2,
+    primitive_types::Vector2I,
 };
 
 #[derive(Debug, Copy, Clone)]
 pub struct GlobalPositionComponent {
-    data: IVector2,
+    data: Vector2I,
 }
 
 impl GlobalPositionComponent {
-    pub fn new(data: IVector2) -> Self {
+    pub fn new(data: Vector2I) -> Self {
         GlobalPositionComponent { data }
     }
 
-    pub fn get_global_position(&self) -> IVector2 {
+    pub fn get_global_position(&self) -> Vector2I {
         self.data
     }
 
-    pub fn set_global_position(&mut self, global_position: IVector2) -> &mut Self {
+    pub fn set_global_position(&mut self, global_position: Vector2I) -> &mut Self {
         self.data = global_position;
         self
     }
@@ -25,7 +25,7 @@ impl GlobalPositionComponent {
 
 impl Default for GlobalPositionComponent {
     fn default() -> Self {
-        GlobalPositionComponent::new(IVector2::default())
+        GlobalPositionComponent::new(Vector2I::default())
     }
 }
 

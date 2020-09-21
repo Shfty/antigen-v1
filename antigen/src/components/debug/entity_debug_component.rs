@@ -1,10 +1,16 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Debug};
 
 use crate::entity_component_system::{ComponentDebugTrait, ComponentTrait, EntityID};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct EntityDebugComponent {
     labels: HashMap<EntityID, String>,
+}
+
+impl Debug for EntityDebugComponent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EntityDebugComponent").finish()
+    }
 }
 
 impl EntityDebugComponent {
@@ -42,5 +48,9 @@ impl ComponentDebugTrait for EntityDebugComponent {
 
     fn get_description() -> String {
         "Container for entity debug data".into()
+    }
+
+    fn is_debug_exclude() -> bool {
+        true
     }
 }

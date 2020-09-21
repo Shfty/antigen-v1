@@ -7,7 +7,7 @@ use crate::{
 };
 use crate::{
     entity_component_system::{SystemError, SystemTrait},
-    primitive_types::IVector2,
+    primitive_types::Vector2I,
 };
 
 #[derive(Debug)]
@@ -33,7 +33,7 @@ where
                         .entity_has_component::<CharComponent>(entity_id)
             });
 
-        let mut positions: Vec<(IVector2, char)> = Vec::new();
+        let mut positions: Vec<(Vector2I, char)> = Vec::new();
         for entity_id in entities {
             let position = db
                 .get_entity_component::<PositionComponent>(entity_id)?
@@ -50,7 +50,7 @@ where
             for x in 0..40 {
                 if let Some((_, ascii)) = positions
                     .iter()
-                    .find(|(IVector2(pos_x, pos_y), _)| *pos_x == x && *pos_y == y)
+                    .find(|(Vector2I(pos_x, pos_y), _)| *pos_x == x && *pos_y == y)
                 {
                     print!("{}", ascii);
                 } else {

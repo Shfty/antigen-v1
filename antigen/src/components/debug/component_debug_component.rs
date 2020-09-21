@@ -1,8 +1,8 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Debug};
 
 use crate::entity_component_system::{ComponentDebugTrait, ComponentID, ComponentTrait};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ComponentDebugComponent {
     labels: HashMap<ComponentID, String>,
     descriptions: HashMap<ComponentID, String>,
@@ -32,6 +32,12 @@ impl ComponentDebugComponent {
             .get(component_id)
             .cloned()
             .unwrap_or(format!("Component {}", component_id))
+    }
+}
+
+impl Debug for ComponentDebugComponent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ComponentDebugComponent").finish()
     }
 }
 

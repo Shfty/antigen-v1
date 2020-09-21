@@ -5,18 +5,23 @@ use std::{
 };
 
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
-pub struct ComponentID(pub TypeId);
+pub struct ComponentID {
+    pub type_id: TypeId,
+    pub type_name: &'static str,
+}
 
 impl ComponentID {
     pub fn get<T: ComponentTrait + 'static>() -> Self {
-        ComponentID(TypeId::of::<T>())
+        ComponentID {
+            type_id: TypeId::of::<T>(),
+            type_name: std::any::type_name::<T>(),
+        }
     }
 }
 
 impl Display for ComponentID {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let ComponentID(component_id) = self;
-        write!(f, "{:?}", component_id)
+        write!(f, "{}", self.type_name)
     }
 }
 
@@ -25,6 +30,10 @@ pub trait ComponentTrait: AnyComponentTrait + Debug {}
 pub trait ComponentDebugTrait {
     fn get_name() -> String;
     fn get_description() -> String;
+
+    fn is_debug_exclude() -> bool {
+        false
+    }
 }
 
 pub trait AnyComponentTrait {

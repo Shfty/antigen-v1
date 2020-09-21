@@ -11,15 +11,15 @@ use antigen::{
 };
 
 #[derive(Debug)]
-pub struct PancursesInputAxisSystem;
+pub struct InputAxisSystem;
 
-impl PancursesInputAxisSystem {
+impl InputAxisSystem {
     pub fn new() -> Self {
-        PancursesInputAxisSystem
+        InputAxisSystem
     }
 }
 
-impl<CS, CD> SystemTrait<CS, CD> for PancursesInputAxisSystem
+impl<CS, CD> SystemTrait<CS, CD> for InputAxisSystem
 where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
@@ -48,11 +48,11 @@ where
                 });
 
             for entity_id in entities {
-                let pancurses_prev_next_input_component =
+                let input_axis_component =
                     db.get_entity_component::<InputAxisComponent>(entity_id)?;
                 let (prev_input, next_input) = (
-                    pancurses_prev_next_input_component.get_negative_input(),
-                    pancurses_prev_next_input_component.get_positive_input(),
+                    input_axis_component.get_negative_input(),
+                    input_axis_component.get_positive_input(),
                 );
 
                 let mut offset: i64 = 0;
@@ -81,7 +81,7 @@ where
     }
 }
 
-impl SystemDebugTrait for PancursesInputAxisSystem {
+impl SystemDebugTrait for InputAxisSystem {
     fn get_name() -> &'static str {
         "Pancurses Input Axis"
     }

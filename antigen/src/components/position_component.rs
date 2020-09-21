@@ -1,24 +1,24 @@
 use crate::{
     entity_component_system::{ComponentDebugTrait, ComponentTrait},
-    primitive_types::IVector2,
+    primitive_types::Vector2I,
 };
 use std::fmt::Debug;
 
 #[derive(Debug, Copy, Clone)]
 pub struct PositionComponent {
-    data: IVector2,
+    data: Vector2I,
 }
 
 impl PositionComponent {
-    pub fn new(data: IVector2) -> Self {
+    pub fn new(data: Vector2I) -> Self {
         PositionComponent { data }
     }
 
-    pub fn get_position(&self) -> IVector2 {
+    pub fn get_position(&self) -> Vector2I {
         self.data
     }
 
-    pub fn set_position(&mut self, data: IVector2) -> &mut Self {
+    pub fn set_position(&mut self, data: Vector2I) -> &mut Self {
         self.data = data;
         self
     }
@@ -26,7 +26,7 @@ impl PositionComponent {
 
 impl Default for PositionComponent {
     fn default() -> Self {
-        PositionComponent::new(IVector2::default())
+        PositionComponent::new(Vector2I::default())
     }
 }
 

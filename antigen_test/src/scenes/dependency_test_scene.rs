@@ -1,4 +1,5 @@
 use antigen::{
+    components::ColorComponent,
     components::{
         CharComponent, ParentEntityComponent, PositionComponent, SizeComponent, VelocityComponent,
         WindowComponent,
@@ -10,21 +11,18 @@ use antigen::{
     entity_component_system::{
         system_storage::SystemStorage, Assemblage, EntityComponentSystem, SystemRunner,
     },
-    primitive_types::IVector2,
+    primitive_types::ColorRGB,
+    primitive_types::Vector2I,
     systems::PositionIntegratorSystem,
 };
 
-use crate::pancurses_color::{PancursesColor, PancursesColorPair};
-use crate::systems::{
-    InputVelocitySystem, PancursesInputSystem, PancursesRendererSystem, PancursesWindowSystem,
-};
+use crate::systems::PancursesInputBufferSystem;
+use crate::systems::{InputVelocitySystem, PancursesRendererSystem, PancursesWindowSystem};
 use crate::{
     components::{
-        control_component::ControlComponent,
-        pancurses_color_pair_component::PancursesColorPairComponent,
-        pancurses_window_component::PancursesWindowComponent,
+        control_component::ControlComponent, pancurses_window_component::PancursesWindowComponent,
     },
-    systems::QuitSystem,
+    systems::QuitKeySystem,
 };
 
 pub struct DependencyTestScene;
@@ -54,10 +52,10 @@ impl Scene for DependencyTestScene {
 
         // pred: (WindowComponent, PancursesWindowComponent)
         // ref: PancursesWindowComponent
-        // mut: PancursesMouseComponent, EventQueueComponent<AntigenEvent>
-        ecs.push_system(PancursesInputSystem::new(1));
+        // mut: ?MouseComponent, EventQueueComponent<AntigenEvent>
+        ecs.push_system(PancursesInputBufferSystem::new(1));
 
-        ecs.push_system(QuitSystem);
+        ecs.push_system(QuitKeySystem::new(antigen::keyboard::Key::Escape));
 
         // pred: VelocityComponent
         // ref: EventQueueComponent<AntigenEvent>
@@ -88,7 +86,7 @@ impl Scene for DependencyTestScene {
         {
             db.insert_entity_component(main_window_entity, WindowComponent)?;
             db.insert_entity_component(main_window_entity, PancursesWindowComponent::default())?;
-            db.insert_entity_component(main_window_entity, SizeComponent::new(IVector2(64, 32)))?;
+            db.insert_entity_component(main_window_entity, SizeComponent::new(Vector2I(64, 32)))?;
         }
 
         // Create Player
@@ -97,13 +95,10 @@ impl Scene for DependencyTestScene {
             "Controllable ASCII character with position and velocity",
         )
         .add_component(ControlComponent)?
-        .add_component(PositionComponent::new(IVector2(1, 1)))?
-        .add_component(VelocityComponent::new(IVector2(1, 1)))?
+        .add_component(PositionComponent::new(Vector2I(1, 1)))?
+        .add_component(VelocityComponent::new(Vector2I(1, 1)))?
         .add_component(CharComponent::new('@'))?
-        .add_component(PancursesColorPairComponent::new(PancursesColorPair::new(
-            PancursesColor::new(1000, 600, 1000),
-            PancursesColor::new(1000, 1000, 1000),
-        )))?
+        .add_component(ColorComponent::new(ColorRGB(1.0, 0.6, 1.0)))?
         .finish();
 
         let test_player_entity =

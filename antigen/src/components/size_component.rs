@@ -1,23 +1,23 @@
 use crate::{
     entity_component_system::{ComponentDebugTrait, ComponentTrait},
-    primitive_types::IVector2,
+    primitive_types::Vector2I,
 };
 
 #[derive(Debug, Copy, Clone)]
 pub struct SizeComponent {
-    data: IVector2,
+    data: Vector2I,
 }
 
 impl SizeComponent {
-    pub fn new(data: IVector2) -> Self {
+    pub fn new(data: Vector2I) -> Self {
         SizeComponent { data }
     }
 
-    pub fn get_size(&self) -> IVector2 {
+    pub fn get_size(&self) -> Vector2I {
         self.data
     }
 
-    pub fn set_size(&mut self, size: IVector2) -> &mut Self {
+    pub fn set_size(&mut self, size: Vector2I) -> &mut Self {
         self.data = size;
         self
     }
@@ -25,7 +25,7 @@ impl SizeComponent {
 
 impl Default for SizeComponent {
     fn default() -> Self {
-        SizeComponent::new(IVector2::default())
+        SizeComponent::new(Vector2I::default())
     }
 }
 

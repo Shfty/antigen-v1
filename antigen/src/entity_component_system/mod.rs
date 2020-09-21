@@ -21,8 +21,10 @@ pub use traits::{
 };
 
 use crate::{
-    components::ComponentDebugComponent, components::DebugExcludeComponent,
-    components::EntityDebugComponent, components::SystemDebugComponent, systems::ECSDebugSystem,
+    components::ComponentDebugComponent, components::EntityDebugComponent,
+    components::SystemDebugComponent, systems::ComponentDataDebugSystem,
+    systems::ComponentDebugSystem, systems::EntityDebugSystem, systems::SceneTreeDebugSystem,
+    systems::SystemDebugSystem,
 };
 
 pub struct EntityComponentSystem<CS, CD, SS, SR>
@@ -61,30 +63,34 @@ where
             system_runner,
         };
 
-        let ecs_debug_system = ECSDebugSystem;
-        ecs.system_storage.insert_system(ecs_debug_system);
-
-        let mut db = ecs.get_system_interface();
-
-        let entity_debug_entity = db.create_entity(None)?;
         {
-            db.insert_entity_component(entity_debug_entity, EntityDebugComponent::default())?
-                .register_entity(entity_debug_entity, "Entity Debug".into());
+            let mut db = ecs.get_system_interface();
 
-            db.insert_entity_component(entity_debug_entity, DebugExcludeComponent)?;
+            let entity_debug_entity = db.create_entity(None)?;
+            {
+                db.insert_entity_component(entity_debug_entity, EntityDebugComponent::default())?
+                    .register_entity(entity_debug_entity, "Entity Debug".into());
+            }
+
+            let component_debug_entity = db.create_entity("Component Debug".into())?;
+            {
+                db.insert_entity_component(
+                    component_debug_entity,
+                    ComponentDebugComponent::default(),
+                )?;
+            }
+
+            let system_debug_entity = db.create_entity("System Debug".into())?;
+            {
+                db.insert_entity_component(system_debug_entity, SystemDebugComponent::default())?;
+            }
         }
 
-        let component_debug_entity = db.create_entity("Component Debug".into())?;
-        {
-            db.insert_entity_component(component_debug_entity, ComponentDebugComponent::default())?;
-            db.insert_entity_component(component_debug_entity, DebugExcludeComponent)?;
-        }
-
-        let component_debug_entity = db.create_entity("System Debug".into())?;
-        {
-            db.insert_entity_component(component_debug_entity, SystemDebugComponent::default())?;
-            db.insert_entity_component(component_debug_entity, DebugExcludeComponent)?;
-        }
+        ecs.push_system(EntityDebugSystem);
+        ecs.push_system(SceneTreeDebugSystem);
+        ecs.push_system(ComponentDebugSystem);
+        ecs.push_system(SystemDebugSystem);
+        ecs.push_system(ComponentDataDebugSystem);
 
         Ok(ecs)
     }

@@ -1,6 +1,3 @@
-TODO: Re-add list item assemblage support to allow for debug excluding items, but not their parent lists
-
-
 TODO: Refactor pancurses renderer to use a framebuffer-like approach
       Use a Vector2I > (Option<Background Color>, Option<Foreground Color>, Option<Char>) map to store only cells that are populated
       For a given Z layer, draw rects first, then strings
@@ -11,6 +8,8 @@ TODO: Refactor pancurses renderer to use a framebuffer-like approach
 TODO: Refactor pancurses renderer such that color / color pair registration is internal
       Map RGB colors to the pre-registered color set using PancursesPalette
       Make use of dithered ASCII characters to emulate unregistered colors
+
+TODO: Re-add list item assemblage support to allow for debug excluding items, but not their parent lists
 
 TODO: Component data inspector
 

@@ -73,20 +73,20 @@ impl PancursesWindowSystem {
         };
 
         let window = pancurses::initscr();
-        window.keypad(true);
-        window.nodelay(true);
-        window.timeout(0);
 
+        pancurses::resize_term(height as i32, width as i32);
+        pancurses::set_title(&title);
         pancurses::mousemask(
             pancurses::ALL_MOUSE_EVENTS | pancurses::REPORT_MOUSE_POSITION,
             std::ptr::null_mut(),
         );
         pancurses::mouseinterval(0);
-        pancurses::resize_term(height as i32, width as i32);
-        pancurses::set_title(&title);
         pancurses::curs_set(0);
         pancurses::noecho();
         pancurses::start_color();
+
+        window.keypad(true);
+        window.timeout(0);
 
         let iter = 0..8;
         let colors: HashMap<PancursesColor, i16> = iter

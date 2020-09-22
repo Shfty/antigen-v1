@@ -50,6 +50,7 @@ where
                     });
 
             // If the window is valid, fetch inputs until we run out or reach the buffer's capacity
+            // Further inputs will be deferred until the next frame
             let mut inputs: Vec<pancurses::Input> = Vec::new();
             if let Some(entity_id) = window_entity {
                 if let Some(window) = db
@@ -64,8 +65,6 @@ where
                         }
                     }
                 }
-
-                pancurses::flushinp();
             }
 
             // Fetch the entity queue component and push inputs into it

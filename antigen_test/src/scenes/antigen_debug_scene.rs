@@ -29,20 +29,23 @@ use antigen::{
     },
 };
 
-use crate::systems::{
-    DestructionTestInputSystem, InputAxisSystem, InputVelocitySystem, ListSystem,
-    LocalMousePositionSystem, PancursesInputBufferSystem, PancursesKeyboardSystem,
-    PancursesMouseSystem, PancursesRendererSystem, PancursesWindowSystem,
-};
 use crate::{
     components::{
         control_component::ControlComponent,
         destruction_test_input_component::DestructionTestInputComponent,
-        fill_component::FillComponent, list_component::ListComponent,
-        local_mouse_position_component::LocalMousePositionComponent,
+        list_component::ListComponent, local_mouse_position_component::LocalMousePositionComponent,
         pancurses_window_component::PancursesWindowComponent,
     },
     systems::QuitKeySystem,
+};
+use crate::{
+    cpu_shader::CPUShader,
+    cpu_shader::CPUShaderComponent,
+    systems::{
+        DestructionTestInputSystem, InputAxisSystem, InputVelocitySystem, ListSystem,
+        LocalMousePositionSystem, PancursesInputBufferSystem, PancursesKeyboardSystem,
+        PancursesMouseSystem, PancursesRendererSystem, PancursesWindowSystem,
+    },
 };
 
 #[derive(Eq, PartialEq, Hash)]
@@ -249,7 +252,6 @@ where
             .add_component(PositionComponent::default())?
             .add_component(SizeComponent::default())?
             .add_component(CharComponent::default())?
-            .add_component(FillComponent)?
             .add_component(ColorComponent::new(ColorRGB(0.753, 0.753, 0.753)))?
             .finish(),
     );
@@ -261,6 +263,7 @@ where
             .add_component(PositionComponent::default())?
             .add_component(SizeComponent::default())?
             .add_component(CharComponent::default())?
+            .add_component(CPUShaderComponent::new(CPUShader(CPUShader::rect)))?
             .add_component(ColorComponent::new(ColorRGB(0.753, 0.753, 0.753)))?
             .finish(),
     );
@@ -313,12 +316,16 @@ where
             .set_position(Vector2I(1, 5));
 
         db.get_entity_component_mut::<SizeComponent>(test_rect_entity)?
-            .set_size(Vector2I(20, 5));
+            .set_size(Vector2I(24, 12));
         db.insert_entity_component(
             test_rect_entity,
             ParentEntityComponent::new(game_window_entity),
         )?;
         db.insert_entity_component(test_rect_entity, GlobalPositionComponent::default())?;
+        db.insert_entity_component(
+            test_rect_entity,
+            CPUShaderComponent::new(CPUShader(CPUShader::uv)),
+        )?;
     }
 
     // Create Test Player

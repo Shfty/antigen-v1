@@ -119,6 +119,8 @@ impl PancursesWindowSystem {
             return Err("No pancurses color set entity".into());
         };
 
+        println!("Pancurses color count: {}, color pair count: {}", pancurses::COLORS(), pancurses::COLOR_PAIRS());
+
         window.bkgdset(
             background_char.to_chtype() | pancurses::COLOR_PAIR(background_color_pair as u64),
         );

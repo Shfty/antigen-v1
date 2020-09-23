@@ -327,8 +327,6 @@ where
                 // Iterate over the lists of strings and update their position, text and color
                 let mut y = 0i64;
                 for (string_index, strings) in string_list.iter().enumerate() {
-                    let string_index = string_index as i64;
-
                     let mut done = false;
                     for string in strings {
                         let string_entity = string_entities[y as usize];
@@ -342,14 +340,11 @@ where
                             .set_data(string.clone());
 
                         // Update color pair based on focused item
-                        /*
-                        let data = if Some(string_index) == focused_item {
+                        let data = if Some(string_index as i64) == focused_item {
                             ColorRGB(0.0, 0.0, 0.0)
                         } else {
                             ColorRGB(1.0, 1.0, 1.0)
                         };
-                        */
-                        let data = ColorRGB(1.0, 1.0, 1.0);
 
                         db.get_entity_component_mut::<ColorComponent>(string_entity)?
                             .set_data(data);

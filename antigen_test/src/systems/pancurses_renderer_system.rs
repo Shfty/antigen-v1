@@ -1,19 +1,17 @@
-use std::collections::HashMap;
-
 use crate::{
-    components::fill_component::FillComponent,
     components::pancurses_color_set_component::PancursesColorSetComponent,
     components::{
         control_component::ControlComponent, pancurses_window_component::PancursesWindowComponent,
     },
-    pancurses_color::PancursesColor,
-    pancurses_color::PancursesColorPair,
+    cpu_shader::CPUShader,
+    cpu_shader::CPUShaderComponent,
+    cpu_shader::CPUShaderInput,
 };
 use antigen::{
     components::ColorComponent,
     components::{
-        CharComponent, ChildEntitiesComponent, GlobalPositionComponent, ParentEntityComponent,
-        PositionComponent, SizeComponent, StringComponent, WindowComponent, ZIndexComponent,
+        CharComponent, ChildEntitiesComponent, GlobalPositionComponent, PositionComponent,
+        SizeComponent, StringComponent, WindowComponent, ZIndexComponent,
     },
     entity_component_system::SystemDebugTrait,
     entity_component_system::{
@@ -29,32 +27,68 @@ const TAB_WIDTH: i32 = 4;
 
 #[derive(Debug)]
 pub struct PancursesRendererSystem {
-    framebuffer: HashMap<Vector2I, u64>,
-    z_buffer: HashMap<Vector2I, i64>,
+    color_buffer: Vec<(ColorRGB, Option<i64>)>,
+    char_buffer: Vec<(char, ColorRGB, Option<i64>)>,
 }
 
 impl PancursesRendererSystem {
     pub fn new() -> PancursesRendererSystem {
         PancursesRendererSystem {
-            framebuffer: HashMap::new(),
-            z_buffer: HashMap::new(),
+            color_buffer: Vec::new(),
+            char_buffer: Vec::new(),
         }
     }
 
     pub fn clear(&mut self) {
-        self.framebuffer.clear();
-        self.z_buffer.clear();
+        self.color_buffer
+            .iter_mut()
+            .for_each(|color| *color = (ColorRGB(0.0, 0.0, 0.0), None));
+
+        self.char_buffer
+            .iter_mut()
+            .for_each(|char| *char = (' ', ColorRGB(1.0, 1.0, 1.0), None));
     }
 
-    pub fn draw_cell(&mut self, x: i64, y: i64, char: u64, z: i64) {
-        if let Some(existing_z) = self.z_buffer.get(&Vector2I(x, y)) {
-            if *existing_z > z {
+    pub fn draw_color(&mut self, x: i64, y: i64, window_width: i64, color: ColorRGB, z: i64) {
+        let idx = y * window_width + x;
+        let (existing_color, existing_z) = self.color_buffer[idx as usize];
+
+        if let Some(existing_z) = existing_z {
+            if existing_z > z {
                 return;
             }
         }
 
-        self.framebuffer.insert(Vector2I(x, y), char);
-        self.z_buffer.insert(Vector2I(x, y), z);
+        if color == existing_color {
+            return;
+        }
+
+        self.color_buffer[idx as usize] = (color, Some(z));
+    }
+
+    pub fn draw_char(
+        &mut self,
+        x: i64,
+        y: i64,
+        window_width: i64,
+        char: char,
+        color: ColorRGB,
+        z: i64,
+    ) {
+        let idx = y * window_width + x;
+        let (existing_char, existing_color, existing_z) = self.char_buffer[idx as usize];
+
+        if let Some(existing_z) = existing_z {
+            if existing_z > z {
+                return;
+            }
+        }
+
+        if char == existing_char && color == existing_color {
+            return;
+        }
+
+        self.char_buffer[idx as usize] = (char, color, Some(z));
     }
 
     fn render_string(
@@ -62,7 +96,7 @@ impl PancursesRendererSystem {
         window_size: Vector2I,
         position: Vector2I,
         string: &str,
-        color_pair: i16,
+        color: ColorRGB,
         z: i64,
     ) {
         let Vector2I(window_width, window_height) = window_size;
@@ -102,51 +136,9 @@ impl PancursesRendererSystem {
                     x += TAB_WIDTH - (x % TAB_WIDTH);
                 }
                 _ => {
-                    let char = char.to_chtype() | pancurses::COLOR_PAIR(color_pair as u64);
-                    self.draw_cell(new_x + x as i64, y, char, z);
+                    self.draw_char(new_x + x as i64, y, window_width, char, color, z);
                     x += 1;
                 }
-            }
-        }
-    }
-
-    fn render_rect_filled(
-        &mut self,
-        window_size: Vector2I,
-        position: Vector2I,
-        size: Vector2I,
-        char: char,
-        color_pair: i16,
-        z: i64,
-    ) {
-        let Vector2I(width, height) = size;
-        if width == 0 || height == 0 {
-            return;
-        }
-
-        let Vector2I(window_width, window_height) = window_size;
-        let Vector2I(pos_x, pos_y) = position;
-
-        let char = match char {
-            '\0' => ' ',
-            '\n' => ' ',
-            '\t' => ' ',
-            _ => char,
-        };
-
-        let pancurses_char = char.to_chtype() | pancurses::COLOR_PAIR(color_pair as u64);
-
-        for ry in pos_y..pos_y + height {
-            for rx in pos_x..pos_x + width {
-                if rx < 0 || ry < 0 {
-                    continue;
-                }
-
-                if rx >= window_width || ry >= window_height {
-                    continue;
-                }
-
-                self.draw_cell(rx, ry, pancurses_char, z);
             }
         }
     }
@@ -156,8 +148,9 @@ impl PancursesRendererSystem {
         window_size: Vector2I,
         position: Vector2I,
         size: Vector2I,
+        color: ColorRGB,
         char: char,
-        color_pair: i16,
+        color_shader: CPUShader,
         z: i64,
     ) {
         let Vector2I(width, height) = size;
@@ -175,24 +168,26 @@ impl PancursesRendererSystem {
             _ => char,
         };
 
-        let pancurses_char = char.to_chtype() | pancurses::COLOR_PAIR(color_pair as u64);
+        let min_x = std::cmp::max(pos_x, 0);
+        let max_x = std::cmp::min(pos_x + width, window_width);
 
-        for rx in pos_x..pos_x + width {
-            if rx < 0 || rx >= window_width {
-                continue;
+        let min_y = std::cmp::max(pos_y, 0);
+        let max_y = std::cmp::min(pos_y + height, window_height);
+
+        let x_range = min_x..max_x;
+        let y_range = min_y..max_y;
+        for ry in y_range {
+            for rx in x_range.clone() {
+                let local_pos = Vector2I(rx - pos_x, ry - pos_y);
+                let CPUShader(color_shader) = color_shader;
+                if let Some(color) = color_shader(CPUShaderInput::new(local_pos, size, color)) {
+                    self.draw_color(rx, ry, window_width, color, z);
+                }
+
+                if char != ' ' {
+                    self.draw_char(rx, ry, window_width, char, ColorRGB(1.0, 1.0, 1.0), z);
+                }
             }
-
-            self.draw_cell(rx, pos_y, pancurses_char, z);
-            self.draw_cell(rx, pos_y + height - 1, pancurses_char, z);
-        }
-
-        for ry in pos_y..pos_y + height {
-            if ry < 0 || ry >= window_height {
-                continue;
-            }
-
-            self.draw_cell(pos_x, ry, pancurses_char, z);
-            self.draw_cell(pos_x + width - 1, ry, pancurses_char, z);
         }
     }
 }
@@ -247,6 +242,16 @@ where
             window_height = height as i64;
         }
 
+        let cell_count = (window_width * window_height) as usize;
+        if self.color_buffer.len() != cell_count {
+            self.color_buffer
+                .resize(cell_count, (ColorRGB(0.0, 0.0, 0.0), None));
+        }
+        if self.char_buffer.len() != cell_count {
+            self.char_buffer
+                .resize(cell_count, (' ', ColorRGB(1.0, 1.0, 1.0), None));
+        }
+
         // Recursively traverse parent-child tree and populate Z-ordered list of controls
         let mut control_entities: Vec<(EntityID, i64)> = Vec::new();
 
@@ -276,7 +281,7 @@ where
                 db.get_entity_component::<ChildEntitiesComponent>(entity_id)
             {
                 for child_id in child_entities_component.get_child_ids() {
-                    populate_control_entities(db, *child_id, z_layers, z_index + 1)?;
+                    populate_control_entities(db, *child_id, z_layers, z_index)?;
                 }
             }
 
@@ -314,44 +319,30 @@ where
                 Err(_) => ' ',
             };
 
+            // Get shader
+            let shader = match db.get_entity_component::<CPUShaderComponent>(entity_id) {
+                Ok(cpu_shader_component) => *cpu_shader_component.get_data(),
+                Err(_) => CPUShader(CPUShader::color_passthrough),
+            };
+
             if db
                 .entity_component_directory
                 .entity_has_component::<SizeComponent>(&entity_id)
             {
-                // Get color pair index
-                let rect_color_pair_idx = db
-                    .get_entity_component_mut::<PancursesColorSetComponent>(color_set_entity)?
-                    .get_color_pair_idx(ColorRGB(0.0, 0.0, 0.0), color);
-
                 // Get size
                 let Vector2I(width, height) = db
                     .get_entity_component::<SizeComponent>(entity_id)?
                     .get_size();
 
-                // Get filled
-                let filled = db
-                    .entity_component_directory
-                    .entity_has_component::<FillComponent>(&entity_id);
-
-                if filled {
-                    self.render_rect_filled(
-                        Vector2I(window_width, window_height),
-                        Vector2I(x, y),
-                        Vector2I(width, height),
-                        char,
-                        rect_color_pair_idx,
-                        z,
-                    );
-                } else {
-                    self.render_rect(
-                        Vector2I(window_width, window_height),
-                        Vector2I(x, y),
-                        Vector2I(width, height),
-                        char,
-                        rect_color_pair_idx,
-                        z,
-                    );
-                }
+                self.render_rect(
+                    Vector2I(window_width, window_height),
+                    Vector2I(x, y),
+                    Vector2I(width, height),
+                    color,
+                    char,
+                    shader,
+                    z,
+                );
             } else if db
                 .entity_component_directory
                 .entity_has_component::<StringComponent>(&entity_id)
@@ -359,11 +350,6 @@ where
                     .entity_component_directory
                     .entity_has_component::<CharComponent>(&entity_id)
             {
-                // Get color pair index
-                let string_color_pair_idx = db
-                    .get_entity_component_mut::<PancursesColorSetComponent>(color_set_entity)?
-                    .get_color_pair_idx(color.into(), ColorRGB(0.0, 0.0, 0.0));
-
                 // Get string
                 let string = if let Ok(string_component) =
                     db.get_entity_component::<StringComponent>(entity_id)
@@ -382,10 +368,49 @@ where
                         Vector2I(window_width, window_height),
                         Vector2I(x, y + i as i64),
                         string,
-                        string_color_pair_idx,
+                        color,
                         z,
                     )
                 }
+            }
+        }
+
+        let color_set_component = db
+            .get_entity_component_mut::<PancursesColorSetComponent>(color_set_entity)
+            .unwrap();
+
+        let mut cells: Vec<(i32, i32, char, i16)> = Vec::new();
+        let window_width = window_width as i32;
+        let window_height = window_height as i32;
+        for y in 0..window_height as i32 {
+            for x in 0..window_width as i32 {
+                let idx = (y * window_width + x) as usize;
+                let (color, color_z) = self.color_buffer[idx];
+                let (char, char_color, char_z) = self.char_buffer[idx];
+
+                if color_z.is_none() && char_z.is_none() {
+                    continue;
+                }
+
+                let (char, color_pair) = match char_z.cmp(&color_z) {
+                    std::cmp::Ordering::Less => {
+                        let color_pair_idx =
+                            color_set_component.get_color_pair_idx(ColorRGB(1.0, 1.0, 1.0), color);
+                        (' ', color_pair_idx)
+                    }
+                    std::cmp::Ordering::Equal => {
+                        let color_pair_idx =
+                            color_set_component.get_color_pair_idx(char_color, color);
+                        (char, color_pair_idx)
+                    }
+                    std::cmp::Ordering::Greater => {
+                        let color_pair_idx = color_set_component
+                            .get_color_pair_idx(char_color, ColorRGB(0.0, 0.0, 0.0));
+                        (char, color_pair_idx)
+                    }
+                };
+
+                cells.push((x, y, char, color_pair));
             }
         }
 
@@ -396,8 +421,12 @@ where
             .ok_or("Error fetching window handle")?;
 
         window.erase();
-        for (Vector2I(x, y), char) in &self.framebuffer {
-            window.mvaddch(*y as i32, *x as i32, *char);
+        for (x, y, char, color_pair) in cells {
+            window.mvaddch(
+                y as i32,
+                x as i32,
+                char.to_chtype() | pancurses::COLOR_PAIR(color_pair as u64),
+            );
         }
 
         Ok(())

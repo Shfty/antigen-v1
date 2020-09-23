@@ -1,15 +1,22 @@
-TODO: Refactor pancurses renderer such that color / color pair registration is internal
-      Map RGB colors to the pre-registered color set using PancursesPalette
-      Make use of dithered ASCII characters to emulate unregistered colors
+TODO: Fix black color cells being skipped (need to make sure text cells w/black background are overwritten - use Z buffer)
 
-TODO: CPU shaders
-      Should replace rect as the raw shape primitive
-      Stencil shader to control subset of domain that gets rendered (overcomplicated? could use RGBA in fragment shader instead, or just say that shaders do manual blending)
-      Fragment shader to control color output
-      Inputs: Position, Size, Local Position / UV (different kinds of CPU shader?), Framebuffer
-      Outputs: ColorRGB (singular, or a hashmap like the framebuffer?)
+TODO: Refactor software framebuffer rendering out of PancursesRenderSystem and into a SoftwareRendererSystem w/ SoftwareFramebufferComponent storage
+      Can text framebuffer + rendering be factored out into a generic system? Or should they still live inside PancursesRendererSystem?
 
-TODO: Re-add list item assemblage support to allow for debug excluding items, but not their parent lists
+TODO: Use palette-based color lookup to prevent curses color overflow
+      Probably best to approach as fixed palette / dynamic pairs to start off (prevents breaking text rendering)
+      Register all ~256 colors on first frame
+            Need to account for greys - true black/white are default, pack intermediaries into remaining color indices
+      Batch up color pairs during color/character combination, merge similar-enough pairs until list size is within limit
+      Register pairs with pancurses
+      Render scene
+
+TODO: Dynamic palette that reallocates its color coverage based on the total amount of R/G/B in the framebuffer
+      Need to respect the 256 color / 256 color pair limit
+            Color pairs are a tricky limitation, and pancurses-specific - preferable to make this general
+
+TODO: Fix highlight rects being 1px high for lists containing newline characters
+TODO: Re-add list item assemblage support to allow for debug excluding list items, but not their parent lists
 
 TODO: Component data inspector
 
@@ -37,16 +44,18 @@ TODO: Event synthesis for list hover / click
       Each list should be able to push multiple events in response to hover / click
 
 TODO: Profiler window
-      Will need a way to represent a line graph in pancurses
-      Setup bitmap / shader abstractions for rendering RGB cells based on a buffer or closure
+      Will need a custom shader input struct to draw graphs
+            Can this be done via generics?
+            Or is it better to use generic ShaderInputComponent<T> storage looked up by the shader?
+                  Wouldn't work directly for GPU, but could be wrapped by the appropriate renderer
+            Could setup shader-specific systems and dataflow for more complex functionality
+                  Easy to keep general, can define your own pipeline
 
 TODO: Clipping rects for UI controls
 TODO: Refactor list system to only update when hover, selection, list item count or contents have changed
 
-TODO: Respect global position for string control clipping (a.k.a. fix the debug scene test string when the player moves offscreen to the left)
-
 TODO: Register entity fetches and associated logic at System registration time to allow for runtime lookup optimization
-    Ex:
+    Possible API:
         db
         .entity_query()
         .component::<PositionComponent>()

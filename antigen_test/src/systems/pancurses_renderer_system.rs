@@ -30,13 +30,31 @@ const TAB_WIDTH: i32 = 4;
 #[derive(Debug)]
 pub struct PancursesRendererSystem {
     framebuffer: HashMap<Vector2I, u64>,
+    z_buffer: HashMap<Vector2I, i64>,
 }
 
 impl PancursesRendererSystem {
     pub fn new() -> PancursesRendererSystem {
         PancursesRendererSystem {
             framebuffer: HashMap::new(),
+            z_buffer: HashMap::new(),
         }
+    }
+
+    pub fn clear(&mut self) {
+        self.framebuffer.clear();
+        self.z_buffer.clear();
+    }
+
+    pub fn draw_cell(&mut self, x: i64, y: i64, char: u64, z: i64) {
+        if let Some(existing_z) = self.z_buffer.get(&Vector2I(x, y)) {
+            if *existing_z > z {
+                return;
+            }
+        }
+
+        self.framebuffer.insert(Vector2I(x, y), char);
+        self.z_buffer.insert(Vector2I(x, y), z);
     }
 
     fn render_string(
@@ -45,6 +63,7 @@ impl PancursesRendererSystem {
         position: Vector2I,
         string: &str,
         color_pair: i16,
+        z: i64,
     ) {
         let Vector2I(window_width, window_height) = window_size;
         let Vector2I(x, mut y) = position;
@@ -84,7 +103,7 @@ impl PancursesRendererSystem {
                 }
                 _ => {
                     let char = char.to_chtype() | pancurses::COLOR_PAIR(color_pair as u64);
-                    self.framebuffer.insert(Vector2I(new_x + x as i64, y), char);
+                    self.draw_cell(new_x + x as i64, y, char, z);
                     x += 1;
                 }
             }
@@ -98,6 +117,7 @@ impl PancursesRendererSystem {
         size: Vector2I,
         char: char,
         color_pair: i16,
+        z: i64,
     ) {
         let Vector2I(width, height) = size;
         if width == 0 || height == 0 {
@@ -126,7 +146,7 @@ impl PancursesRendererSystem {
                     continue;
                 }
 
-                self.framebuffer.insert(Vector2I(rx, ry), pancurses_char);
+                self.draw_cell(rx, ry, pancurses_char, z);
             }
         }
     }
@@ -138,6 +158,7 @@ impl PancursesRendererSystem {
         size: Vector2I,
         char: char,
         color_pair: i16,
+        z: i64,
     ) {
         let Vector2I(width, height) = size;
         if width == 0 || height == 0 {
@@ -161,9 +182,8 @@ impl PancursesRendererSystem {
                 continue;
             }
 
-            self.framebuffer.insert(Vector2I(rx, pos_y), pancurses_char);
-            self.framebuffer
-                .insert(Vector2I(rx, pos_y + height - 1), pancurses_char);
+            self.draw_cell(rx, pos_y, pancurses_char, z);
+            self.draw_cell(rx, pos_y + height - 1, pancurses_char, z);
         }
 
         for ry in pos_y..pos_y + height {
@@ -171,9 +191,8 @@ impl PancursesRendererSystem {
                 continue;
             }
 
-            self.framebuffer.insert(Vector2I(pos_x, ry), pancurses_char);
-            self.framebuffer
-                .insert(Vector2I(pos_x + width - 1, ry), pancurses_char);
+            self.draw_cell(pos_x, ry, pancurses_char, z);
+            self.draw_cell(pos_x + width - 1, ry, pancurses_char, z);
         }
     }
 }
@@ -229,29 +248,18 @@ where
         }
 
         // Recursively traverse parent-child tree and populate Z-ordered list of controls
-        let mut z_layers: HashMap<i64, Vec<EntityID>> = HashMap::new();
+        let mut control_entities: Vec<(EntityID, i64)> = Vec::new();
 
-        fn populate_z_layers<CS, CD>(
+        fn populate_control_entities<CS, CD>(
             db: &SystemInterface<CS, CD>,
             entity_id: EntityID,
-            z_layers: &mut HashMap<i64, Vec<EntityID>>,
+            z_layers: &mut Vec<(EntityID, i64)>,
             mut z_index: i64,
         ) -> Result<(), String>
         where
             CS: ComponentStorage,
             CD: EntityComponentDirectory,
         {
-            let z_layer = match z_layers.get_mut(&z_index) {
-                Some(z_layer) => z_layer,
-                None => {
-                    z_layers.insert(z_index, Vec::new());
-                    match z_layers.get_mut(&z_index) {
-                        Some(z_layer) => z_layer,
-                        None => return Err(format!("Failed to get Z layer {}", z_index)),
-                    }
-                }
-            };
-
             if db
                 .get_entity_component::<ControlComponent>(entity_id)
                 .is_ok()
@@ -261,37 +269,27 @@ where
                     Err(_) => z_index,
                 };
 
-                z_layer.push(entity_id);
+                z_layers.push((entity_id, z_index));
             }
 
             if let Ok(child_entities_component) =
                 db.get_entity_component::<ChildEntitiesComponent>(entity_id)
             {
                 for child_id in child_entities_component.get_child_ids() {
-                    populate_z_layers(db, *child_id, z_layers, z_index)?;
+                    populate_control_entities(db, *child_id, z_layers, z_index + 1)?;
                 }
             }
 
             Ok(())
         };
 
-        populate_z_layers(db, window_entity, &mut z_layers, 0)?;
-
-        let mut control_entities: Vec<EntityID> = Vec::new();
-        let mut layer_keys: Vec<i64> = z_layers.keys().copied().collect();
-        layer_keys.sort();
-        for i in layer_keys {
-            let z_layer = match z_layers.get_mut(&i) {
-                Some(z_layer) => z_layer,
-                None => return Err(format!("Failed to get Z layer {}", i).into()),
-            };
-            control_entities.append(z_layer);
-        }
+        populate_control_entities(db, window_entity, &mut control_entities, 0)?;
+        control_entities.sort();
 
         // Render Entities
-        self.framebuffer.clear();
+        self.clear();
 
-        for entity_id in control_entities {
+        for (entity_id, z) in control_entities {
             // Get Position
             let Vector2I(x, y) = if let Ok(global_position_component) =
                 db.get_entity_component::<GlobalPositionComponent>(entity_id)
@@ -323,10 +321,7 @@ where
                 // Get color pair index
                 let rect_color_pair_idx = db
                     .get_entity_component_mut::<PancursesColorSetComponent>(color_set_entity)?
-                    .get_color_pair_idx(&PancursesColorPair::new(
-                        PancursesColor::new(0, 0, 0),
-                        color.into(),
-                    ));
+                    .get_color_pair_idx(ColorRGB(0.0, 0.0, 0.0), color);
 
                 // Get size
                 let Vector2I(width, height) = db
@@ -345,6 +340,7 @@ where
                         Vector2I(width, height),
                         char,
                         rect_color_pair_idx,
+                        z,
                     );
                 } else {
                     self.render_rect(
@@ -353,6 +349,7 @@ where
                         Vector2I(width, height),
                         char,
                         rect_color_pair_idx,
+                        z,
                     );
                 }
             } else if db
@@ -365,10 +362,7 @@ where
                 // Get color pair index
                 let string_color_pair_idx = db
                     .get_entity_component_mut::<PancursesColorSetComponent>(color_set_entity)?
-                    .get_color_pair_idx(&PancursesColorPair::new(
-                        color.into(),
-                        PancursesColor::new(0, 0, 0),
-                    ));
+                    .get_color_pair_idx(color.into(), ColorRGB(0.0, 0.0, 0.0));
 
                 // Get string
                 let string = if let Ok(string_component) =
@@ -389,6 +383,7 @@ where
                         Vector2I(x, y + i as i64),
                         string,
                         string_color_pair_idx,
+                        z,
                     )
                 }
             }

@@ -1,13 +1,13 @@
-TODO: Refactor pancurses renderer to use a framebuffer-like approach
-      Use a Vector2I > (Option<Background Color>, Option<Foreground Color>, Option<Char>) map to store only cells that are populated
-      For a given Z layer, draw rects first, then strings
-      Use background color for rects, foreground color for strings
-      Overwrite background color when inserting a rect, but not when inserting a string
-      Write framebuffer directly to curses
-
 TODO: Refactor pancurses renderer such that color / color pair registration is internal
       Map RGB colors to the pre-registered color set using PancursesPalette
       Make use of dithered ASCII characters to emulate unregistered colors
+
+TODO: CPU shaders
+      Should replace rect as the raw shape primitive
+      Stencil shader to control subset of domain that gets rendered (overcomplicated? could use RGBA in fragment shader instead, or just say that shaders do manual blending)
+      Fragment shader to control color output
+      Inputs: Position, Size, Local Position / UV (different kinds of CPU shader?), Framebuffer
+      Outputs: ColorRGB (singular, or a hashmap like the framebuffer?)
 
 TODO: Re-add list item assemblage support to allow for debug excluding items, but not their parent lists
 

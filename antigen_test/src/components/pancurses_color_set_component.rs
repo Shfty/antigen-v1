@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use antigen::entity_component_system::{ComponentDebugTrait, ComponentTrait};
+use antigen::{
+    entity_component_system::{ComponentDebugTrait, ComponentTrait},
+    primitive_types::ColorRGB,
+};
 
 use crate::pancurses_color::{PancursesColor, PancursesColorPair};
 
@@ -38,8 +41,10 @@ impl PancursesColorSetComponent {
         }
     }
 
-    pub fn get_color_pair_idx(&mut self, color_pair: &PancursesColorPair) -> i16 {
-        match self.color_pairs.get(color_pair) {
+    pub fn get_color_pair_idx(&mut self, foreground: ColorRGB, background: ColorRGB) -> i16 {
+        let color_pair = PancursesColorPair::new(foreground.into(), background.into());
+
+        match self.color_pairs.get(&color_pair) {
             Some(color_pair) => *color_pair,
             None => {
                 let idx = self.color_pair_head;
@@ -48,7 +53,7 @@ impl PancursesColorSetComponent {
                     self.get_color_idx(color_pair.foreground),
                     self.get_color_idx(color_pair.background),
                 );
-                self.color_pairs.insert(*color_pair, idx);
+                self.color_pairs.insert(color_pair, idx);
                 self.color_pair_head += 1;
                 idx
             }

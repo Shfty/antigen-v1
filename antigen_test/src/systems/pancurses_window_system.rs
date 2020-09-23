@@ -114,10 +114,7 @@ impl PancursesWindowSystem {
                 });
         let background_color_pair = if let Some(entity_id) = pancurses_color_set_entity {
             db.get_entity_component_mut::<PancursesColorSetComponent>(entity_id)?
-                .get_color_pair_idx(&PancursesColorPair::new(
-                    ColorRGB(1.0, 1.0, 1.0).into(),
-                    background_color.into(),
-                ))
+                .get_color_pair_idx(ColorRGB(1.0, 1.0, 1.0), background_color)
         } else {
             return Err("No pancurses color set entity".into());
         };

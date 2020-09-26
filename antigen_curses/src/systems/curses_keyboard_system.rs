@@ -75,6 +75,6 @@ where
 
 impl SystemDebugTrait for CursesKeyboardSystem {
     fn get_name() -> &'static str {
-        "Pancurses Keyboard"
+        "Curses Keyboard"
     }
 }

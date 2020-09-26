@@ -78,7 +78,10 @@ mod tests {
         let lut = PaletteLookupTable::new(palette);
         println!(
             "LUT: {:?}",
-            lut.indices[16777015..].iter().copied().collect::<Vec<usize>>()
+            lut.indices[16777015..]
+                .iter()
+                .copied()
+                .collect::<Vec<usize>>()
         );
     }
 }

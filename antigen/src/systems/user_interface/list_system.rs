@@ -306,7 +306,7 @@ where
 
                 db.get_entity_component_mut::<SizeComponent>(*list_hover_entity)?
                     .set_size(if hovered_item.is_some() {
-                        Vector2I(width, 1)
+                        Vector2I(width, string_list[hovered_item.unwrap() as usize].len() as i64)
                     } else {
                         Vector2I(0, 0)
                     });
@@ -317,7 +317,7 @@ where
                 db.get_entity_component_mut::<SizeComponent>(*list_focus_entity)?
                     .set_size(if let Some(focused_item) = focused_item {
                         if focused_item >= 0 {
-                            Vector2I(width, 1)
+                            Vector2I(width, string_list[focused_item as usize].len() as i64)
                         } else {
                             Vector2I(0, 0)
                         }

@@ -27,7 +27,7 @@ impl ComponentTrait for InputAxisComponent {}
 
 impl ComponentDebugTrait for InputAxisComponent {
     fn get_name() -> String {
-        "Pancurses Input Axis".into()
+        "Curses Input Axis".into()
     }
 
     fn get_description() -> String {

@@ -7,11 +7,11 @@ use crate::{
         ParentEntityComponent, PositionComponent, SizeComponent, StringComponent,
         StringListComponent,
     },
+    core::events::AntigenEvent,
     entity_component_system::{
         system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory, EntityID,
         SystemDebugTrait, SystemError, SystemTrait,
     },
-    events::AntigenEvent,
     primitive_types::{Color, Vector2I},
 };
 

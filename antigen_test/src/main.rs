@@ -5,6 +5,7 @@ mod systems;
 use std::time::Duration;
 
 use antigen::{
+    core::profiler::Profiler,
     entity_component_system::HeapComponentStorage,
     entity_component_system::Scene,
     entity_component_system::SingleThreadedDirectory,
@@ -12,7 +13,6 @@ use antigen::{
         system_runner::SingleThreadedSystemRunner, system_storage::HeapSystemStorage,
         EntityComponentSystem, SystemError,
     },
-    profiler::Profiler,
 };
 
 fn main() {

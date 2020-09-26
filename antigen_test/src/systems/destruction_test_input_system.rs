@@ -1,11 +1,11 @@
 use antigen::{
     components::EventQueueComponent,
+    core::events::AntigenEvent,
     entity_component_system::ComponentStorage,
     entity_component_system::EntityComponentDirectory,
     entity_component_system::SystemDebugTrait,
     entity_component_system::SystemError,
     entity_component_system::{system_interface::SystemInterface, SystemTrait},
-    events::AntigenEvent,
 };
 
 use crate::components::DestructionTestInputComponent;

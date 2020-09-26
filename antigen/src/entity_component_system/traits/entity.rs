@@ -1,4 +1,4 @@
-use crate::uid::UID;
+use crate::core::uid::UID;
 use std::{fmt::Display, sync::atomic::AtomicUsize, sync::atomic::Ordering};
 
 #[derive(Debug, Copy, Clone, Hash, Ord, PartialOrd, Eq, PartialEq)]

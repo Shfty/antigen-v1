@@ -2,12 +2,12 @@ use crate::components::InputAxisComponent;
 use antigen::{
     components::EventQueueComponent,
     components::IntRangeComponent,
+    core::events::AntigenEvent,
     entity_component_system::system_interface::SystemInterface,
     entity_component_system::ComponentStorage,
     entity_component_system::EntityComponentDirectory,
     entity_component_system::SystemDebugTrait,
     entity_component_system::{SystemError, SystemTrait},
-    events::AntigenEvent,
 };
 
 #[derive(Debug)]

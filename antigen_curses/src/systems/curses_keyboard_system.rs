@@ -1,12 +1,7 @@
-use antigen::{
-    components::EventQueueComponent,
-    entity_component_system::{
+use antigen::{components::EventQueueComponent, core::events::AntigenEvent, core::keyboard::IntoKey, entity_component_system::{
         system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory,
         SystemDebugTrait, SystemError, SystemTrait,
-    },
-    events::AntigenEvent,
-    keyboard::IntoKey,
-};
+    }};
 
 use crate::{CursesEventQueueComponent, CursesInput};
 
@@ -32,11 +27,9 @@ where
                 });
 
         if let Some(pancurses_event_queue_entity) = pancurses_event_queue_entity {
-            let mut antigen_keys: Vec<antigen::keyboard::Key> = Vec::new();
+            let mut antigen_keys: Vec<antigen::core::keyboard::Key> = Vec::new();
             for event in db
-                .get_entity_component::<CursesEventQueueComponent>(
-                    pancurses_event_queue_entity,
-                )?
+                .get_entity_component::<CursesEventQueueComponent>(pancurses_event_queue_entity)?
                 .get_events()
             {
                 let event = *event;
@@ -46,7 +39,7 @@ where
                 } else {
                     let pancurses_input: CursesInput = event.into();
                     let antigen_key = pancurses_input.into_key();
-                    if antigen_key != antigen::keyboard::Key::Unknown {
+                    if antigen_key != antigen::core::keyboard::Key::Unknown {
                         antigen_keys.push(antigen_key);
                     }
                 }

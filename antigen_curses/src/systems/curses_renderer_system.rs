@@ -1,12 +1,12 @@
 use crate::CursesWindowComponent;
 use antigen::{
     components::{SizeComponent, SoftwareFramebufferComponent, WindowComponent},
+    core::palette::Palette,
     entity_component_system::SystemDebugTrait,
     entity_component_system::{
         system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory, SystemError,
         SystemTrait,
     },
-    palette::Palette,
     primitive_types::Color,
     primitive_types::ColorRGBF,
 };

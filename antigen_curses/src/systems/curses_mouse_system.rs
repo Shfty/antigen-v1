@@ -1,10 +1,10 @@
 use antigen::{
     components::EventQueueComponent,
+    core::events::AntigenEvent,
     entity_component_system::{
         system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory,
         SystemDebugTrait, SystemError, SystemTrait,
     },
-    events::AntigenEvent,
     primitive_types::Vector2I,
 };
 

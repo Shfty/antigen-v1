@@ -5,8 +5,8 @@ use std::{
 };
 
 use crate::{
-    entity_component_system::ComponentStorage, entity_component_system::EntityComponentDirectory,
-    entity_component_system::SystemInterface, uid::UID,
+    core::uid::UID, entity_component_system::ComponentStorage,
+    entity_component_system::EntityComponentDirectory, entity_component_system::SystemInterface,
 };
 
 #[derive(Debug, Clone)]

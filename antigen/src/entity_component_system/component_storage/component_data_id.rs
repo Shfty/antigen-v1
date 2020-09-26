@@ -1,6 +1,6 @@
 use std::{fmt::Display, sync::atomic::AtomicUsize, sync::atomic::Ordering};
 
-use crate::uid::UID;
+use crate::core::uid::UID;
 
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub struct ComponentDataID(pub UID);

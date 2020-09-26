@@ -18,7 +18,9 @@ use antigen::{
         SizeComponent, StringComponent, StringListComponent, VelocityComponent, WindowComponent,
         ZIndexComponent,
     },
-    cpu_shader::CPUShader,
+    core::cpu_shader::CPUShader,
+    core::events::AntigenEvent,
+    core::palette::RGBArrangementPalette,
     entity_component_system::ComponentStorage,
     entity_component_system::EntityComponentDirectory,
     entity_component_system::Scene,
@@ -26,8 +28,6 @@ use antigen::{
         system_interface::SystemInterface, system_storage::SystemStorage, Assemblage,
         EntityComponentSystem, EntityID, SystemRunner,
     },
-    events::AntigenEvent,
-    palette::RGBArrangementPalette,
     primitive_types::Color,
     primitive_types::Vector2I,
     systems::EventQueueSystem,
@@ -75,7 +75,7 @@ impl Scene for AntigenDebugScene {
         let pancurses_window_system = CursesWindowSystem::new(&mut ecs.component_storage);
         ecs.push_system(pancurses_window_system);
 
-        ecs.push_system(QuitKeySystem::new(antigen::keyboard::Key::Escape));
+        ecs.push_system(QuitKeySystem::new(antigen::core::keyboard::Key::Escape));
         ecs.push_system(InputAxisSystem::new());
         ecs.push_system(DestructionTestInputSystem::new());
         ecs.push_system(LocalMousePositionSystem::new());
@@ -289,7 +289,7 @@ where
             "Assemblage for destroying entities when space is pressed",
         )
         .add_component(DestructionTestInputComponent::new(
-            antigen::keyboard::Key::Space,
+            antigen::core::keyboard::Key::Space,
         ))?
         .finish(),
     );

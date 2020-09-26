@@ -1,12 +1,12 @@
 use antigen::{
     components::EventQueueComponent,
     components::VelocityComponent,
+    core::events::AntigenEvent,
     entity_component_system::system_interface::SystemInterface,
     entity_component_system::ComponentStorage,
     entity_component_system::EntityComponentDirectory,
     entity_component_system::SystemDebugTrait,
     entity_component_system::{SystemError, SystemTrait},
-    events::AntigenEvent,
     primitive_types::Vector2I,
 };
 
@@ -46,16 +46,16 @@ where
             {
                 match input {
                     AntigenEvent::KeyPress {
-                        key_code: antigen::keyboard::Key::Left,
+                        key_code: antigen::core::keyboard::Key::Left,
                     } => move_input.0 -= 1,
                     AntigenEvent::KeyPress {
-                        key_code: antigen::keyboard::Key::Right,
+                        key_code: antigen::core::keyboard::Key::Right,
                     } => move_input.0 += 1,
                     AntigenEvent::KeyPress {
-                        key_code: antigen::keyboard::Key::Up,
+                        key_code: antigen::core::keyboard::Key::Up,
                     } => move_input.1 -= 1,
                     AntigenEvent::KeyPress {
-                        key_code: antigen::keyboard::Key::Down,
+                        key_code: antigen::core::keyboard::Key::Down,
                     } => move_input.1 += 1,
                     _ => (),
                 }

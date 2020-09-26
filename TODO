@@ -1,8 +1,6 @@
-TODO: Fix full white showing as black under 8-8-4 palette
-      Appears to be down to pancurses reserving color pair 0 for default black/white
-      If this is the case, need to strip black out of the generated palette and sub in pancurses' version
+TODO: Create PancursesPalette supertype to reshuffle an 8-bit palette respective of pancurses' default colors, don't remap at runtime
 
-TODO: Tidy antigen crate, move components and systems into appropriate sub-crates
+TODO: Split IntRangeComponent into PrimitiveComponent<i64> and PrimitiveComponent<Range<i64>>
 
 TODO: Refactor software renderer / string renderer into a single system
       Input data fetching + rendering code is the only major difference

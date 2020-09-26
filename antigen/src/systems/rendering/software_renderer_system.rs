@@ -15,7 +15,7 @@ use crate::{
 };
 use crate::{
     components::{ControlComponent, SoftwareFramebufferComponent},
-    cpu_shader::{CPUShader, CPUShaderInput},
+    core::cpu_shader::{CPUShader, CPUShaderInput},
 };
 
 #[derive(Debug)]

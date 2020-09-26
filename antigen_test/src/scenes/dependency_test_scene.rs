@@ -4,6 +4,7 @@ use antigen::{
         CharComponent, ControlComponent, ParentEntityComponent, PositionComponent, SizeComponent,
         VelocityComponent, WindowComponent,
     },
+    core::palette::RGBArrangementPalette,
     entity_component_system::ComponentStorage,
     entity_component_system::EntityComponentDirectory,
     entity_component_system::Scene,
@@ -11,7 +12,6 @@ use antigen::{
     entity_component_system::{
         system_storage::SystemStorage, Assemblage, EntityComponentSystem, SystemRunner,
     },
-    palette::RGBArrangementPalette,
     primitive_types::Color,
     primitive_types::Vector2I,
     systems::PositionIntegratorSystem,
@@ -54,7 +54,7 @@ impl Scene for DependencyTestScene {
         // mut: ?MouseComponent, EventQueueComponent<AntigenEvent>
         ecs.push_system(CursesInputBufferSystem::new(1));
 
-        ecs.push_system(QuitKeySystem::new(antigen::keyboard::Key::Escape));
+        ecs.push_system(QuitKeySystem::new(antigen::core::keyboard::Key::Escape));
 
         // pred: VelocityComponent
         // ref: EventQueueComponent<AntigenEvent>

@@ -3,12 +3,12 @@ use crate::{
     components::{
         GlobalPositionComponent, ParentEntityComponent, PositionComponent, WindowComponent,
     },
+    core::events::AntigenEvent,
     entity_component_system::SystemDebugTrait,
     entity_component_system::{
         system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory, SystemError,
         SystemTrait,
     },
-    events::AntigenEvent,
     primitive_types::Vector2I,
 };
 

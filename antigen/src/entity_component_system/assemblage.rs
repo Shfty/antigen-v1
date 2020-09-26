@@ -4,11 +4,12 @@ use std::{
 };
 
 use crate::{
-    entity_component_system::ComponentDebugTrait, entity_component_system::ComponentID,
-    entity_component_system::ComponentTrait, entity_component_system::EntityID, uid::UID,
+    core::uid::UID, entity_component_system::ComponentDebugTrait,
+    entity_component_system::ComponentID, entity_component_system::ComponentTrait,
+    entity_component_system::EntityID,
 };
 
-use super::{ComponentStorage, SystemInterface, EntityComponentDirectory};
+use super::{ComponentStorage, EntityComponentDirectory, SystemInterface};
 
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub struct AssemblageID(pub UID);

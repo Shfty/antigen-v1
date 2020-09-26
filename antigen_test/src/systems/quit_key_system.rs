@@ -1,20 +1,20 @@
 use antigen::{
     components::EventQueueComponent,
+    core::events::AntigenEvent,
     entity_component_system::system_interface::SystemInterface,
     entity_component_system::ComponentStorage,
     entity_component_system::EntityComponentDirectory,
     entity_component_system::SystemDebugTrait,
     entity_component_system::{SystemError, SystemTrait},
-    events::AntigenEvent,
 };
 
 #[derive(Debug)]
 pub struct QuitKeySystem {
-    key: antigen::keyboard::Key,
+    key: antigen::core::keyboard::Key,
 }
 
 impl QuitKeySystem {
-    pub fn new(key: antigen::keyboard::Key) -> Self {
+    pub fn new(key: antigen::core::keyboard::Key) -> Self {
         QuitKeySystem { key }
     }
 }

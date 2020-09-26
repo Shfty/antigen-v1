@@ -1,9 +1,9 @@
 use crate::{
-    components::SystemDebugComponent, entity_component_system::system_storage::SystemStorage,
+    components::SystemDebugComponent, core::profiler::Profiler,
+    entity_component_system::system_storage::SystemStorage,
     entity_component_system::ComponentStorage, entity_component_system::EntityComponentDirectory,
     entity_component_system::SystemError, entity_component_system::SystemID,
     entity_component_system::SystemInterface, entity_component_system::SystemTrait,
-    profiler::Profiler,
 };
 
 use super::SystemRunner;

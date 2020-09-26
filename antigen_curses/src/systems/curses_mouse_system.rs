@@ -167,6 +167,6 @@ where
 
 impl SystemDebugTrait for CursesMouseSystem {
     fn get_name() -> &'static str {
-        "Pancurses Mouse"
+        "Curses Mouse"
     }
 }

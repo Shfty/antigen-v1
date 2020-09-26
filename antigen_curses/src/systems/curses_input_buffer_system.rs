@@ -83,6 +83,6 @@ where
 
 impl SystemDebugTrait for CursesInputBufferSystem {
     fn get_name() -> &'static str {
-        "Pancurses Input Buffer"
+        "Curses Input Buffer"
     }
 }

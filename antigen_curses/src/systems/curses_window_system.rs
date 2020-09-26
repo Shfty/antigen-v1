@@ -161,6 +161,6 @@ where
 
 impl SystemDebugTrait for CursesWindowSystem {
     fn get_name() -> &'static str {
-        "Pancurses Window"
+        "Curses Window"
     }
 }

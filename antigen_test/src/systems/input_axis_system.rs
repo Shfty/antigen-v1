@@ -83,6 +83,6 @@ where
 
 impl SystemDebugTrait for InputAxisSystem {
     fn get_name() -> &'static str {
-        "Pancurses Input Axis"
+        "Input Axis"
     }
 }

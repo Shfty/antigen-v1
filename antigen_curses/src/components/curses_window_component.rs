@@ -37,10 +37,10 @@ impl ComponentTrait for CursesWindowComponent {}
 
 impl ComponentDebugTrait for CursesWindowComponent {
     fn get_name() -> String {
-        "Pancurses Window".into()
+        "Curses Window".into()
     }
 
     fn get_description() -> String {
-        "Represents a window (or sub-window) inside the Pancurses renderer".into()
+        "Represents a window (or sub-window) inside the Curses renderer".into()
     }
 }

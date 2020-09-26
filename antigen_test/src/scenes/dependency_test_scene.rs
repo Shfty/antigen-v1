@@ -43,14 +43,14 @@ impl Scene for DependencyTestScene {
         //   If any other system takes a mutable reference to the same component, the relation should be ignored and dependencies inferred from other components
         //   Otherwise, non-mutable references to the same component should be checked and stored as a System > System map
 
-        // pred: (WindowComponent, PancursesWindowComponent, SizeComponent)
-        // ref: PancursesWindowComponent, SizeComponent, CharComponent, PancursesColorPairComponent, StringComponent
-        // mut: SizeComponent, PancursesColorSetComponent, PancursesWindowComponent
+        // pred: (WindowComponent, CursesWindowComponent, SizeComponent)
+        // ref: CursesWindowComponent, SizeComponent, CharComponent, CursesColorPairComponent, StringComponent
+        // mut: SizeComponent, CursesColorSetComponent, CursesWindowComponent
         let pancurses_window_system = CursesWindowSystem::new(&mut ecs.component_storage);
         ecs.push_system(pancurses_window_system);
 
-        // pred: (WindowComponent, PancursesWindowComponent)
-        // ref: PancursesWindowComponent
+        // pred: (WindowComponent, CursesWindowComponent)
+        // ref: CursesWindowComponent
         // mut: ?MouseComponent, EventQueueComponent<AntigenEvent>
         ecs.push_system(CursesInputBufferSystem::new(1));
 
@@ -66,10 +66,10 @@ impl Scene for DependencyTestScene {
         // mut: PositionComponent
         ecs.push_system(PositionIntegratorSystem::new());
 
-        // pred: PancursesColorSetComponent, (ControlComponent, ParentEntityComponent, PositionComponent), (WindowComponent, PancursesWindowComponent, SizeComponent)
-        // ref: ParentEntityComponent, ZIndexComponent, ChildEntitiesComponent, PancursesWindowComponent, ParentEntityComponent, PancursesWindowComponent,
-        //      ParentEntityComponent, GlobalPositionComponent, PositionComponent, PancursesColorPairComponent, CharComponent, SizeComponent, StringComponent, PancursesWindowComponent
-        // mut: PancursesColorSetComponent
+        // pred: CursesColorSetComponent, (ControlComponent, ParentEntityComponent, PositionComponent), (WindowComponent, CursesWindowComponent, SizeComponent)
+        // ref: ParentEntityComponent, ZIndexComponent, ChildEntitiesComponent, CursesWindowComponent, ParentEntityComponent, CursesWindowComponent,
+        //      ParentEntityComponent, GlobalPositionComponent, PositionComponent, CursesColorPairComponent, CharComponent, SizeComponent, StringComponent, CursesWindowComponent
+        // mut: CursesColorSetComponent
         ecs.push_system(CursesRendererSystem::new(
             RGBArrangementPalette::new_884(),
             TextColorMode::Color(Color(0.0, 0.0, 0.0)),

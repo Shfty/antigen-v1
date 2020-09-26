@@ -1,5 +1,3 @@
-TODO: Create PancursesPalette supertype to reshuffle an 8-bit palette respective of pancurses' default colors, don't remap at runtime
-
 TODO: Split IntRangeComponent into PrimitiveComponent<i64> and PrimitiveComponent<Range<i64>>
 
 TODO: Refactor software renderer / string renderer into a single system
@@ -7,7 +5,6 @@ TODO: Refactor software renderer / string renderer into a single system
       Need to figure out a good abstraction
       Could move common logic into an impl, have the renderers call it manually
 
-TODO: Fix highlight rects being 1px high for lists containing newline characters
 TODO: Re-add list item assemblage support to allow for debug excluding list items, but not their parent lists
 
 TODO: Component data inspector

@@ -266,6 +266,6 @@ where
     T: Palette<f32, f32>,
 {
     fn get_name() -> &'static str {
-        "Pancurses Renderer"
+        "Curses Renderer"
     }
 }

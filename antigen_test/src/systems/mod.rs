@@ -1,23 +1,8 @@
 mod destruction_test_input_system;
 mod input_axis_system;
 mod input_velocity_system;
-mod list_system;
-mod local_mouse_position_system;
-mod pancurses_input_buffer_system;
-mod pancurses_keyboard_system;
-mod pancurses_mouse_system;
-mod pancurses_renderer_system;
-mod pancurses_window_system;
 mod quit_key_system;
-
-pub use destruction_test_input_system::DestructionTestInputSystem;
-pub use input_axis_system::InputAxisSystem;
-pub use input_velocity_system::InputVelocitySystem;
-pub use list_system::ListSystem;
-pub use local_mouse_position_system::LocalMousePositionSystem;
-pub use pancurses_input_buffer_system::PancursesInputBufferSystem;
-pub use pancurses_keyboard_system::PancursesKeyboardSystem;
-pub use pancurses_mouse_system::PancursesMouseSystem;
-pub use pancurses_renderer_system::PancursesRendererSystem;
-pub use pancurses_window_system::PancursesWindowSystem;
-pub use quit_key_system::QuitKeySystem;
+pub use destruction_test_input_system::*;
+pub use input_axis_system::*;
+pub use input_velocity_system::*;
+pub use quit_key_system::*;

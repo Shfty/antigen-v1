@@ -1,9 +1,14 @@
 use std::{collections::HashMap, ops::Range};
 
 use antigen::{
+    components::CPUShaderComponent,
     components::ColorComponent,
+    components::ControlComponent,
     components::DebugSceneTreeComponent,
     components::DebugSystemListComponent,
+    components::ListComponent,
+    components::LocalMousePositionComponent,
+    components::SoftwareFramebufferComponent,
     components::SystemInspectorComponent,
     components::{
         AnchorsComponent, CharComponent, ComponentInspectorComponent,
@@ -13,6 +18,7 @@ use antigen::{
         SizeComponent, StringComponent, StringListComponent, VelocityComponent, WindowComponent,
         ZIndexComponent,
     },
+    cpu_shader::CPUShader,
     entity_component_system::ComponentStorage,
     entity_component_system::EntityComponentDirectory,
     entity_component_system::Scene,
@@ -21,32 +27,23 @@ use antigen::{
         EntityComponentSystem, EntityID, SystemRunner,
     },
     events::AntigenEvent,
-    primitive_types::ColorRGB,
+    palette::RGBArrangementPalette,
+    primitive_types::Color,
     primitive_types::Vector2I,
     systems::EventQueueSystem,
     systems::{
-        AnchorsMarginsSystem, ChildEntitiesSystem, GlobalPositionSystem, PositionIntegratorSystem,
+        AnchorsMarginsSystem, ChildEntitiesSystem, GlobalPositionSystem, ListSystem,
+        LocalMousePositionSystem, PositionIntegratorSystem, SoftwareRendererSystem,
+        StringRendererSystem,
     },
+};
+use antigen_curses::{
+    CursesEventQueueSystem, CursesInputBufferSystem, CursesKeyboardSystem, CursesMouseSystem,
+    CursesRendererSystem, CursesWindowComponent, CursesWindowSystem, TextColorMode,
 };
 
-use crate::{
-    components::{
-        control_component::ControlComponent,
-        destruction_test_input_component::DestructionTestInputComponent,
-        list_component::ListComponent, local_mouse_position_component::LocalMousePositionComponent,
-        pancurses_window_component::PancursesWindowComponent,
-    },
-    systems::QuitKeySystem,
-};
-use crate::{
-    cpu_shader::CPUShader,
-    cpu_shader::CPUShaderComponent,
-    systems::{
-        DestructionTestInputSystem, InputAxisSystem, InputVelocitySystem, ListSystem,
-        LocalMousePositionSystem, PancursesInputBufferSystem, PancursesKeyboardSystem,
-        PancursesMouseSystem, PancursesRendererSystem, PancursesWindowSystem,
-    },
-};
+use crate::systems::{DestructionTestInputSystem, InputAxisSystem, InputVelocitySystem};
+use crate::{components::DestructionTestInputComponent, systems::QuitKeySystem};
 
 #[derive(Eq, PartialEq, Hash)]
 enum EntityAssemblage {
@@ -70,12 +67,12 @@ impl Scene for AntigenDebugScene {
         SR: SystemRunner + 'static,
     {
         ecs.push_system(EventQueueSystem::<AntigenEvent>::new());
-        ecs.push_system(EventQueueSystem::<pancurses::Input>::new());
+        ecs.push_system(CursesEventQueueSystem::new());
 
-        ecs.push_system(PancursesInputBufferSystem::new(1));
-        ecs.push_system(PancursesKeyboardSystem);
-        ecs.push_system(PancursesMouseSystem::new());
-        let pancurses_window_system = PancursesWindowSystem::new(&mut ecs.component_storage);
+        ecs.push_system(CursesInputBufferSystem::new(1));
+        ecs.push_system(CursesKeyboardSystem);
+        ecs.push_system(CursesMouseSystem::new());
+        let pancurses_window_system = CursesWindowSystem::new(&mut ecs.component_storage);
         ecs.push_system(pancurses_window_system);
 
         ecs.push_system(QuitKeySystem::new(antigen::keyboard::Key::Escape));
@@ -89,7 +86,12 @@ impl Scene for AntigenDebugScene {
         ecs.push_system(AnchorsMarginsSystem::new());
         ecs.push_system(GlobalPositionSystem::new());
         ecs.push_system(ChildEntitiesSystem::new());
-        ecs.push_system(PancursesRendererSystem::new());
+        ecs.push_system(SoftwareRendererSystem);
+        ecs.push_system(StringRendererSystem);
+        ecs.push_system(CursesRendererSystem::new(
+            RGBArrangementPalette::new_884(),
+            TextColorMode::BlackWhite,
+        ));
 
         Ok(())
     }
@@ -102,6 +104,18 @@ impl Scene for AntigenDebugScene {
         let mut assemblages = create_assemblages()?;
 
         // Create main window
+        let cpu_framebuffer_entity = db.create_entity("CPU Framebuffer".into())?;
+        db.insert_entity_component(
+            cpu_framebuffer_entity,
+            SoftwareFramebufferComponent::new(Color(0.0f32, 0.0f32, 0.0f32)),
+        )?;
+
+        let string_framebuffer_entity = db.create_entity("String Framebuffer".into())?;
+        db.insert_entity_component(
+            string_framebuffer_entity,
+            SoftwareFramebufferComponent::new(' '),
+        )?;
+
         let main_window_entity = create_window_entity(
             db,
             Some("Main Window"),
@@ -203,7 +217,7 @@ where
 {
     let entity_id = db.create_entity(debug_label)?;
     db.insert_entity_component(entity_id, WindowComponent)?;
-    db.insert_entity_component(entity_id, PancursesWindowComponent::default())?;
+    db.insert_entity_component(entity_id, CursesWindowComponent::default())?;
     db.insert_entity_component(entity_id, PositionComponent::new(position))?;
     db.insert_entity_component(entity_id, SizeComponent::new(size))?;
     if let Some(parent_window_entity_id) = parent_window_entity_id {
@@ -229,7 +243,7 @@ where
             "Controllable ASCII character with position and velocity",
         )
         .add_component(ControlComponent)?
-        .add_component(ColorComponent::new(ColorRGB(1.0, 0.6, 1.0)))?
+        .add_component(ColorComponent::new(Color(1.0, 0.6, 1.0)))?
         .add_component(CharComponent::new('@'))?
         .add_component(PositionComponent::new(Vector2I(1, 1)))?
         .add_component(VelocityComponent::new(Vector2I(1, 1)))?
@@ -252,7 +266,7 @@ where
             .add_component(PositionComponent::default())?
             .add_component(SizeComponent::default())?
             .add_component(CharComponent::default())?
-            .add_component(ColorComponent::new(ColorRGB(0.753, 0.753, 0.753)))?
+            .add_component(ColorComponent::new(Color(0.753, 0.753, 0.753)))?
             .finish(),
     );
 
@@ -264,7 +278,7 @@ where
             .add_component(SizeComponent::default())?
             .add_component(CharComponent::default())?
             .add_component(CPUShaderComponent::new(CPUShader(CPUShader::rect)))?
-            .add_component(ColorComponent::new(ColorRGB(0.753, 0.753, 0.753)))?
+            .add_component(ColorComponent::new(Color(0.753, 0.753, 0.753)))?
             .finish(),
     );
 
@@ -306,26 +320,69 @@ where
         AnchorsComponent::new(0.0..0.5, 0.0..1.0),
     )?;
 
-    // Create Test Rect
-    let test_rect_entity = assemblages
-        .get_mut(&EntityAssemblage::RectControl)
-        .unwrap()
-        .create_and_assemble_entity(db, Some("Test Rect Control"))?;
+    // Create Test Rects
+    for (position, shader, color) in [
+        (
+            Vector2I(1, 5),
+            CPUShader(CPUShader::uv),
+            Color(1.0, 1.0, 1.0),
+        ),
+        (
+            Vector2I(1, 12),
+            CPUShader(CPUShader::gradient_horizontal),
+            Color(1.0, 1.0, 1.0),
+        ),
+        (
+            Vector2I(1, 19),
+            CPUShader(CPUShader::gradient_horizontal),
+            Color(1.0, 0.0, 0.0),
+        ),
+        (
+            Vector2I(1, 26),
+            CPUShader(CPUShader::gradient_horizontal),
+            Color(0.0, 1.0, 0.0),
+        ),
+        (
+            Vector2I(1, 33),
+            CPUShader(CPUShader::gradient_horizontal),
+            Color(0.0, 0.0, 1.0),
+        ),
+        (
+            Vector2I(1, 40),
+            CPUShader(CPUShader::gradient_horizontal),
+            Color(0.0, 1.0, 1.0),
+        ),
+        (
+            Vector2I(1, 47),
+            CPUShader(CPUShader::gradient_horizontal),
+            Color(1.0, 0.0, 1.0),
+        ),
+        (
+            Vector2I(1, 54),
+            CPUShader(CPUShader::gradient_horizontal),
+            Color(1.0, 1.0, 0.0),
+        ),
+    ]
+    .iter()
     {
-        db.get_entity_component_mut::<PositionComponent>(test_rect_entity)?
-            .set_position(Vector2I(1, 5));
+        let test_rect_entity = assemblages
+            .get_mut(&EntityAssemblage::RectControl)
+            .unwrap()
+            .create_and_assemble_entity(db, Some("Test Rect Control"))?;
+        {
+            db.get_entity_component_mut::<PositionComponent>(test_rect_entity)?
+                .set_position(*position);
 
-        db.get_entity_component_mut::<SizeComponent>(test_rect_entity)?
-            .set_size(Vector2I(24, 12));
-        db.insert_entity_component(
-            test_rect_entity,
-            ParentEntityComponent::new(game_window_entity),
-        )?;
-        db.insert_entity_component(test_rect_entity, GlobalPositionComponent::default())?;
-        db.insert_entity_component(
-            test_rect_entity,
-            CPUShaderComponent::new(CPUShader(CPUShader::uv)),
-        )?;
+            db.get_entity_component_mut::<SizeComponent>(test_rect_entity)?
+                .set_size(Vector2I(48, 6));
+            db.insert_entity_component(
+                test_rect_entity,
+                ParentEntityComponent::new(game_window_entity),
+            )?;
+            db.insert_entity_component(test_rect_entity, GlobalPositionComponent::default())?;
+            db.insert_entity_component(test_rect_entity, CPUShaderComponent::new(*shader))?;
+            db.insert_entity_component(test_rect_entity, ColorComponent::new(*color))?;
+        }
     }
 
     // Create Test Player
@@ -378,7 +435,7 @@ where
         .create_and_assemble_entity(db, Some(&format!("{} Window", window_name)))?;
     {
         db.get_entity_component_mut::<ColorComponent>(entity_list_window_entity)?
-            .set_data(ColorRGB(0.0, 0.0, 0.0));
+            .set_data(Color(0.0, 0.0, 0.0));
         db.insert_entity_component(entity_list_window_entity, PositionComponent::default())?;
         db.insert_entity_component(entity_list_window_entity, ZIndexComponent::new(1))?;
         db.insert_entity_component(entity_list_window_entity, SizeComponent::default())?;

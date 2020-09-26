@@ -1,4 +1,4 @@
-use crate::components::pancurses_input_axis_component::InputAxisComponent;
+use crate::components::InputAxisComponent;
 use antigen::{
     components::EventQueueComponent,
     components::IntRangeComponent,

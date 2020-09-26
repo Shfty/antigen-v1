@@ -2,5 +2,6 @@
 
 members = [
     "antigen",
-    "antigen_test"
+    "antigen_test",
+    "antigen_curses"
 ]

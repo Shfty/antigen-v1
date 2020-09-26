@@ -1,23 +1,18 @@
 use std::collections::HashMap;
 
-use crate::components::{
-    control_component::ControlComponent, list_component::ListComponent,
-    local_mouse_position_component::LocalMousePositionComponent,
-};
-use antigen::{
-    components::ColorComponent,
-    components::EventQueueComponent,
+use crate::{
     components::{
-        DebugExcludeComponent, GlobalPositionComponent, IntRangeComponent, ParentEntityComponent,
-        PositionComponent, SizeComponent, StringComponent, StringListComponent,
+        ColorComponent, ControlComponent, DebugExcludeComponent, EventQueueComponent,
+        GlobalPositionComponent, IntRangeComponent, ListComponent, LocalMousePositionComponent,
+        ParentEntityComponent, PositionComponent, SizeComponent, StringComponent,
+        StringListComponent,
     },
     entity_component_system::{
         system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory, EntityID,
         SystemDebugTrait, SystemError, SystemTrait,
     },
     events::AntigenEvent,
-    primitive_types::ColorRGB,
-    primitive_types::Vector2I,
+    primitive_types::{Color, Vector2I},
 };
 
 #[derive(Debug)]
@@ -39,6 +34,12 @@ impl ListSystem {
             list_hover_entities: HashMap::new(),
             list_string_entities: HashMap::new(),
         }
+    }
+}
+
+impl Default for ListSystem {
+    fn default() -> Self {
+        ListSystem::new()
     }
 }
 
@@ -77,7 +78,7 @@ where
                 db.insert_entity_component(list_hover_entity, GlobalPositionComponent::default())?;
                 db.insert_entity_component(
                     list_hover_entity,
-                    ColorComponent::new(ColorRGB(0.5, 0.5, 0.5)),
+                    ColorComponent::new(Color(0.5, 0.5, 0.5)),
                 )?;
                 db.insert_entity_component(
                     list_hover_entity,
@@ -341,9 +342,9 @@ where
 
                         // Update color pair based on focused item
                         let data = if Some(string_index as i64) == focused_item {
-                            ColorRGB(0.0, 0.0, 0.0)
+                            Color(0.0, 0.0, 0.0)
                         } else {
-                            ColorRGB(1.0, 1.0, 1.0)
+                            Color(1.0, 1.0, 1.0)
                         };
 
                         db.get_entity_component_mut::<ColorComponent>(string_entity)?

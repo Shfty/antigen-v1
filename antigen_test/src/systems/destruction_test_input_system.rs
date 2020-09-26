@@ -8,7 +8,7 @@ use antigen::{
     events::AntigenEvent,
 };
 
-use crate::components::destruction_test_input_component::DestructionTestInputComponent;
+use crate::components::DestructionTestInputComponent;
 
 #[derive(Debug)]
 pub struct DestructionTestInputSystem;

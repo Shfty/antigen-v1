@@ -1,14 +1,14 @@
-pub struct PancursesInput(pancurses::Input);
+pub struct CursesInput(pancurses::Input);
 
-impl From<pancurses::Input> for PancursesInput {
+impl From<pancurses::Input> for CursesInput {
     fn from(input: pancurses::Input) -> Self {
-        PancursesInput(input)
+        CursesInput(input)
     }
 }
 
-impl antigen::keyboard::IntoKey for PancursesInput {
+impl antigen::keyboard::IntoKey for CursesInput {
     fn into_key(self) -> antigen::keyboard::Key {
-        let PancursesInput(input) = self;
+        let CursesInput(input) = self;
         match input {
             pancurses::Input::Character(char) => match char {
                 ' ' => antigen::keyboard::Key::Space,

@@ -1,4 +1,4 @@
-use antigen::{
+use crate::{
     components::EventQueueComponent,
     components::{
         GlobalPositionComponent, ParentEntityComponent, PositionComponent, WindowComponent,
@@ -12,7 +12,7 @@ use antigen::{
     primitive_types::Vector2I,
 };
 
-use crate::components::local_mouse_position_component::LocalMousePositionComponent;
+use crate::components::LocalMousePositionComponent;
 
 #[derive(Debug)]
 pub struct LocalMousePositionSystem;

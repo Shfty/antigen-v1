@@ -2,19 +2,19 @@ use antigen::entity_component_system::{ComponentDebugTrait, ComponentTrait};
 use pancurses::Window;
 
 #[derive(Debug)]
-pub struct PancursesWindowComponent {
+pub struct CursesWindowComponent {
     window: Option<Window>,
 }
 
-impl Clone for PancursesWindowComponent {
+impl Clone for CursesWindowComponent {
     fn clone(&self) -> Self {
-        PancursesWindowComponent { window: None }
+        CursesWindowComponent { window: None }
     }
 }
 
-impl<'a> PancursesWindowComponent {
+impl<'a> CursesWindowComponent {
     pub fn new() -> Self {
-        PancursesWindowComponent { window: None }
+        CursesWindowComponent { window: None }
     }
 
     pub fn get_window(&self) -> Option<&Window> {
@@ -27,15 +27,15 @@ impl<'a> PancursesWindowComponent {
     }
 }
 
-impl<'a> Default for PancursesWindowComponent {
+impl<'a> Default for CursesWindowComponent {
     fn default() -> Self {
-        PancursesWindowComponent::new()
+        CursesWindowComponent::new()
     }
 }
 
-impl ComponentTrait for PancursesWindowComponent {}
+impl ComponentTrait for CursesWindowComponent {}
 
-impl ComponentDebugTrait for PancursesWindowComponent {
+impl ComponentDebugTrait for CursesWindowComponent {
     fn get_name() -> String {
         "Pancurses Window".into()
     }

@@ -1,5 +1,5 @@
 [package]
-name = "antigen_test"
+name = "antigen_curses"
 version = "0.1.0"
 authors = ["Josh Palmer <jpalmerwatkins@gmail.com>"]
 edition = "2018"
@@ -8,4 +8,4 @@ edition = "2018"
 
 [dependencies]
 antigen = { path = "../antigen" }
-antigen_curses = { path = "../antigen_curses" }
+pancurses = "0.16"

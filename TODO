@@ -1,19 +1,13 @@
-TODO: Fix black color cells being skipped (need to make sure text cells w/black background are overwritten - use Z buffer)
+TODO: Fix full white showing as black under 8-8-4 palette
+      Appears to be down to pancurses reserving color pair 0 for default black/white
+      If this is the case, need to strip black out of the generated palette and sub in pancurses' version
 
-TODO: Refactor software framebuffer rendering out of PancursesRenderSystem and into a SoftwareRendererSystem w/ SoftwareFramebufferComponent storage
-      Can text framebuffer + rendering be factored out into a generic system? Or should they still live inside PancursesRendererSystem?
+TODO: Tidy antigen crate, move components and systems into appropriate sub-crates
 
-TODO: Use palette-based color lookup to prevent curses color overflow
-      Probably best to approach as fixed palette / dynamic pairs to start off (prevents breaking text rendering)
-      Register all ~256 colors on first frame
-            Need to account for greys - true black/white are default, pack intermediaries into remaining color indices
-      Batch up color pairs during color/character combination, merge similar-enough pairs until list size is within limit
-      Register pairs with pancurses
-      Render scene
-
-TODO: Dynamic palette that reallocates its color coverage based on the total amount of R/G/B in the framebuffer
-      Need to respect the 256 color / 256 color pair limit
-            Color pairs are a tricky limitation, and pancurses-specific - preferable to make this general
+TODO: Refactor software renderer / string renderer into a single system
+      Input data fetching + rendering code is the only major difference
+      Need to figure out a good abstraction
+      Could move common logic into an impl, have the renderers call it manually
 
 TODO: Fix highlight rects being 1px high for lists containing newline characters
 TODO: Re-add list item assemblage support to allow for debug excluding list items, but not their parent lists

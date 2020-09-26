@@ -1,4 +1,7 @@
-use antigen::{entity_component_system::ComponentDebugTrait, entity_component_system::ComponentTrait, primitive_types::Vector2I};
+use crate::{
+    entity_component_system::ComponentDebugTrait, entity_component_system::ComponentTrait,
+    primitive_types::Vector2I,
+};
 
 #[derive(Debug, Copy, Clone)]
 pub struct LocalMousePositionComponent {

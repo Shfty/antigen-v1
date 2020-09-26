@@ -5,7 +5,7 @@ name = "antigen"
 version = "0.1.0"
 
 [[package]]
-name = "antigen_test"
+name = "antigen_curses"
 version = "0.1.0"
 dependencies = [
  "antigen",
@@ -13,10 +13,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "antigen_test"
+version = "0.1.0"
+dependencies = [
+ "antigen",
+ "antigen_curses",
+]
+
+[[package]]
 name = "cc"
-version = "1.0.59"
+version = "1.0.60"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "66120af515773fb005778dc07c261bd201ec8ce50bd6e7144c927753fe013381"
+checksum = "ef611cc68ff783f18535d77ddd080185275713d852c4f5cbb6122c462a7a825c"
 
 [[package]]
 name = "cfg-if"
@@ -26,9 +34,9 @@ checksum = "4785bdd1c96b2a846b2bd7cc02e86b6b3dbf14e7e53446c4f54c92a361040822"
 
 [[package]]
 name = "libc"
-version = "0.2.76"
+version = "0.2.77"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "755456fae044e6fa1ebbbd1b3e902ae19e73097ed4ed87bb79934a867c007bc3"
+checksum = "f2f96b10ec2560088a8e76961b00d47107b3a625fecb76dedb29ee7ccbf98235"
 
 [[package]]
 name = "log"

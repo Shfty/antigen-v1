@@ -1,4 +1,3 @@
-use crate::pancurses_keys::PancursesInput;
 use antigen::{
     components::EventQueueComponent,
     entity_component_system::{
@@ -9,11 +8,13 @@ use antigen::{
     keyboard::IntoKey,
 };
 
+use crate::{CursesEventQueueComponent, CursesInput};
+
 /// Converts pancurses keyboard inputs into antigen keyboard inputs
 #[derive(Debug)]
-pub struct PancursesKeyboardSystem;
+pub struct CursesKeyboardSystem;
 
-impl<CS, CD> SystemTrait<CS, CD> for PancursesKeyboardSystem
+impl<CS, CD> SystemTrait<CS, CD> for CursesKeyboardSystem
 where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
@@ -27,13 +28,13 @@ where
             db.entity_component_directory
                 .get_entity_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<EventQueueComponent<pancurses::Input>>(entity_id)
+                        .entity_has_component::<CursesEventQueueComponent>(entity_id)
                 });
 
         if let Some(pancurses_event_queue_entity) = pancurses_event_queue_entity {
             let mut antigen_keys: Vec<antigen::keyboard::Key> = Vec::new();
             for event in db
-                .get_entity_component::<EventQueueComponent<pancurses::Input>>(
+                .get_entity_component::<CursesEventQueueComponent>(
                     pancurses_event_queue_entity,
                 )?
                 .get_events()
@@ -43,7 +44,7 @@ where
                 if let pancurses::Input::KeyResize = event {
                     pancurses::resize_term(0, 0);
                 } else {
-                    let pancurses_input: PancursesInput = event.into();
+                    let pancurses_input: CursesInput = event.into();
                     let antigen_key = pancurses_input.into_key();
                     if antigen_key != antigen::keyboard::Key::Unknown {
                         antigen_keys.push(antigen_key);
@@ -79,7 +80,7 @@ where
     }
 }
 
-impl SystemDebugTrait for PancursesKeyboardSystem {
+impl SystemDebugTrait for CursesKeyboardSystem {
     fn get_name() -> &'static str {
         "Pancurses Keyboard"
     }

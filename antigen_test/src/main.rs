@@ -1,10 +1,6 @@
 mod components;
-mod pancurses_color;
 mod scenes;
 mod systems;
-mod cpu_shader;
-
-mod pancurses_keys;
 
 use std::time::Duration;
 

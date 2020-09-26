@@ -1,8 +1,8 @@
 use antigen::{
     components::ColorComponent,
     components::{
-        CharComponent, ParentEntityComponent, PositionComponent, SizeComponent, VelocityComponent,
-        WindowComponent,
+        CharComponent, ControlComponent, ParentEntityComponent, PositionComponent, SizeComponent,
+        VelocityComponent, WindowComponent,
     },
     entity_component_system::ComponentStorage,
     entity_component_system::EntityComponentDirectory,
@@ -11,19 +11,18 @@ use antigen::{
     entity_component_system::{
         system_storage::SystemStorage, Assemblage, EntityComponentSystem, SystemRunner,
     },
-    primitive_types::ColorRGB,
+    palette::RGBArrangementPalette,
+    primitive_types::Color,
     primitive_types::Vector2I,
     systems::PositionIntegratorSystem,
 };
-
-use crate::systems::PancursesInputBufferSystem;
-use crate::systems::{InputVelocitySystem, PancursesRendererSystem, PancursesWindowSystem};
-use crate::{
-    components::{
-        control_component::ControlComponent, pancurses_window_component::PancursesWindowComponent,
-    },
-    systems::QuitKeySystem,
+use antigen_curses::{
+    CursesInputBufferSystem, CursesRendererSystem, CursesWindowComponent, CursesWindowSystem,
+    TextColorMode,
 };
+
+use crate::systems::InputVelocitySystem;
+use crate::systems::QuitKeySystem;
 
 pub struct DependencyTestScene;
 
@@ -47,13 +46,13 @@ impl Scene for DependencyTestScene {
         // pred: (WindowComponent, PancursesWindowComponent, SizeComponent)
         // ref: PancursesWindowComponent, SizeComponent, CharComponent, PancursesColorPairComponent, StringComponent
         // mut: SizeComponent, PancursesColorSetComponent, PancursesWindowComponent
-        let pancurses_window_system = PancursesWindowSystem::new(&mut ecs.component_storage);
+        let pancurses_window_system = CursesWindowSystem::new(&mut ecs.component_storage);
         ecs.push_system(pancurses_window_system);
 
         // pred: (WindowComponent, PancursesWindowComponent)
         // ref: PancursesWindowComponent
         // mut: ?MouseComponent, EventQueueComponent<AntigenEvent>
-        ecs.push_system(PancursesInputBufferSystem::new(1));
+        ecs.push_system(CursesInputBufferSystem::new(1));
 
         ecs.push_system(QuitKeySystem::new(antigen::keyboard::Key::Escape));
 
@@ -71,7 +70,10 @@ impl Scene for DependencyTestScene {
         // ref: ParentEntityComponent, ZIndexComponent, ChildEntitiesComponent, PancursesWindowComponent, ParentEntityComponent, PancursesWindowComponent,
         //      ParentEntityComponent, GlobalPositionComponent, PositionComponent, PancursesColorPairComponent, CharComponent, SizeComponent, StringComponent, PancursesWindowComponent
         // mut: PancursesColorSetComponent
-        ecs.push_system(PancursesRendererSystem::new());
+        ecs.push_system(CursesRendererSystem::new(
+            RGBArrangementPalette::new_884(),
+            TextColorMode::Color(Color(0.0, 0.0, 0.0)),
+        ));
 
         Ok(())
     }
@@ -85,7 +87,7 @@ impl Scene for DependencyTestScene {
         let main_window_entity = db.create_entity(Some("Main Window"))?;
         {
             db.insert_entity_component(main_window_entity, WindowComponent)?;
-            db.insert_entity_component(main_window_entity, PancursesWindowComponent::default())?;
+            db.insert_entity_component(main_window_entity, CursesWindowComponent::default())?;
             db.insert_entity_component(main_window_entity, SizeComponent::new(Vector2I(64, 32)))?;
         }
 
@@ -98,7 +100,7 @@ impl Scene for DependencyTestScene {
         .add_component(PositionComponent::new(Vector2I(1, 1)))?
         .add_component(VelocityComponent::new(Vector2I(1, 1)))?
         .add_component(CharComponent::new('@'))?
-        .add_component(ColorComponent::new(ColorRGB(1.0, 0.6, 1.0)))?
+        .add_component(ColorComponent::new(Color(1.0, 0.6, 1.0)))?
         .finish();
 
         let test_player_entity =

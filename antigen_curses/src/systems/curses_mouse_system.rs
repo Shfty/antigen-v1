@@ -8,23 +8,31 @@ use antigen::{
     primitive_types::Vector2I,
 };
 
+use crate::CursesEventQueueComponent;
+
 /// Converts pancurses mouse inputs into antigen mouse inputs
 #[derive(Debug)]
-pub struct PancursesMouseSystem {
+pub struct CursesMouseSystem {
     position: Vector2I,
     button_mask: usize,
 }
 
-impl PancursesMouseSystem {
+impl CursesMouseSystem {
     pub fn new() -> Self {
-        PancursesMouseSystem {
+        CursesMouseSystem {
             position: Vector2I::default(),
             button_mask: 0,
         }
     }
 }
 
-impl<CS, CD> SystemTrait<CS, CD> for PancursesMouseSystem
+impl Default for CursesMouseSystem {
+    fn default() -> Self {
+        CursesMouseSystem::new()
+    }
+}
+
+impl<CS, CD> SystemTrait<CS, CD> for CursesMouseSystem
 where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
@@ -38,14 +46,12 @@ where
             db.entity_component_directory
                 .get_entity_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<EventQueueComponent<pancurses::Input>>(entity_id)
+                        .entity_has_component::<CursesEventQueueComponent>(entity_id)
                 });
 
         if let Some(pancurses_event_queue_entity) = pancurses_event_queue_entity {
-            let event_queue_component = db
-                .get_entity_component::<EventQueueComponent<pancurses::Input>>(
-                    pancurses_event_queue_entity,
-                )?;
+            let event_queue_component =
+                db.get_entity_component::<CursesEventQueueComponent>(pancurses_event_queue_entity)?;
 
             let events = event_queue_component.get_events().clone();
             for event in events {
@@ -159,7 +165,7 @@ where
     }
 }
 
-impl SystemDebugTrait for PancursesMouseSystem {
+impl SystemDebugTrait for CursesMouseSystem {
     fn get_name() -> &'static str {
         "Pancurses Mouse"
     }

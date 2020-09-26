@@ -1,5 +1,5 @@
-mod vector2i;
 mod color;
+mod vector2i;
 
+pub use color::{Color, ColorRGB8, ColorRGBF};
 pub use vector2i::Vector2I;
-pub use color::ColorRGB;

@@ -1,25 +1,26 @@
-use crate::components::pancurses_window_component::PancursesWindowComponent;
 use antigen::{
-    components::{EventQueueComponent, WindowComponent},
+    components::WindowComponent,
     entity_component_system::{
         system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory,
         SystemDebugTrait, SystemError, SystemTrait,
     },
 };
 
+use crate::{CursesEventQueueComponent, CursesWindowComponent};
+
 /// Reads input from a pancurses window and pushes it into an event queue
 #[derive(Debug)]
-pub struct PancursesInputBufferSystem {
+pub struct CursesInputBufferSystem {
     input_buffer_size: i64,
 }
 
-impl PancursesInputBufferSystem {
+impl CursesInputBufferSystem {
     pub fn new(input_buffer_size: i64) -> Self {
-        PancursesInputBufferSystem { input_buffer_size }
+        CursesInputBufferSystem { input_buffer_size }
     }
 }
 
-impl<CS, CD> SystemTrait<CS, CD> for PancursesInputBufferSystem
+impl<CS, CD> SystemTrait<CS, CD> for CursesInputBufferSystem
 where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
@@ -34,7 +35,7 @@ where
             db.entity_component_directory
                 .get_entity_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<EventQueueComponent<pancurses::Input>>(entity_id)
+                        .entity_has_component::<CursesEventQueueComponent>(entity_id)
                 });
 
         if let Some(event_queue_entity) = event_queue_entity {
@@ -46,7 +47,7 @@ where
                             .entity_has_component::<WindowComponent>(entity_id)
                             && db
                                 .entity_component_directory
-                                .entity_has_component::<PancursesWindowComponent>(entity_id)
+                                .entity_has_component::<CursesWindowComponent>(entity_id)
                     });
 
             // If the window is valid, fetch inputs until we run out or reach the buffer's capacity
@@ -54,7 +55,7 @@ where
             let mut inputs: Vec<pancurses::Input> = Vec::new();
             if let Some(entity_id) = window_entity {
                 if let Some(window) = db
-                    .get_entity_component::<PancursesWindowComponent>(entity_id)?
+                    .get_entity_component::<CursesWindowComponent>(entity_id)?
                     .get_window()
                 {
                     for _ in 0..self.input_buffer_size {
@@ -68,10 +69,8 @@ where
             }
 
             // Fetch the entity queue component and push inputs into it
-            let event_queue_component = db
-                .get_entity_component_mut::<EventQueueComponent<pancurses::Input>>(
-                    event_queue_entity,
-                )?;
+            let event_queue_component =
+                db.get_entity_component_mut::<CursesEventQueueComponent>(event_queue_entity)?;
 
             for input in inputs {
                 event_queue_component.push_event(input);
@@ -82,7 +81,7 @@ where
     }
 }
 
-impl SystemDebugTrait for PancursesInputBufferSystem {
+impl SystemDebugTrait for CursesInputBufferSystem {
     fn get_name() -> &'static str {
         "Pancurses Input Buffer"
     }

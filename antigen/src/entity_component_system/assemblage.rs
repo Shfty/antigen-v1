@@ -89,7 +89,6 @@ where
     component_constructors: HashMap<ComponentID, ComponentConstructor<S, D>>,
 }
 
-// TODO: Rework using closures instead of component IDs for instantiation
 impl<CS, CD> Assemblage<CS, CD>
 where
     CS: ComponentStorage,

@@ -1,5 +1,3 @@
-use std::borrow::Borrow;
-
 use antigen::{
     components::EventQueue,
     components::Velocity,
@@ -43,7 +41,7 @@ where
 
             let event_queue: &Vec<AntigenInputEvent> = db
                 .get_entity_component::<EventQueue<AntigenInputEvent>>(antigen_event_queue_entity)?
-                .borrow();
+                .as_ref();
 
             for input in event_queue {
                 match input {

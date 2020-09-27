@@ -1,9 +1,6 @@
 use std::fmt::Debug;
 
-use crate::{
-    components::StringListComponent,
-    entity_component_system::{SystemError, SystemTrait},
-};
+use crate::entity_component_system::{SystemError, SystemTrait};
 use crate::{
     components::{DebugEntityList, DebugExclude, EntityDebugLabels},
     entity_component_system::{
@@ -62,12 +59,11 @@ where
                         .entity_has_component::<DebugEntityList>(entity_id)
                         && db
                             .entity_component_directory
-                            .entity_has_component::<StringListComponent>(entity_id)
+                            .entity_has_component::<Vec<String>>(entity_id)
                 });
 
             for entity_id in debug_entity_list_entities {
-                db.get_entity_component_mut::<StringListComponent>(entity_id)?
-                    .set_data(entity_strings.clone());
+                *db.get_entity_component_mut::<Vec<String>>(entity_id)? = entity_strings.clone();
             }
         }
 

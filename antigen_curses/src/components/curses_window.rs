@@ -1,19 +1,17 @@
-use std::borrow::{Borrow, BorrowMut};
-
 use antigen::entity_component_system::{ComponentDebugTrait, ComponentTrait};
 use pancurses::Window;
 
 #[derive(Debug, Default)]
 pub struct CursesWindow(pub Option<Window>);
 
-impl Borrow<Option<Window>> for CursesWindow {
-    fn borrow(&self) -> &Option<Window> {
+impl AsRef<Option<Window>> for CursesWindow {
+    fn as_ref(&self) -> &Option<Window> {
         &self.0
     }
 }
 
-impl BorrowMut<Option<Window>> for CursesWindow {
-    fn borrow_mut(&mut self) -> &mut Option<Window> {
+impl AsMut<Option<Window>> for CursesWindow {
+    fn as_mut(&mut self) -> &mut Option<Window> {
         &mut self.0
     }
 }

@@ -1,9 +1,7 @@
-use std::borrow::Borrow;
-
+use crate::components::{Control, SoftwareFramebuffer};
 use crate::{
-    components::ColorComponent,
     components::{
-        CPUShaderComponent, ChildEntities, GlobalPosition, Position, Size, Window, ZIndex,
+        CPUShader, CPUShaderInput, ChildEntities, GlobalPosition, Position, Size, Window, ZIndex,
     },
     entity_component_system::SystemDebugTrait,
     entity_component_system::{
@@ -13,10 +11,6 @@ use crate::{
     primitive_types::Color,
     primitive_types::ColorRGBF,
     primitive_types::Vector2I,
-};
-use crate::{
-    components::{Control, SoftwareFramebuffer},
-    core::cpu_shader::{CPUShader, CPUShaderInput},
 };
 
 #[derive(Debug)]
@@ -135,7 +129,7 @@ where
             }
 
             if let Ok(child_entities) = db.get_entity_component::<ChildEntities>(entity_id) {
-                let child_entities: &Vec<EntityID> = child_entities.borrow();
+                let child_entities: &Vec<EntityID> = child_entities.as_ref();
                 for child_id in child_entities {
                     populate_control_entities(db, *child_id, z_layers, z_index)?;
                 }
@@ -168,14 +162,14 @@ where
                 };
 
             // Get Color
-            let color = match db.get_entity_component::<ColorComponent>(entity_id) {
-                Ok(color_component) => *color_component.get_data(),
+            let color = match db.get_entity_component::<ColorRGBF>(entity_id) {
+                Ok(color_component) => *color_component,
                 Err(_) => Color(1.0, 1.0, 1.0),
             };
 
             // Get shader
-            let shader = match db.get_entity_component::<CPUShaderComponent>(entity_id) {
-                Ok(cpu_shader_component) => *cpu_shader_component.get_data(),
+            let shader = match db.get_entity_component::<CPUShader>(entity_id) {
+                Ok(cpu_shader_component) => *cpu_shader_component,
                 Err(_) => CPUShader(CPUShader::color_passthrough),
             };
 

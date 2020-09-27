@@ -1,4 +1,4 @@
-use std::{borrow::BorrowMut, fmt::Debug, marker::PhantomData};
+use std::{fmt::Debug, marker::PhantomData};
 
 use crate::entity_component_system::system_interface::SystemInterface;
 use crate::{
@@ -75,7 +75,7 @@ where
 
         let event_queue: &mut Vec<T> = db
             .get_entity_component_mut::<EventQueue<T>>(event_queue_entity)?
-            .borrow_mut();
+            .as_mut();
         event_queue.clear();
 
         Ok(())

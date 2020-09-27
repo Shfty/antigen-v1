@@ -1,11 +1,6 @@
-use std::borrow::Borrow;
-
 use crate::components::{Control, SoftwareFramebuffer};
 use crate::{
-    components::{
-        CharComponent, ChildEntities, GlobalPosition, Position, Size, StringComponent, Window,
-        ZIndex,
-    },
+    components::{ChildEntities, GlobalPosition, Position, Size, Window, ZIndex},
     entity_component_system::SystemDebugTrait,
     entity_component_system::{
         system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory, EntityID,
@@ -135,10 +130,10 @@ where
                 .entity_has_component::<Control>(&entity_id)
                 && (db
                     .entity_component_directory
-                    .entity_has_component::<StringComponent>(&entity_id)
+                    .entity_has_component::<String>(&entity_id)
                     || db
                         .entity_component_directory
-                        .entity_has_component::<CharComponent>(&entity_id))
+                        .entity_has_component::<char>(&entity_id))
             {
                 z_index = match db.get_entity_component::<ZIndex>(entity_id) {
                     Ok(z_index) => (*z_index).into(),
@@ -151,7 +146,7 @@ where
             if let Ok(child_entities_component) =
                 db.get_entity_component::<ChildEntities>(entity_id)
             {
-                let child_entities: &Vec<EntityID> = child_entities_component.borrow();
+                let child_entities: &Vec<EntityID> = child_entities_component.as_ref();
                 for child_id in child_entities {
                     populate_control_entities(db, *child_id, z_layers, z_index)?;
                 }
@@ -184,12 +179,14 @@ where
                 };
 
             // Get String
-            let string = if let Ok(string_component) =
-                db.get_entity_component::<StringComponent>(entity_id)
+            let string = if let Ok(string) =
+                db.get_entity_component::<String>(entity_id)
             {
-                string_component.get_data().clone()
-            } else if let Ok(char_component) = db.get_entity_component::<CharComponent>(entity_id) {
-                char_component.get_data().to_string()
+                string.clone()
+            } else if let Ok(char) =
+                db.get_entity_component::<char>(entity_id)
+            {
+                char.to_string()
             } else {
                 return Err("No valid string component".into());
             };

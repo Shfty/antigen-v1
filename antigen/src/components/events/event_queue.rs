@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, borrow::BorrowMut, fmt::Debug};
+use std::{fmt::Debug};
 
 use crate::entity_component_system::{ComponentDebugTrait, ComponentTrait};
 
@@ -7,20 +7,20 @@ pub struct EventQueue<T>(Vec<T>)
 where
     T: Debug;
 
-impl<T> Borrow<Vec<T>> for EventQueue<T>
+impl<T> AsRef<Vec<T>> for EventQueue<T>
 where
     T: Debug,
 {
-    fn borrow(&self) -> &Vec<T> {
+    fn as_ref(&self) -> &Vec<T> {
         &self.0
     }
 }
 
-impl<T> BorrowMut<Vec<T>> for EventQueue<T>
+impl<T> AsMut<Vec<T>> for EventQueue<T>
 where
     T: Debug,
 {
-    fn borrow_mut(&mut self) -> &mut Vec<T> {
+    fn as_mut(&mut self) -> &mut Vec<T> {
         &mut self.0
     }
 }

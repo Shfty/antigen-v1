@@ -1,5 +1,3 @@
-use std::borrow::{Borrow, BorrowMut};
-
 use antigen::{
     components::EventQueue,
     core::events::AntigenInputEvent,
@@ -57,7 +55,7 @@ where
         if let Some(pancurses_event_queue_entity) = pancurses_event_queue_entity {
             let pancurses_event_queue: &Vec<CursesEvent> = db
                 .get_entity_component::<CursesEventQueue>(pancurses_event_queue_entity)?
-                .borrow();
+                .as_ref();
 
             for pancurses_event in pancurses_event_queue.clone() {
                 if pancurses_event == CursesEvent::KeyMouse {
@@ -102,7 +100,7 @@ where
                             .get_entity_component_mut::<EventQueue<AntigenInputEvent>>(
                                 event_queue_entity,
                             )?
-                            .borrow_mut();
+                            .as_mut();
 
                         if delta != Vector2I(0, 0) {
                             antigen_event_queue.push(AntigenInputEvent::MouseMove {

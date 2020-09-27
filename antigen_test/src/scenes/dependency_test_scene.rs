@@ -1,6 +1,5 @@
 use antigen::{
-    components::ColorComponent,
-    components::{CharComponent, Control, ParentEntity, Position, Size, Velocity, Window},
+    components::{Control, ParentEntity, Position, Size, Velocity, Window},
     core::palette::RGBArrangementPalette,
     entity_component_system::ComponentStorage,
     entity_component_system::EntityComponentDirectory,
@@ -95,8 +94,8 @@ impl Scene for DependencyTestScene {
         .add_component(Control)?
         .add_component(Position::from(Vector2I(1, 1)))?
         .add_component(Velocity::default())?
-        .add_component(CharComponent::new('@'))?
-        .add_component(ColorComponent::new(Color(1.0, 0.6, 1.0)))?
+        .add_component('@')?
+        .add_component(Color(1.0f32, 0.6f32, 1.0f32))?
         .finish();
 
         let test_player_entity =

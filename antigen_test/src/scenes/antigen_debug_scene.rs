@@ -1,8 +1,7 @@
 use std::{collections::HashMap, ops::Range};
 
 use antigen::{
-    components::CPUShaderComponent,
-    components::ColorComponent,
+    components::CPUShader,
     components::Control,
     components::DebugSceneTree,
     components::DebugSystemList,
@@ -11,12 +10,10 @@ use antigen::{
     components::SoftwareFramebuffer,
     components::SystemInspector,
     components::{
-        Anchors, CharComponent, ComponentInspector, DebugComponentDataList, DebugComponentList,
-        DebugEntityList, DebugExclude, EntityInspector, GlobalPosition, IntRange, Margins,
-        ParentEntity, Position, Size, StringComponent, StringListComponent, Velocity, Window,
-        ZIndex,
+        Anchors, ComponentInspector, DebugComponentDataList, DebugComponentList, DebugEntityList,
+        DebugExclude, EntityInspector, GlobalPosition, IntRange, Margins, ParentEntity, Position,
+        Size, Velocity, Window, ZIndex,
     },
-    core::cpu_shader::CPUShader,
     core::palette::RGBArrangementPalette,
     entity_component_system::ComponentStorage,
     entity_component_system::EntityComponentDirectory,
@@ -26,6 +23,7 @@ use antigen::{
         EntityComponentSystem, EntityID, SystemRunner,
     },
     primitive_types::Color,
+    primitive_types::ColorRGBF,
     primitive_types::Vector2I,
     systems::AntigenInputEventQueueSystem,
     systems::{
@@ -189,8 +187,7 @@ where
 {
     let entity_id = string_assemblage.create_and_assemble_entity(db, debug_label)?;
 
-    db.get_entity_component_mut::<StringComponent>(entity_id)?
-        .set_data(text.into());
+    *db.get_entity_component_mut::<String>(entity_id)? = text.into();
 
     *db.get_entity_component_mut::<Position>(entity_id)? = Vector2I(x, y).into();
 
@@ -233,8 +230,8 @@ where
             "Controllable ASCII character with position and velocity",
         )
         .add_component(Control)?
-        .add_component(ColorComponent::new(Color(1.0, 0.6, 1.0)))?
-        .add_component(CharComponent::new('@'))?
+        .add_component(Color(1.0f32, 0.6f32, 1.0f32))?
+        .add_component('@')?
         .add_component(Position::from(Vector2I(1, 1)))?
         .add_component(Velocity::default())?
         .finish(),
@@ -244,7 +241,7 @@ where
         EntityAssemblage::StringControl,
         Assemblage::build("String Entity", "ASCII string control")
             .add_component(Control)?
-            .add_component(StringComponent::default())?
+            .add_component(String::default())?
             .add_component(Position::default())?
             .finish(),
     );
@@ -255,8 +252,8 @@ where
             .add_component(Control)?
             .add_component(Position::default())?
             .add_component(Size::default())?
-            .add_component(CharComponent::default())?
-            .add_component(ColorComponent::new(Color(0.753, 0.753, 0.753)))?
+            .add_component(char::default())?
+            .add_component(Color(0.753f32, 0.753f32, 0.753f32))?
             .finish(),
     );
 
@@ -266,9 +263,9 @@ where
             .add_component(Control)?
             .add_component(Position::default())?
             .add_component(Size::default())?
-            .add_component(CharComponent::default())?
-            .add_component(CPUShaderComponent::new(CPUShader(CPUShader::rect)))?
-            .add_component(ColorComponent::new(Color(0.753, 0.753, 0.753)))?
+            .add_component(char::default())?
+            .add_component(CPUShader(CPUShader::rect))?
+            .add_component(Color(0.753f32, 0.753f32, 0.753f32))?
             .finish(),
     );
 
@@ -357,8 +354,8 @@ where
 
             db.insert_entity_component(test_rect_entity, ParentEntity(game_window_entity))?;
             db.insert_entity_component(test_rect_entity, GlobalPosition::default())?;
-            db.insert_entity_component(test_rect_entity, CPUShaderComponent::new(*shader))?;
-            db.insert_entity_component(test_rect_entity, ColorComponent::new(*color))?;
+            db.insert_entity_component(test_rect_entity, *shader)?;
+            db.insert_entity_component(test_rect_entity, *color)?;
         }
     }
 
@@ -377,8 +374,9 @@ where
         .create_and_assemble_entity(db, Some("Test String Control"))?;
     {
         *db.get_entity_component_mut::<Position>(test_string_entity)? = Vector2I(1, 1).into();
-        db.get_entity_component_mut::<StringComponent>(test_string_entity)?
-            .set_data("Testing One Two Three".into());
+        *db.get_entity_component_mut::<String>(test_string_entity)? =
+            "Testing One Two Three".into();
+
         db.insert_entity_component(test_string_entity, ParentEntity(test_player_entity))?;
         db.insert_entity_component(test_string_entity, GlobalPosition::default())?;
     }
@@ -404,8 +402,9 @@ where
         .unwrap()
         .create_and_assemble_entity(db, Some(&format!("{} Window", window_name)))?;
     {
-        db.get_entity_component_mut::<ColorComponent>(entity_list_window_entity)?
-            .set_data(Color(0.0, 0.0, 0.0));
+        *db.get_entity_component_mut::<ColorRGBF>(entity_list_window_entity)? =
+            Color(0.0, 0.0, 0.0);
+
         db.insert_entity_component(entity_list_window_entity, Position::default())?;
         db.insert_entity_component(entity_list_window_entity, ZIndex(1))?;
         db.insert_entity_component(entity_list_window_entity, Size::default())?;
@@ -460,7 +459,7 @@ where
         db.insert_entity_component(entity_list_entity, ParentEntity(entity_list_border_entity))?;
         db.insert_entity_component(entity_list_entity, Anchors::new(0.0..1.0, 0.0..1.0))?;
         db.insert_entity_component(entity_list_entity, Margins::new(2, 2, 3, 1))?;
-        db.insert_entity_component(entity_list_entity, StringListComponent::default())?;
+        db.insert_entity_component(entity_list_entity, Vec::new())?;
         db.insert_entity_component(entity_list_entity, LocalPosition::default())?;
         db.insert_entity_component(entity_list_entity, DebugExclude)?;
     }

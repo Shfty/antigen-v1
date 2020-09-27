@@ -1,16 +1,16 @@
-use std::{borrow::Borrow, collections::HashMap};
+use std::collections::HashMap;
 
 use crate::{
     components::{
-        ColorComponent, Control, DebugExclude, EventQueue, GlobalPosition, IntRange, List,
-        LocalPosition, ParentEntity, Position, Size, StringComponent, StringListComponent,
+        Control, DebugExclude, EventQueue, GlobalPosition, IntRange, List, LocalPosition,
+        ParentEntity, Position, Size,
     },
     core::events::AntigenInputEvent,
     entity_component_system::{
         system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory, EntityID,
         SystemDebugTrait, SystemError, SystemTrait,
     },
-    primitive_types::{Color, Vector2I},
+    primitive_types::{Color, ColorRGBF, Vector2I},
 };
 
 #[derive(Debug)]
@@ -74,14 +74,8 @@ where
                 db.insert_entity_component(list_hover_entity, Position::default())?;
                 db.insert_entity_component(list_hover_entity, Size::default())?;
                 db.insert_entity_component(list_hover_entity, GlobalPosition::default())?;
-                db.insert_entity_component(
-                    list_hover_entity,
-                    ColorComponent::new(Color(0.5, 0.5, 0.5)),
-                )?;
-                db.insert_entity_component(
-                    list_hover_entity,
-                    ParentEntity(list_control_entity),
-                )?;
+                db.insert_entity_component(list_hover_entity, Color(0.5f32, 0.5f32, 0.5f32))?;
+                db.insert_entity_component(list_hover_entity, ParentEntity(list_control_entity))?;
                 self.list_hover_entities
                     .insert(list_control_entity, list_hover_entity);
             }
@@ -97,10 +91,7 @@ where
                 db.insert_entity_component(list_focus_entity, Position::default())?;
                 db.insert_entity_component(list_focus_entity, Size::default())?;
                 db.insert_entity_component(list_focus_entity, GlobalPosition::default())?;
-                db.insert_entity_component(
-                    list_focus_entity,
-                    ParentEntity(list_control_entity),
-                )?;
+                db.insert_entity_component(list_focus_entity, ParentEntity(list_control_entity))?;
                 self.list_focus_entities
                     .insert(list_control_entity, list_focus_entity);
             }
@@ -134,22 +125,19 @@ where
                 let scroll_offset = 0usize;
 
                 // Fetch strings
-                let string_list: Vec<Vec<String>> = db
-                    .get_entity_component::<StringListComponent>(string_list_entity)?
-                    .get_data()
-                    .iter()
-                    .skip(scroll_offset)
-                    .map(|string| {
-                        let substrings: Vec<String> = string
-                            .split('\n')
-                            .map(|string| {
-                                &string[..std::cmp::min(width, string.len() as i64) as usize]
-                            })
-                            .map(std::string::ToString::to_string)
-                            .collect();
-                        substrings
-                    })
-                    .collect();
+                let string_list: Vec<Vec<String>> = (*db
+                    .get_entity_component::<Vec<String>>(string_list_entity)?)
+                .iter()
+                .skip(scroll_offset)
+                .map(|string| {
+                    let substrings: Vec<String> = string
+                        .split('\n')
+                        .map(|string| &string[..std::cmp::min(width, string.len() as i64) as usize])
+                        .map(std::string::ToString::to_string)
+                        .collect();
+                    substrings
+                })
+                .collect();
 
                 // If this list doesn't have a vector of item entity references, create one
                 if self
@@ -177,12 +165,9 @@ where
                     db.insert_entity_component(string_entity, Control)?;
                     db.insert_entity_component(string_entity, Position::default())?;
                     db.insert_entity_component(string_entity, GlobalPosition::default())?;
-                    db.insert_entity_component(
-                        string_entity,
-                        ParentEntity(list_control_entity),
-                    )?;
-                    db.insert_entity_component(string_entity, StringComponent::default())?;
-                    db.insert_entity_component(string_entity, ColorComponent::default())?;
+                    db.insert_entity_component(string_entity, ParentEntity(list_control_entity))?;
+                    db.insert_entity_component(string_entity, String::default())?;
+                    db.insert_entity_component(string_entity, ColorRGBF::default())?;
 
                     if db
                         .entity_component_directory
@@ -263,7 +248,7 @@ where
                                 event_queue_entity,
                             )?;
 
-                        let event_queue: &Vec<AntigenInputEvent> = event_queue_component.borrow();
+                        let event_queue: &Vec<AntigenInputEvent> = event_queue_component.as_ref();
                         for event in event_queue.clone() {
                             if let AntigenInputEvent::MousePress { button_mask: 1 } = event {
                                 if let Some(list_index_entity) = list_index_entity {
@@ -346,8 +331,7 @@ where
                             Vector2I(0, y).into();
 
                         // Update each string entity's text
-                        db.get_entity_component_mut::<StringComponent>(string_entity)?
-                            .set_data(string.clone());
+                        *db.get_entity_component_mut::<String>(string_entity)? = string.clone();
 
                         // Update color pair based on focused item
                         let data = if Some(string_index as i64) == focused_item {
@@ -356,8 +340,7 @@ where
                             Color(1.0, 1.0, 1.0)
                         };
 
-                        db.get_entity_component_mut::<ColorComponent>(string_entity)?
-                            .set_data(data);
+                        *db.get_entity_component_mut::<ColorRGBF>(string_entity)? = data;
 
                         y += 1;
                         if y >= height {

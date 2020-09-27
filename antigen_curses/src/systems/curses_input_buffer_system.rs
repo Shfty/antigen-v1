@@ -10,15 +10,7 @@ use crate::{CursesEventQueueComponent, CursesWindowComponent};
 
 /// Reads input from a pancurses window and pushes it into an event queue
 #[derive(Debug)]
-pub struct CursesInputBufferSystem {
-    input_buffer_size: i64,
-}
-
-impl CursesInputBufferSystem {
-    pub fn new(input_buffer_size: i64) -> Self {
-        CursesInputBufferSystem { input_buffer_size }
-    }
-}
+pub struct CursesInputBufferSystem;
 
 impl<CS, CD> SystemTrait<CS, CD> for CursesInputBufferSystem
 where
@@ -50,30 +42,21 @@ where
                                 .entity_has_component::<CursesWindowComponent>(entity_id)
                     });
 
-            // If the window is valid, fetch inputs until we run out or reach the buffer's capacity
-            // Further inputs will be deferred until the next frame
-            let mut inputs: Vec<pancurses::Input> = Vec::new();
             if let Some(entity_id) = window_entity {
                 if let Some(window) = db
                     .get_entity_component::<CursesWindowComponent>(entity_id)?
                     .get_window()
                 {
-                    for _ in 0..self.input_buffer_size {
-                        if let Some(input) = window.getch() {
-                            inputs.push(input);
-                        } else {
-                            break;
-                        }
+                    if let Some(input) = window.getch() {
+                        // Fetch the entity queue component and push inputs into it
+                        let event_queue_component = db
+                            .get_entity_component_mut::<CursesEventQueueComponent>(
+                                event_queue_entity,
+                            )?;
+
+                        event_queue_component.push_event(input);
                     }
                 }
-            }
-
-            // Fetch the entity queue component and push inputs into it
-            let event_queue_component =
-                db.get_entity_component_mut::<CursesEventQueueComponent>(event_queue_entity)?;
-
-            for input in inputs {
-                event_queue_component.push_event(input);
             }
         }
 

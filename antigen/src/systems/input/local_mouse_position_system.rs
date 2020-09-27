@@ -3,7 +3,7 @@ use crate::{
     components::{
         GlobalPositionComponent, ParentEntityComponent, PositionComponent, WindowComponent,
     },
-    core::events::AntigenEvent,
+    core::events::AntigenInputEvent,
     entity_component_system::SystemDebugTrait,
     entity_component_system::{
         system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory, SystemError,
@@ -43,18 +43,18 @@ where
             db.entity_component_directory
                 .get_entity_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<EventQueueComponent<AntigenEvent>>(entity_id)
+                        .entity_has_component::<EventQueueComponent<AntigenInputEvent>>(entity_id)
                 });
 
         if let Some(event_queue_entity) = event_queue_entity {
             let event_queue = db
-                .get_entity_component::<EventQueueComponent<AntigenEvent>>(event_queue_entity)?
+                .get_entity_component::<EventQueueComponent<AntigenInputEvent>>(event_queue_entity)?
                 .get_events()
                 .clone();
 
             for event in event_queue {
                 let mouse_position = match event {
-                    AntigenEvent::MouseMove { position, delta: _ } => position,
+                    AntigenInputEvent::MouseMove { position, delta: _ } => position,
                     _ => continue,
                 };
 

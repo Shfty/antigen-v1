@@ -1,6 +1,6 @@
 use antigen::{
     components::EventQueueComponent,
-    core::events::AntigenEvent,
+    core::events::AntigenInputEvent,
     entity_component_system::ComponentStorage,
     entity_component_system::EntityComponentDirectory,
     entity_component_system::SystemDebugTrait,
@@ -33,7 +33,7 @@ where
             db.entity_component_directory
                 .get_entity_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<EventQueueComponent<AntigenEvent>>(entity_id)
+                        .entity_has_component::<EventQueueComponent<AntigenInputEvent>>(entity_id)
                 });
 
         if let Some(event_queue_entity) = event_queue_entity {
@@ -50,11 +50,11 @@ where
                     .get_input_key();
 
                 for event in db
-                    .get_entity_component::<EventQueueComponent<AntigenEvent>>(event_queue_entity)?
+                    .get_entity_component::<EventQueueComponent<AntigenInputEvent>>(event_queue_entity)?
                     .get_events()
                     .clone()
                 {
-                    if let AntigenEvent::KeyPress { key_code } = event {
+                    if let AntigenInputEvent::KeyPress { key_code } = event {
                         if key_code == input_key {
                             db.destroy_entity(entity_id)?;
                         }

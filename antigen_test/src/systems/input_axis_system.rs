@@ -2,7 +2,7 @@ use crate::components::InputAxisComponent;
 use antigen::{
     components::EventQueueComponent,
     components::IntRangeComponent,
-    core::events::AntigenEvent,
+    core::events::AntigenInputEvent,
     entity_component_system::system_interface::SystemInterface,
     entity_component_system::ComponentStorage,
     entity_component_system::EntityComponentDirectory,
@@ -33,7 +33,7 @@ where
             db.entity_component_directory
                 .get_entity_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<EventQueueComponent<AntigenEvent>>(entity_id)
+                        .entity_has_component::<EventQueueComponent<AntigenInputEvent>>(entity_id)
                 });
 
         if let Some(event_queue_entity) = event_queue_entity {
@@ -58,10 +58,10 @@ where
                 let mut offset: i64 = 0;
 
                 for event in db
-                    .get_entity_component::<EventQueueComponent<AntigenEvent>>(event_queue_entity)?
+                    .get_entity_component::<EventQueueComponent<AntigenInputEvent>>(event_queue_entity)?
                     .get_events()
                 {
-                    if let AntigenEvent::KeyPress { key_code } = event {
+                    if let AntigenInputEvent::KeyPress { key_code } = event {
                         if *key_code == prev_input {
                             offset -= 1;
                         } else if *key_code == next_input {

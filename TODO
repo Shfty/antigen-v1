@@ -1,4 +1,6 @@
 TODO: Split IntRangeComponent into PrimitiveComponent<i64> and PrimitiveComponent<Range<i64>>
+      Would this be better codified as ListRange and ListIndex?
+      Could do away with range altogether and draw directly from list size
 
 TODO: Refactor software renderer / string renderer into a single system
       Input data fetching + rendering code is the only major difference

@@ -1,7 +1,7 @@
 use antigen::{
     components::EventQueueComponent,
     components::VelocityComponent,
-    core::events::AntigenEvent,
+    core::events::AntigenInputEvent,
     entity_component_system::system_interface::SystemInterface,
     entity_component_system::ComponentStorage,
     entity_component_system::EntityComponentDirectory,
@@ -33,28 +33,28 @@ where
             db.entity_component_directory
                 .get_entity_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<EventQueueComponent<AntigenEvent>>(entity_id)
+                        .entity_has_component::<EventQueueComponent<AntigenInputEvent>>(entity_id)
                 });
 
         if let Some(antigen_event_queue_entity) = antigen_event_queue_entity {
             let mut move_input: Vector2I = Vector2I(0, 0);
             for input in db
-                .get_entity_component::<EventQueueComponent<AntigenEvent>>(
+                .get_entity_component::<EventQueueComponent<AntigenInputEvent>>(
                     antigen_event_queue_entity,
                 )?
                 .get_events()
             {
                 match input {
-                    AntigenEvent::KeyPress {
+                    AntigenInputEvent::KeyPress {
                         key_code: antigen::core::keyboard::Key::Left,
                     } => move_input.0 -= 1,
-                    AntigenEvent::KeyPress {
+                    AntigenInputEvent::KeyPress {
                         key_code: antigen::core::keyboard::Key::Right,
                     } => move_input.0 += 1,
-                    AntigenEvent::KeyPress {
+                    AntigenInputEvent::KeyPress {
                         key_code: antigen::core::keyboard::Key::Up,
                     } => move_input.1 -= 1,
-                    AntigenEvent::KeyPress {
+                    AntigenInputEvent::KeyPress {
                         key_code: antigen::core::keyboard::Key::Down,
                     } => move_input.1 += 1,
                     _ => (),

@@ -1,6 +1,6 @@
 use antigen::{
     components::EventQueueComponent,
-    core::events::AntigenEvent,
+    core::events::AntigenInputEvent,
     entity_component_system::{
         system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory,
         SystemDebugTrait, SystemError, SystemTrait,
@@ -9,6 +9,9 @@ use antigen::{
 };
 
 use crate::CursesEventQueueComponent;
+
+const WHEEL_UP: usize = 65536;
+const WHEEL_DOWN: usize = 2097152;
 
 /// Converts pancurses mouse inputs into antigen mouse inputs
 #[derive(Debug)]
@@ -87,22 +90,31 @@ where
                         db.entity_component_directory
                             .get_entity_by_predicate(|entity_id| {
                                 db.entity_component_directory
-                                    .entity_has_component::<EventQueueComponent<AntigenEvent>>(
+                                    .entity_has_component::<EventQueueComponent<AntigenInputEvent>>(
                                         entity_id,
                                     )
                             });
 
                     if let Some(event_queue_entity) = event_queue_entity {
                         let event_queue_component = db
-                            .get_entity_component_mut::<EventQueueComponent<AntigenEvent>>(
+                            .get_entity_component_mut::<EventQueueComponent<AntigenInputEvent>>(
                                 event_queue_entity,
                             )?;
 
                         if delta != Vector2I(0, 0) {
-                            event_queue_component.push_event(AntigenEvent::MouseMove {
+                            event_queue_component.push_event(AntigenInputEvent::MouseMove {
                                 position: prev_position + delta,
                                 delta,
                             })
+                        }
+
+                        if WHEEL_UP & self.button_mask > 0 {
+                            event_queue_component
+                                .push_event(AntigenInputEvent::MouseScroll { delta: -1 })
+                        }
+
+                        if WHEEL_DOWN & self.button_mask > 0 {
+                            event_queue_component.push_event(AntigenInputEvent::MouseScroll { delta: 1 })
                         }
 
                         if self.button_mask != prev_button_mask {
@@ -145,13 +157,13 @@ where
                             }
 
                             if pressed_mask != 0 {
-                                event_queue_component.push_event(AntigenEvent::MousePress {
+                                event_queue_component.push_event(AntigenInputEvent::MousePress {
                                     button_mask: pressed_mask,
                                 })
                             }
 
                             if released_mask != 0 {
-                                event_queue_component.push_event(AntigenEvent::MouseRelease {
+                                event_queue_component.push_event(AntigenInputEvent::MouseRelease {
                                     button_mask: released_mask,
                                 })
                             }

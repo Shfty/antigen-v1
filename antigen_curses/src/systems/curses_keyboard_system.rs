@@ -1,4 +1,4 @@
-use antigen::{components::EventQueueComponent, core::events::AntigenEvent, core::keyboard::IntoKey, entity_component_system::{
+use antigen::{components::EventQueueComponent, core::events::AntigenInputEvent, core::keyboard::IntoKey, entity_component_system::{
         system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory,
         SystemDebugTrait, SystemError, SystemTrait,
     }};
@@ -49,20 +49,20 @@ where
                 db.entity_component_directory
                     .get_entity_by_predicate(|entity_id| {
                         db.entity_component_directory
-                            .entity_has_component::<EventQueueComponent<AntigenEvent>>(entity_id)
+                            .entity_has_component::<EventQueueComponent<AntigenInputEvent>>(entity_id)
                     });
 
             if let Some(event_queue_entity) = antigen_event_queue_entity {
                 let antigen_event_queue_component = db
-                    .get_entity_component_mut::<EventQueueComponent<AntigenEvent>>(
+                    .get_entity_component_mut::<EventQueueComponent<AntigenInputEvent>>(
                         event_queue_entity,
                     )?;
 
                 for antigen_input in antigen_keys {
-                    antigen_event_queue_component.push_event(AntigenEvent::KeyPress {
+                    antigen_event_queue_component.push_event(AntigenInputEvent::KeyPress {
                         key_code: antigen_input,
                     });
-                    antigen_event_queue_component.push_event(AntigenEvent::KeyRelease {
+                    antigen_event_queue_component.push_event(AntigenInputEvent::KeyRelease {
                         key_code: antigen_input,
                     });
                 }

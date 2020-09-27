@@ -52,7 +52,7 @@ impl Scene for DependencyTestScene {
         // pred: (WindowComponent, CursesWindowComponent)
         // ref: CursesWindowComponent
         // mut: ?MouseComponent, EventQueueComponent<AntigenEvent>
-        ecs.push_system(CursesInputBufferSystem::new(1));
+        ecs.push_system(CursesInputBufferSystem);
 
         ecs.push_system(QuitKeySystem::new(antigen::core::keyboard::Key::Escape));
 

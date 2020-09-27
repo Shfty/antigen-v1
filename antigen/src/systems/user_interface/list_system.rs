@@ -7,7 +7,7 @@ use crate::{
         ParentEntityComponent, PositionComponent, SizeComponent, StringComponent,
         StringListComponent,
     },
-    core::events::AntigenEvent,
+    core::events::AntigenInputEvent,
     entity_component_system::{
         system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory, EntityID,
         SystemDebugTrait, SystemError, SystemTrait,
@@ -132,11 +132,15 @@ where
                         Err(err) => return Err(err.into()),
                     };
 
+                // TODO: Scroll offset
+                let scroll_offset = 0usize;
+
                 // Fetch strings
                 let string_list: Vec<Vec<String>> = db
                     .get_entity_component::<StringListComponent>(string_list_entity)?
                     .get_data()
                     .iter()
+                    .skip(scroll_offset)
                     .map(|string| {
                         let substrings: Vec<String> = string
                             .split('\n')
@@ -249,19 +253,19 @@ where
                         db.entity_component_directory
                             .get_entity_by_predicate(|entity_id| {
                                 db.entity_component_directory
-                                    .entity_has_component::<EventQueueComponent<AntigenEvent>>(
+                                    .entity_has_component::<EventQueueComponent<AntigenInputEvent>>(
                                         entity_id,
                                     )
                             });
 
                     if let Some(event_queue_entity) = event_queue_entity {
                         let event_queue_component = db
-                            .get_entity_component::<EventQueueComponent<AntigenEvent>>(
+                            .get_entity_component::<EventQueueComponent<AntigenInputEvent>>(
                                 event_queue_entity,
                             )?;
 
                         for event in event_queue_component.get_events().clone() {
-                            if let AntigenEvent::MousePress { button_mask: 1 } = event {
+                            if let AntigenInputEvent::MousePress { button_mask: 1 } = event {
                                 if let Some(list_index_entity) = list_index_entity {
                                     if let Ok(int_range_component) = db
                                         .get_entity_component_mut::<IntRangeComponent>(
@@ -271,11 +275,13 @@ where
                                         int_range_component
                                             .set_range(-1..(string_list.len() as i64));
 
-                                        if let Some(hovered_item) = hovered_item {
-                                            int_range_component.set_index(hovered_item as i64);
+                                        let index = if let Some(hovered_item) = hovered_item {
+                                            hovered_item as i64
                                         } else {
-                                            int_range_component.set_index(-1);
-                                        }
+                                            -1
+                                        };
+
+                                        int_range_component.set_index(index);
                                     }
                                 }
                             }
@@ -306,7 +312,10 @@ where
 
                 db.get_entity_component_mut::<SizeComponent>(*list_hover_entity)?
                     .set_size(if hovered_item.is_some() {
-                        Vector2I(width, string_list[hovered_item.unwrap() as usize].len() as i64)
+                        Vector2I(
+                            width,
+                            string_list[hovered_item.unwrap() as usize].len() as i64,
+                        )
                     } else {
                         Vector2I(0, 0)
                     });

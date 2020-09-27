@@ -19,7 +19,6 @@ use antigen::{
         ZIndexComponent,
     },
     core::cpu_shader::CPUShader,
-    core::events::AntigenEvent,
     core::palette::RGBArrangementPalette,
     entity_component_system::ComponentStorage,
     entity_component_system::EntityComponentDirectory,
@@ -30,7 +29,7 @@ use antigen::{
     },
     primitive_types::Color,
     primitive_types::Vector2I,
-    systems::EventQueueSystem,
+    systems::AntigenInputEventQueueSystem,
     systems::{
         AnchorsMarginsSystem, ChildEntitiesSystem, GlobalPositionSystem, ListSystem,
         LocalMousePositionSystem, PositionIntegratorSystem, SoftwareRendererSystem,
@@ -66,10 +65,10 @@ impl Scene for AntigenDebugScene {
         SS: SystemStorage<CS, CD> + 'static,
         SR: SystemRunner + 'static,
     {
-        ecs.push_system(EventQueueSystem::<AntigenEvent>::new());
+        ecs.push_system(AntigenInputEventQueueSystem::new());
         ecs.push_system(CursesEventQueueSystem::new());
 
-        ecs.push_system(CursesInputBufferSystem::new(1));
+        ecs.push_system(CursesInputBufferSystem);
         ecs.push_system(CursesKeyboardSystem);
         ecs.push_system(CursesMouseSystem::new());
         let pancurses_window_system = CursesWindowSystem::new(&mut ecs.component_storage);
@@ -485,10 +484,9 @@ where
     // Create Entity List
     let entity_list_entity = db.create_entity(Some(window_name))?;
     {
-        db.insert_entity_component(
-            entity_list_entity,
-            ListComponent::new(Some(entity_list_entity), list_index_entity),
-        )?;
+        let mut list_component = ListComponent::new(Some(entity_list_entity), list_index_entity);
+
+        db.insert_entity_component(entity_list_entity, list_component)?;
         db.insert_entity_component(entity_list_entity, PositionComponent::default())?;
         db.insert_entity_component(entity_list_entity, SizeComponent::default())?;
         db.insert_entity_component(

@@ -1,7 +1,7 @@
 use crate::primitive_types::Vector2I;
 
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
-pub enum AntigenEvent {
+pub enum AntigenInputEvent {
     MouseMove {
         position: Vector2I,
         delta: Vector2I,
@@ -11,6 +11,9 @@ pub enum AntigenEvent {
     },
     MouseRelease {
         button_mask: usize,
+    },
+    MouseScroll {
+        delta: i8,
     },
     KeyPress {
         key_code: crate::core::keyboard::Key,

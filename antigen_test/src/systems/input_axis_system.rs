@@ -1,5 +1,3 @@
-use std::borrow::Borrow;
-
 use crate::components::InputAxis;
 use antigen::{
     components::EventQueue,
@@ -54,7 +52,7 @@ where
 
                 let event_queue: &Vec<AntigenInputEvent> = db
                     .get_entity_component::<EventQueue<AntigenInputEvent>>(event_queue_entity)?
-                    .borrow();
+                    .as_ref();
 
                 for event in event_queue {
                     if let AntigenInputEvent::KeyPress { key_code } = event {

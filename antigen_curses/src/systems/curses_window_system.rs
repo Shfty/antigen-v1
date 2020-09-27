@@ -1,7 +1,5 @@
-use std::borrow::{Borrow, BorrowMut};
-
 use antigen::{
-    components::{Size, StringComponent, Window},
+    components::{Size, Window},
     entity_component_system::{
         system_interface::SystemInterface, ComponentStorage, ComponentTrait,
         EntityComponentDirectory, EntityID, SystemDebugTrait, SystemError, SystemTrait,
@@ -40,15 +38,15 @@ impl CursesWindowSystem {
         CD: EntityComponentDirectory,
     {
         let curses_window = db.get_entity_component::<CursesWindow>(entity_id)?;
-        let curses_window: &Option<pancurses::Window> = curses_window.borrow();
+        let curses_window: &Option<pancurses::Window> = curses_window.as_ref();
         if curses_window.is_some() {
             return Ok(());
         }
 
         let Vector2I(width, height) = (*db.get_entity_component::<Size>(entity_id)?).into();
 
-        let title = match db.get_entity_component::<StringComponent>(entity_id) {
-            Ok(string_component) => string_component.get_data(),
+        let title = match db.get_entity_component::<String>(entity_id) {
+            Ok(string_component) => string_component,
             Err(_) => "Antigen",
         };
 
@@ -70,7 +68,7 @@ impl CursesWindowSystem {
 
         let curses_window: &mut Option<pancurses::Window> = db
             .get_entity_component_mut::<CursesWindow>(entity_id)?
-            .borrow_mut();
+            .as_mut();
 
         *curses_window = Some(window);
 
@@ -98,7 +96,7 @@ where
         if let Some(pancurses_event_queue_entity) = pancurses_event_queue_entity {
             let pancurses_event_queue: &Vec<CursesEvent> = db
                 .get_entity_component::<CursesEventQueue>(pancurses_event_queue_entity)?
-                .borrow();
+                .as_ref();
 
             for event in pancurses_event_queue {
                 if let CursesEvent::KeyResize = event {
@@ -136,7 +134,7 @@ where
             if let Some(pancurses_event_queue_entity) = pancurses_event_queue_entity {
                 let pancurses_event_queue: &Vec<CursesEvent> = db
                     .get_entity_component::<CursesEventQueue>(pancurses_event_queue_entity)?
-                    .borrow();
+                    .as_ref();
 
                 if pancurses_event_queue
                     .iter()
@@ -149,7 +147,7 @@ where
             // Update window component size
             let curses_window: &Option<pancurses::Window> = db
                 .get_entity_component::<CursesWindow>(window_entity)?
-                .borrow();
+                .as_ref();
 
             if let Some(window) = curses_window {
                 let (window_height, window_width) = window.get_max_yx();

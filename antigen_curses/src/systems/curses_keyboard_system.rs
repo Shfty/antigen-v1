@@ -1,5 +1,3 @@
-use std::borrow::{Borrow, BorrowMut};
-
 use antigen::{
     components::EventQueue,
     core::events::AntigenInputEvent,
@@ -38,7 +36,7 @@ where
 
             let event_queue: &Vec<CursesEvent> = db
                 .get_entity_component::<CursesEventQueue>(pancurses_event_queue_entity)?
-                .borrow();
+                .as_ref();
 
             for event in event_queue {
                 let event = *event;
@@ -64,7 +62,7 @@ where
             if let Some(event_queue_entity) = antigen_event_queue_entity {
                 let antigen_event_queue: &mut Vec<AntigenInputEvent> = db
                     .get_entity_component_mut::<EventQueue<AntigenInputEvent>>(event_queue_entity)?
-                    .borrow_mut();
+                    .as_mut();
 
                 for antigen_input in antigen_keys {
                     antigen_event_queue.push(AntigenInputEvent::KeyPress {

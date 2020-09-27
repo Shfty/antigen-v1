@@ -1,6 +1,6 @@
 TODO: Cleanup pass for distinction between CursesInput / CursesEvent
 
-TODO: Split IntRangeComponent into PrimitiveComponent<i64> and PrimitiveComponent<Range<i64>>
+TODO: Split IntRangeComponent into i64> and PrimitiveComponent<Range<i64>
       Would this be better codified as ListRange and ListIndex?
       Could do away with range altogether and draw directly from list size
 

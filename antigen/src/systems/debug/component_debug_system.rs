@@ -1,13 +1,10 @@
+use crate::entity_component_system::{SystemError, SystemTrait};
 use crate::{
-    components::ComponentDebugInfo, components::DebugComponentList,
-    components::DebugExclude, components::EntityInspector,
-    components::IntRange, entity_component_system::system_interface::SystemInterface,
+    components::ComponentDebugInfo, components::DebugComponentList, components::DebugExclude,
+    components::EntityInspector, components::IntRange,
+    entity_component_system::system_interface::SystemInterface,
     entity_component_system::ComponentStorage, entity_component_system::EntityComponentDirectory,
     entity_component_system::EntityID, entity_component_system::SystemDebugTrait,
-};
-use crate::{
-    components::StringListComponent,
-    entity_component_system::{SystemError, SystemTrait},
 };
 
 #[derive(Debug)]
@@ -47,7 +44,7 @@ where
                     .entity_has_component::<DebugComponentList>(entity_id)
                     && db
                         .entity_component_directory
-                        .entity_has_component::<StringListComponent>(entity_id)
+                        .entity_has_component::<Vec<String>>(entity_id)
             });
 
         if let Some(entity_inspector_entity) = entity_inspector_entity {
@@ -88,8 +85,8 @@ where
                         .collect();
 
                     for entity_id in debug_component_list_entities {
-                        db.get_entity_component_mut::<StringListComponent>(entity_id)?
-                            .set_data(component_strings.clone());
+                        *db.get_entity_component_mut::<Vec<String>>(entity_id)? =
+                            component_strings.clone();
                     }
                 }
             }

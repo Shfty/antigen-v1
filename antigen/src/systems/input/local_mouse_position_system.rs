@@ -1,5 +1,3 @@
-use std::borrow::Borrow;
-
 use crate::{
     components::EventQueue,
     components::{GlobalPosition, ParentEntity, Position, Window},
@@ -49,7 +47,7 @@ where
         if let Some(event_queue_entity) = event_queue_entity {
             let event_queue: &Vec<AntigenInputEvent> = db
                 .get_entity_component::<EventQueue<AntigenInputEvent>>(event_queue_entity)?
-                .borrow();
+                .as_ref();
 
             for event in event_queue.clone() {
                 let mouse_position = match event {

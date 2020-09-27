@@ -1,5 +1,3 @@
-use std::borrow::{Borrow, BorrowMut};
-
 use antigen::{
     components::Window,
     entity_component_system::{
@@ -45,12 +43,12 @@ where
                     });
 
             if let Some(entity_id) = window_entity {
-                if let Some(window) = db.get_entity_component::<CursesWindow>(entity_id)?.borrow() {
+                if let Some(window) = db.get_entity_component::<CursesWindow>(entity_id)?.as_ref() {
                     if let Some(input) = window.getch() {
                         // Fetch the entity queue component and push inputs into it
                         let event_queue: &mut Vec<CursesEvent> = db
                             .get_entity_component_mut::<CursesEventQueue>(event_queue_entity)?
-                            .borrow_mut();
+                            .as_mut();
 
                         event_queue.push(input);
                     }

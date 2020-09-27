@@ -1,14 +1,6 @@
-use std::borrow::Borrow;
-
+use crate::entity_component_system::{SystemError, SystemTrait};
 use crate::{
-    components::StringListComponent,
-    entity_component_system::{SystemError, SystemTrait},
-};
-use crate::{
-    components::{
-        ChildEntities, DebugExclude, DebugSceneTree,
-        EntityDebugLabels, ParentEntity,
-    },
+    components::{ChildEntities, DebugExclude, DebugSceneTree, EntityDebugLabels, ParentEntity},
     entity_component_system::{
         system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory, EntityID,
         SystemDebugTrait,
@@ -88,10 +80,8 @@ where
                 let label = format!("{}:\t{}{}", entity_id, &prefix, label);
                 scene_tree_strings.push(label);
 
-                if let Ok(child_entities) =
-                    db.get_entity_component::<ChildEntities>(*entity_id)
-                {
-                    let child_ids: &Vec<EntityID> = child_entities.borrow();
+                if let Ok(child_entities) = db.get_entity_component::<ChildEntities>(*entity_id) {
+                    let child_ids: &Vec<EntityID> = child_entities.as_ref();
                     let child_ids: Vec<EntityID> = child_ids
                         .iter()
                         .filter(|child_id| {
@@ -142,12 +132,12 @@ where
                         .entity_has_component::<DebugSceneTree>(entity_id)
                         && db
                             .entity_component_directory
-                            .entity_has_component::<StringListComponent>(entity_id)
+                            .entity_has_component::<Vec<String>>(entity_id)
                 });
 
             for entity_id in debug_scene_tree_entities {
-                db.get_entity_component_mut::<StringListComponent>(entity_id)?
-                    .set_data(scene_tree_strings.clone());
+                *db.get_entity_component_mut::<Vec<String>>(entity_id)? =
+                    scene_tree_strings.clone();
             }
         }
 

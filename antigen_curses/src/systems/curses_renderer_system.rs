@@ -1,5 +1,3 @@
-use std::borrow::Borrow;
-
 use crate::CursesWindow;
 use antigen::{
     components::{Size, SoftwareFramebuffer, Window},
@@ -73,7 +71,7 @@ where
         {
             let window_component = db.get_entity_component::<CursesWindow>(window_entity)?;
 
-            let window: &Option<pancurses::Window> = window_component.borrow();
+            let window: &Option<pancurses::Window> = window_component.as_ref();
             if let Some(window) = window {
                 let (height, width) = window.get_max_yx();
 
@@ -242,7 +240,7 @@ where
         }
 
         let window_component = db.get_entity_component::<CursesWindow>(window_entity)?;
-        let window: &Option<pancurses::Window> = window_component.borrow();
+        let window: &Option<pancurses::Window> = window_component.as_ref();
         if let Some(window) = window {
             window.erase();
             for (x, y, char, color_pair) in cells {

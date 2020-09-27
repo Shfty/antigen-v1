@@ -1,5 +1,3 @@
-use std::borrow::Borrow;
-
 use antigen::{
     components::EventQueue,
     core::events::AntigenInputEvent,
@@ -52,7 +50,7 @@ where
 
                 let event_queue: &Vec<AntigenInputEvent> = db
                     .get_entity_component::<EventQueue<AntigenInputEvent>>(event_queue_entity)?
-                    .borrow();
+                    .as_ref();
 
                 for event in event_queue.clone() {
                     if let AntigenInputEvent::KeyPress { key_code } = event {

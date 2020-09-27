@@ -7,7 +7,6 @@ use crate::{
     entity_component_system::SystemDebugTrait, entity_component_system::SystemID,
 };
 use crate::{
-    components::StringListComponent,
     entity_component_system::{SystemError, SystemTrait},
 };
 
@@ -76,12 +75,11 @@ where
                         .entity_has_component::<DebugSystemList>(entity_id)
                         && db
                             .entity_component_directory
-                            .entity_has_component::<StringListComponent>(entity_id)
+                            .entity_has_component::<Vec<String>>(entity_id)
                 });
 
             for entity_id in debug_system_list_entities {
-                db.get_entity_component_mut::<StringListComponent>(entity_id)?
-                    .set_data(system_strings.clone());
+                *db.get_entity_component_mut::<Vec<String>>(entity_id)? = system_strings.clone();
             }
         }
 

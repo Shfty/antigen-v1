@@ -1,5 +1,5 @@
 use crate::{
-    components::SystemDebugComponent, core::profiler::Profiler,
+    components::SystemDebugInfo, core::profiler::Profiler,
     entity_component_system::system_storage::SystemStorage,
     entity_component_system::ComponentStorage, entity_component_system::EntityComponentDirectory,
     entity_component_system::SystemError, entity_component_system::SystemID,
@@ -29,11 +29,11 @@ impl SystemRunner for SingleThreadedSystemRunner {
             .get_entity_by_predicate(|entity_id| {
                 entity_component_database
                     .entity_component_directory
-                    .entity_has_component::<SystemDebugComponent>(entity_id)
+                    .entity_has_component::<SystemDebugInfo>(entity_id)
             })
         {
             let labels = entity_component_database
-                .get_entity_component::<SystemDebugComponent>(system_debug_entity)?
+                .get_entity_component::<SystemDebugInfo>(system_debug_entity)?
                 .get_labels()
                 .clone();
 
@@ -54,7 +54,7 @@ impl SystemRunner for SingleThreadedSystemRunner {
                 let duration = profiler.finish();
 
                 entity_component_database
-                    .get_entity_component_mut::<SystemDebugComponent>(system_debug_entity)?
+                    .get_entity_component_mut::<SystemDebugInfo>(system_debug_entity)?
                     .set_duration(system_id, duration);
             }
         }

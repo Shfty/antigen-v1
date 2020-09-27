@@ -1,7 +1,7 @@
 use crate::{
-    components::ComponentDebugComponent, components::DebugComponentListComponent,
-    components::DebugExcludeComponent, components::EntityInspectorComponent,
-    components::IntRangeComponent, entity_component_system::system_interface::SystemInterface,
+    components::ComponentDebugInfo, components::DebugComponentList,
+    components::DebugExclude, components::EntityInspector,
+    components::IntRange, entity_component_system::system_interface::SystemInterface,
     entity_component_system::ComponentStorage, entity_component_system::EntityComponentDirectory,
     entity_component_system::EntityID, entity_component_system::SystemDebugTrait,
 };
@@ -27,7 +27,7 @@ where
             .entity_component_directory
             .get_entities_by_predicate(|entity_id| {
                 !db.entity_component_directory
-                    .entity_has_component::<DebugExcludeComponent>(entity_id)
+                    .entity_has_component::<DebugExclude>(entity_id)
             });
         debug_entities.sort();
 
@@ -36,7 +36,7 @@ where
             db.entity_component_directory
                 .get_entity_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<EntityInspectorComponent>(entity_id)
+                        .entity_has_component::<EntityInspector>(entity_id)
                 });
 
         // Populate strings for debug component list entities
@@ -44,7 +44,7 @@ where
             .entity_component_directory
             .get_entities_by_predicate(|entity_id| {
                 db.entity_component_directory
-                    .entity_has_component::<DebugComponentListComponent>(entity_id)
+                    .entity_has_component::<DebugComponentList>(entity_id)
                     && db
                         .entity_component_directory
                         .entity_has_component::<StringListComponent>(entity_id)
@@ -52,7 +52,7 @@ where
 
         if let Some(entity_inspector_entity) = entity_inspector_entity {
             let int_range_component =
-                db.get_entity_component::<IntRangeComponent>(entity_inspector_entity)?;
+                db.get_entity_component::<IntRange>(entity_inspector_entity)?;
 
             if let Some(inspected_entity) =
                 debug_entities.get(int_range_component.get_index() as usize)
@@ -61,7 +61,7 @@ where
                     db.entity_component_directory
                         .get_entity_by_predicate(|entity_id| {
                             db.entity_component_directory
-                                .entity_has_component::<ComponentDebugComponent>(entity_id)
+                                .entity_has_component::<ComponentDebugInfo>(entity_id)
                         });
 
                 if let Some(component_debug_entity) = component_debug_entity {
@@ -73,7 +73,7 @@ where
                             });
 
                     let component_debug_component =
-                        db.get_entity_component::<ComponentDebugComponent>(component_debug_entity)?;
+                        db.get_entity_component::<ComponentDebugInfo>(component_debug_entity)?;
 
                     components.sort_by(|lhs, rhs| {
                         let lhs_label = component_debug_component.get_label(lhs);

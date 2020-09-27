@@ -1,11 +1,13 @@
+use std::borrow::Borrow;
+
 use crate::{
     components::StringListComponent,
     entity_component_system::{SystemError, SystemTrait},
 };
 use crate::{
     components::{
-        ChildEntitiesComponent, DebugExcludeComponent, DebugSceneTreeComponent,
-        EntityDebugComponent, ParentEntityComponent,
+        ChildEntities, DebugExclude, DebugSceneTree,
+        EntityDebugLabels, ParentEntity,
     },
     entity_component_system::{
         system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory, EntityID,
@@ -30,7 +32,7 @@ where
             .entity_component_directory
             .get_entities_by_predicate(|entity_id| {
                 !db.entity_component_directory
-                    .entity_has_component::<DebugExcludeComponent>(entity_id)
+                    .entity_has_component::<DebugExclude>(entity_id)
             });
         debug_entities.sort();
 
@@ -38,14 +40,14 @@ where
             db.entity_component_directory
                 .get_entity_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<EntityDebugComponent>(entity_id)
+                        .entity_has_component::<EntityDebugLabels>(entity_id)
                 })
         {
             let root_entities: Vec<EntityID> = debug_entities
                 .iter()
                 .filter(|entity_id| {
                     !db.entity_component_directory
-                        .entity_has_component::<ParentEntityComponent>(entity_id)
+                        .entity_has_component::<ParentEntity>(entity_id)
                 })
                 .copied()
                 .collect();
@@ -64,7 +66,7 @@ where
                 CD: EntityComponentDirectory,
             {
                 let entity_debug_component =
-                    db.get_entity_component::<EntityDebugComponent>(entity_debug_entity)?;
+                    db.get_entity_component::<EntityDebugLabels>(entity_debug_entity)?;
 
                 let depth = padding.len();
 
@@ -86,15 +88,15 @@ where
                 let label = format!("{}:\t{}{}", entity_id, &prefix, label);
                 scene_tree_strings.push(label);
 
-                if let Ok(child_entities_component) =
-                    db.get_entity_component::<ChildEntitiesComponent>(*entity_id)
+                if let Ok(child_entities) =
+                    db.get_entity_component::<ChildEntities>(*entity_id)
                 {
-                    let child_ids: Vec<EntityID> = child_entities_component.get_child_ids().clone();
+                    let child_ids: &Vec<EntityID> = child_entities.borrow();
                     let child_ids: Vec<EntityID> = child_ids
                         .iter()
                         .filter(|child_id| {
                             !db.entity_component_directory
-                                .entity_has_component::<DebugExcludeComponent>(child_id)
+                                .entity_has_component::<DebugExclude>(child_id)
                         })
                         .copied()
                         .collect();
@@ -137,7 +139,7 @@ where
                 .entity_component_directory
                 .get_entities_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<DebugSceneTreeComponent>(entity_id)
+                        .entity_has_component::<DebugSceneTree>(entity_id)
                         && db
                             .entity_component_directory
                             .entity_has_component::<StringListComponent>(entity_id)

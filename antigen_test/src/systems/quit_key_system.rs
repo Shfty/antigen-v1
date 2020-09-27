@@ -1,5 +1,7 @@
+use std::borrow::Borrow;
+
 use antigen::{
-    components::EventQueueComponent,
+    components::EventQueue,
     core::events::AntigenInputEvent,
     entity_component_system::system_interface::SystemInterface,
     entity_component_system::ComponentStorage,
@@ -33,14 +35,15 @@ where
             db.entity_component_directory
                 .get_entity_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<EventQueueComponent<AntigenInputEvent>>(entity_id)
+                        .entity_has_component::<EventQueue<AntigenInputEvent>>(entity_id)
                 });
 
         if let Some(event_queue_entity) = event_queue_entity {
-            let event_queue_component =
-                db.get_entity_component::<EventQueueComponent<AntigenInputEvent>>(event_queue_entity)?;
+            let event_queue: &Vec<AntigenInputEvent> = db
+                .get_entity_component::<EventQueue<AntigenInputEvent>>(event_queue_entity)?
+                .borrow();
 
-            for event in event_queue_component.get_events() {
+            for event in event_queue {
                 if let AntigenInputEvent::KeyPress { key_code } = event {
                     if *key_code == self.key {
                         return Err(SystemError::Quit);

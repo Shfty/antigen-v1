@@ -1,4 +1,4 @@
-use crate::components::{ComponentDebugComponent, EntityDebugComponent};
+use crate::components::{ComponentDebugInfo, EntityDebugLabels};
 
 use super::{ComponentDebugTrait, ComponentID, ComponentTrait, EntityID, ComponentStorage, EntityComponentDirectory};
 
@@ -39,11 +39,11 @@ where
                 .entity_component_directory
                 .get_entity_by_predicate(|entity_id| {
                     self.entity_component_directory
-                        .entity_has_component::<EntityDebugComponent>(entity_id)
+                        .entity_has_component::<EntityDebugLabels>(entity_id)
                 })
             {
                 if let Ok(entity_debug_component) =
-                    self.get_entity_component_mut::<EntityDebugComponent>(entity_debug_entity)
+                    self.get_entity_component_mut::<EntityDebugLabels>(entity_debug_entity)
                 {
                     entity_debug_component.register_entity(entity_id, debug_label.into());
                 }
@@ -64,11 +64,11 @@ where
             .entity_component_directory
             .get_entity_by_predicate(|entity_id| {
                 self.entity_component_directory
-                    .entity_has_component::<ComponentDebugComponent>(entity_id)
+                    .entity_has_component::<ComponentDebugInfo>(entity_id)
             })
         {
             if let Ok(component_debug_component) =
-                self.get_entity_component_mut::<ComponentDebugComponent>(component_debug_entity)
+                self.get_entity_component_mut::<ComponentDebugInfo>(component_debug_entity)
             {
                 component_debug_component.register_component(
                     component_id,

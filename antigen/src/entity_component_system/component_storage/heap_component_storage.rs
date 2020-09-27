@@ -1,4 +1,4 @@
-use crate::entity_component_system::{ComponentID, ComponentTrait};
+use crate::entity_component_system::{traits::DowncastComponentTrait, ComponentID, ComponentTrait};
 
 use super::{ComponentDataID, ComponentDropCallback, ComponentStorage};
 use std::collections::HashMap;
@@ -29,14 +29,12 @@ impl ComponentStorage for HeapComponentStorage {
         T: ComponentTrait + 'static,
     {
         let component_id = ComponentID::get::<T>();
-        match self.component_drop_callbacks.get_mut(&component_id) {
-            Some(component_drop_callbacks) => {
-                component_drop_callbacks.push(callback);
-            }
-            None => {
-                self.component_drop_callbacks
-                    .insert(component_id, vec![callback]);
-            }
+        if let Some(component_drop_callbacks) = self.component_drop_callbacks.get_mut(&component_id)
+        {
+            component_drop_callbacks.push(callback);
+        } else {
+            self.component_drop_callbacks
+                .insert(component_id, vec![callback]);
         }
     }
 
@@ -53,19 +51,15 @@ impl ComponentStorage for HeapComponentStorage {
     where
         T: ComponentTrait + 'static,
     {
-        match self.component_data.get(component_data_id) {
-            Some(component_data) => match component_data.as_any().downcast_ref::<T>() {
-                Some(component_data) => Ok(component_data),
-                None => Err(format!(
-                    "Error getting component data: Failed to downcast to {}",
-                    std::any::type_name::<T>()
-                )),
-            },
-            None => Err(format!(
-                "Error getting component data: No such data {}",
-                component_data_id
-            )),
-        }
+        let component_data = self.component_data.get(component_data_id).ok_or(format!(
+            "Error getting component data: No such data {}",
+            component_data_id
+        ))?;
+
+        let component_data = component_data.as_ref();
+        let component_data = T::as_data(component_data);
+
+        Ok(component_data)
     }
 
     fn get_component_data_mut<T>(
@@ -75,32 +69,29 @@ impl ComponentStorage for HeapComponentStorage {
     where
         T: ComponentTrait + 'static,
     {
-        match self.component_data.get_mut(component_data_id) {
-            Some(component_data) => match component_data.as_mut_any().downcast_mut::<T>() {
-                Some(component_data) => Ok(component_data),
-                None => Err(format!(
-                    "Error getting mutable component data: Failed to downcast to {}",
-                    std::any::type_name::<T>()
-                )),
-            },
-            None => Err(format!(
+        let component_data = self
+            .component_data
+            .get_mut(component_data_id)
+            .ok_or(format!(
                 "Error getting component data: No such data {}",
                 component_data_id
-            )),
-        }
+            ))?;
+
+        let component_data = component_data.as_mut();
+        let component_data = T::as_mut_data(component_data);
+
+        Ok(component_data)
     }
 
     fn get_component_data_string(
         &self,
         component_data_id: &ComponentDataID,
     ) -> Result<String, String> {
-        match self.component_data.get(component_data_id) {
-            Some(component_data) => Ok(format!("{:#?}", component_data)),
-            None => Err(format!(
-                "Error getting component data: No such data {}",
-                component_data_id
-            )),
-        }
+        let component_data = self.component_data.get(component_data_id).ok_or(format!(
+            "Error getting component data: No such data {}",
+            component_data_id
+        ))?;
+        Ok(format!("{:#?}", component_data))
     }
 
     fn remove_component_data(
@@ -108,21 +99,20 @@ impl ComponentStorage for HeapComponentStorage {
         component_id: &ComponentID,
         component_data_id: &ComponentDataID,
     ) -> Result<(), String> {
-        match self.component_data.remove(component_data_id) {
-            Some(mut component_data) => {
-                if let Some(component_drop_callbacks) =
-                    self.component_drop_callbacks.get(component_id)
-                {
-                    for callback in component_drop_callbacks {
-                        callback(component_data.as_mut());
-                    }
-                }
-                Ok(())
-            }
-            None => Err(format!(
+        let mut component_data = self
+            .component_data
+            .remove(component_data_id)
+            .ok_or(format!(
                 "Error removing component data: No such data {}",
                 component_data_id
-            )),
+            ))?;
+
+        if let Some(component_drop_callbacks) = self.component_drop_callbacks.get(component_id) {
+            for callback in component_drop_callbacks {
+                callback(component_data.as_mut());
+            }
         }
+
+        Ok(())
     }
 }

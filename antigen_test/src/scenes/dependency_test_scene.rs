@@ -1,9 +1,6 @@
 use antigen::{
     components::ColorComponent,
-    components::{
-        CharComponent, ControlComponent, ParentEntityComponent, PositionComponent, SizeComponent,
-        VelocityComponent, WindowComponent,
-    },
+    components::{CharComponent, Control, ParentEntity, Position, Size, Velocity, Window},
     core::palette::RGBArrangementPalette,
     entity_component_system::ComponentStorage,
     entity_component_system::EntityComponentDirectory,
@@ -17,8 +14,7 @@ use antigen::{
     systems::PositionIntegratorSystem,
 };
 use antigen_curses::{
-    CursesInputBufferSystem, CursesRendererSystem, CursesWindowComponent, CursesWindowSystem,
-    TextColorMode,
+    CursesInputBufferSystem, CursesRendererSystem, CursesWindow, CursesWindowSystem, TextColorMode,
 };
 
 use crate::systems::InputVelocitySystem;
@@ -86,9 +82,9 @@ impl Scene for DependencyTestScene {
         // Create Main Window
         let main_window_entity = db.create_entity(Some("Main Window"))?;
         {
-            db.insert_entity_component(main_window_entity, WindowComponent)?;
-            db.insert_entity_component(main_window_entity, CursesWindowComponent::default())?;
-            db.insert_entity_component(main_window_entity, SizeComponent::new(Vector2I(64, 32)))?;
+            db.insert_entity_component(main_window_entity, Window)?;
+            db.insert_entity_component(main_window_entity, CursesWindow::default())?;
+            db.insert_entity_component(main_window_entity, Size::from(Vector2I(64, 32)))?;
         }
 
         // Create Player
@@ -96,9 +92,9 @@ impl Scene for DependencyTestScene {
             "Player Entity",
             "Controllable ASCII character with position and velocity",
         )
-        .add_component(ControlComponent)?
-        .add_component(PositionComponent::new(Vector2I(1, 1)))?
-        .add_component(VelocityComponent::new(Vector2I(1, 1)))?
+        .add_component(Control)?
+        .add_component(Position::from(Vector2I(1, 1)))?
+        .add_component(Velocity::default())?
         .add_component(CharComponent::new('@'))?
         .add_component(ColorComponent::new(Color(1.0, 0.6, 1.0)))?
         .finish();
@@ -106,10 +102,7 @@ impl Scene for DependencyTestScene {
         let test_player_entity =
             player_assemblage.create_and_assemble_entity(db, Some("Test Player"))?;
         {
-            db.insert_entity_component(
-                test_player_entity,
-                ParentEntityComponent::new(main_window_entity),
-            )?;
+            db.insert_entity_component(test_player_entity, ParentEntity(main_window_entity))?;
         }
 
         Ok(())

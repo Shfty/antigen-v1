@@ -1,6 +1,8 @@
+use std::borrow::Borrow;
+
 use antigen::{
-    components::EventQueueComponent,
-    components::VelocityComponent,
+    components::EventQueue,
+    components::Velocity,
     core::events::AntigenInputEvent,
     entity_component_system::system_interface::SystemInterface,
     entity_component_system::ComponentStorage,
@@ -33,17 +35,17 @@ where
             db.entity_component_directory
                 .get_entity_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<EventQueueComponent<AntigenInputEvent>>(entity_id)
+                        .entity_has_component::<EventQueue<AntigenInputEvent>>(entity_id)
                 });
 
         if let Some(antigen_event_queue_entity) = antigen_event_queue_entity {
             let mut move_input: Vector2I = Vector2I(0, 0);
-            for input in db
-                .get_entity_component::<EventQueueComponent<AntigenInputEvent>>(
-                    antigen_event_queue_entity,
-                )?
-                .get_events()
-            {
+
+            let event_queue: &Vec<AntigenInputEvent> = db
+                .get_entity_component::<EventQueue<AntigenInputEvent>>(antigen_event_queue_entity)?
+                .borrow();
+
+            for input in event_queue {
                 match input {
                     AntigenInputEvent::KeyPress {
                         key_code: antigen::core::keyboard::Key::Left,
@@ -67,12 +69,11 @@ where
                 .entity_component_directory
                 .get_entities_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<VelocityComponent>(entity_id)
+                        .entity_has_component::<Velocity>(entity_id)
                 });
 
             for entity_id in entities {
-                db.get_entity_component_mut::<VelocityComponent>(entity_id)?
-                    .set_velocity(move_input);
+                *db.get_entity_component_mut::<Velocity>(entity_id)? = move_input.into();
             }
         }
 

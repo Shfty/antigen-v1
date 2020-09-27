@@ -1,8 +1,8 @@
-use std::{fmt::Debug, marker::PhantomData};
+use std::{borrow::BorrowMut, fmt::Debug, marker::PhantomData};
 
 use crate::entity_component_system::system_interface::SystemInterface;
 use crate::{
-    components::EventQueueComponent,
+    components::EventQueue,
     entity_component_system::{
         ComponentStorage, EntityComponentDirectory, SystemDebugTrait, SystemError, SystemTrait,
     },
@@ -51,7 +51,7 @@ where
             db.entity_component_directory
                 .get_entity_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<EventQueueComponent<T>>(entity_id)
+                        .entity_has_component::<EventQueue<T>>(entity_id)
                 });
 
         if event_queue_component.is_none() {
@@ -59,22 +59,24 @@ where
                 "Event Queue ({})",
                 std::any::type_name::<T>()
             )))?;
-            db.insert_entity_component(event_queue_entity, EventQueueComponent::<T>::new())?;
+            db.insert_entity_component(event_queue_entity, EventQueue::<T>::default())?;
         }
 
         let event_queue_entity = db
             .entity_component_directory
             .get_entity_by_predicate(|entity_id| {
                 db.entity_component_directory
-                    .entity_has_component::<EventQueueComponent<T>>(entity_id)
+                    .entity_has_component::<EventQueue<T>>(entity_id)
             })
             .ok_or(format!(
                 "Failed to get event queue entity for type {}",
                 std::any::type_name::<T>()
             ))?;
 
-        db.get_entity_component_mut::<EventQueueComponent<T>>(event_queue_entity)?
-            .clear_events();
+        let event_queue: &mut Vec<T> = db
+            .get_entity_component_mut::<EventQueue<T>>(event_queue_entity)?
+            .borrow_mut();
+        event_queue.clear();
 
         Ok(())
     }

@@ -1,8 +1,8 @@
+use std::borrow::Borrow;
+
 use crate::{
-    components::EventQueueComponent,
-    components::{
-        GlobalPositionComponent, ParentEntityComponent, PositionComponent, WindowComponent,
-    },
+    components::EventQueue,
+    components::{GlobalPosition, ParentEntity, Position, Window},
     core::events::AntigenInputEvent,
     entity_component_system::SystemDebugTrait,
     entity_component_system::{
@@ -12,7 +12,7 @@ use crate::{
     primitive_types::Vector2I,
 };
 
-use crate::components::LocalMousePositionComponent;
+use crate::components::LocalPosition;
 
 #[derive(Debug)]
 pub struct LocalMousePositionSystem;
@@ -43,16 +43,15 @@ where
             db.entity_component_directory
                 .get_entity_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<EventQueueComponent<AntigenInputEvent>>(entity_id)
+                        .entity_has_component::<EventQueue<AntigenInputEvent>>(entity_id)
                 });
 
         if let Some(event_queue_entity) = event_queue_entity {
-            let event_queue = db
-                .get_entity_component::<EventQueueComponent<AntigenInputEvent>>(event_queue_entity)?
-                .get_events()
-                .clone();
+            let event_queue: &Vec<AntigenInputEvent> = db
+                .get_entity_component::<EventQueue<AntigenInputEvent>>(event_queue_entity)?
+                .borrow();
 
-            for event in event_queue {
+            for event in event_queue.clone() {
                 let mouse_position = match event {
                     AntigenInputEvent::MouseMove { position, delta: _ } => position,
                     _ => continue,
@@ -62,49 +61,48 @@ where
                     db.entity_component_directory
                         .get_entities_by_predicate(|entity_id| {
                             db.entity_component_directory
-                                .entity_has_component::<LocalMousePositionComponent>(entity_id)
+                                .entity_has_component::<LocalPosition>(entity_id)
                                 && db
                                     .entity_component_directory
-                                    .entity_has_component::<PositionComponent>(entity_id)
+                                    .entity_has_component::<Position>(entity_id)
                         });
 
                 for entity_id in entities {
                     let mut candidate_id = entity_id;
                     let mut window_position = Vector2I::default();
                     loop {
-                        if let Ok(parent_entity_component) =
-                            db.get_entity_component::<ParentEntityComponent>(candidate_id)
+                        if let Ok(parent_entity) =
+                            db.get_entity_component::<ParentEntity>(candidate_id)
                         {
-                            candidate_id = parent_entity_component.get_parent_id();
+                            candidate_id = (*parent_entity).into();
                         } else {
                             break;
                         }
 
-                        if db
-                            .get_entity_component::<WindowComponent>(candidate_id)
-                            .is_ok()
-                        {
-                            let position_component =
-                                db.get_entity_component::<PositionComponent>(candidate_id)?;
-                            window_position = position_component.get_position();
+                        if db.get_entity_component::<Window>(candidate_id).is_ok() {
+                            let position = *db.get_entity_component::<Position>(candidate_id)?;
+                            window_position = position.into();
                             break;
                         }
                     }
 
-                    let position = match db
-                        .get_entity_component::<GlobalPositionComponent>(entity_id)
-                    {
-                        Ok(global_position_component) => {
-                            global_position_component.get_global_position()
-                        }
-                        Err(_) => match db.get_entity_component::<PositionComponent>(entity_id) {
-                            Ok(position_component) => position_component.get_position(),
-                            Err(err) => return Err(err.into()),
-                        },
-                    };
+                    let position: Vector2I =
+                        match db.get_entity_component::<GlobalPosition>(entity_id) {
+                            Ok(global_position) => {
+                                let global_position = *global_position;
+                                global_position.into()
+                            }
+                            Err(_) => match db.get_entity_component::<Position>(entity_id) {
+                                Ok(position) => {
+                                    let position = *position;
+                                    position.into()
+                                }
+                                Err(err) => return Err(err.into()),
+                            },
+                        };
 
-                    db.get_entity_component_mut::<LocalMousePositionComponent>(entity_id)?
-                        .set_local_mouse_position(mouse_position - (window_position + position));
+                    *db.get_entity_component_mut::<LocalPosition>(entity_id)? =
+                        (mouse_position - (window_position + position)).into();
                 }
             }
         }

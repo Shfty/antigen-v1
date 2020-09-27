@@ -1,8 +1,10 @@
-use crate::components::{ControlComponent, SoftwareFramebufferComponent};
+use std::borrow::Borrow;
+
+use crate::components::{Control, SoftwareFramebuffer};
 use crate::{
     components::{
-        CharComponent, ChildEntitiesComponent, GlobalPositionComponent, PositionComponent,
-        SizeComponent, StringComponent, WindowComponent, ZIndexComponent,
+        CharComponent, ChildEntities, GlobalPosition, Position, Size, StringComponent, Window,
+        ZIndex,
     },
     entity_component_system::SystemDebugTrait,
     entity_component_system::{
@@ -19,7 +21,7 @@ pub struct StringRendererSystem;
 
 impl StringRendererSystem {
     fn render_string(
-        framebuffer: &mut SoftwareFramebufferComponent<char>,
+        framebuffer: &mut SoftwareFramebuffer<char>,
         window_size: Vector2I,
         position: Vector2I,
         string: &str,
@@ -85,18 +87,18 @@ where
             .entity_component_directory
             .get_entity_by_predicate(|entity_id| {
                 db.entity_component_directory
-                    .entity_has_component::<WindowComponent>(entity_id)
+                    .entity_has_component::<Window>(entity_id)
                     && db
                         .entity_component_directory
-                        .entity_has_component::<SizeComponent>(entity_id)
+                        .entity_has_component::<Size>(entity_id)
             })
             .ok_or("No window entity")?;
 
         let window_width: i64;
         let window_height: i64;
         {
-            let size_component = db.get_entity_component::<SizeComponent>(window_entity)?;
-            let Vector2I(width, height) = size_component.get_size();
+            let size_component = db.get_entity_component::<Size>(window_entity)?;
+            let Vector2I(width, height) = (*size_component).into();
 
             window_width = width;
             window_height = height;
@@ -107,15 +109,13 @@ where
             .entity_component_directory
             .get_entity_by_predicate(|entity_id| {
                 db.entity_component_directory
-                    .entity_has_component::<SoftwareFramebufferComponent<char>>(entity_id)
+                    .entity_has_component::<SoftwareFramebuffer<char>>(entity_id)
             })
             .unwrap_or_else(|| panic!("No string framebuffer component"));
 
         let cell_count = (window_width * window_height) as usize;
-        db.get_entity_component_mut::<SoftwareFramebufferComponent<char>>(
-            string_framebuffer_entity,
-        )?
-        .resize(cell_count);
+        db.get_entity_component_mut::<SoftwareFramebuffer<char>>(string_framebuffer_entity)?
+            .resize(cell_count);
 
         // Recursively traverse parent-child tree and populate Z-ordered list of controls
         let mut control_entities: Vec<(EntityID, i64)> = Vec::new();
@@ -132,7 +132,7 @@ where
         {
             if db
                 .entity_component_directory
-                .entity_has_component::<ControlComponent>(&entity_id)
+                .entity_has_component::<Control>(&entity_id)
                 && (db
                     .entity_component_directory
                     .entity_has_component::<StringComponent>(&entity_id)
@@ -140,8 +140,8 @@ where
                         .entity_component_directory
                         .entity_has_component::<CharComponent>(&entity_id))
             {
-                z_index = match db.get_entity_component::<ZIndexComponent>(entity_id) {
-                    Ok(z_index_component) => z_index_component.get_z(),
+                z_index = match db.get_entity_component::<ZIndex>(entity_id) {
+                    Ok(z_index) => (*z_index).into(),
                     Err(_) => z_index,
                 };
 
@@ -149,9 +149,10 @@ where
             }
 
             if let Ok(child_entities_component) =
-                db.get_entity_component::<ChildEntitiesComponent>(entity_id)
+                db.get_entity_component::<ChildEntities>(entity_id)
             {
-                for child_id in child_entities_component.get_child_ids() {
+                let child_entities: &Vec<EntityID> = child_entities_component.borrow();
+                for child_id in child_entities {
                     populate_control_entities(db, *child_id, z_layers, z_index)?;
                 }
             }
@@ -163,23 +164,24 @@ where
         control_entities.sort();
 
         // Render Entities
-        db.get_entity_component_mut::<SoftwareFramebufferComponent<char>>(
-            string_framebuffer_entity,
-        )?
-        .clear();
+        db.get_entity_component_mut::<SoftwareFramebuffer<char>>(string_framebuffer_entity)?
+            .clear();
 
         for (entity_id, z) in control_entities {
             // Get Position
-            let Vector2I(x, y) = if let Ok(global_position_component) =
-                db.get_entity_component::<GlobalPositionComponent>(entity_id)
-            {
-                global_position_component.get_global_position()
-            } else {
-                match db.get_entity_component::<PositionComponent>(entity_id) {
-                    Ok(position_component) => position_component.get_position(),
-                    Err(err) => return Err(err.into()),
-                }
-            };
+            let Vector2I(x, y) =
+                if let Ok(global_position) = db.get_entity_component::<GlobalPosition>(entity_id) {
+                    let global_position = *global_position;
+                    global_position.into()
+                } else {
+                    match db.get_entity_component::<Position>(entity_id) {
+                        Ok(position) => {
+                            let position = *position;
+                            position.into()
+                        }
+                        Err(err) => return Err(err.into()),
+                    }
+                };
 
             // Get String
             let string = if let Ok(string_component) =
@@ -194,7 +196,7 @@ where
 
             for (i, string) in string.split('\n').enumerate() {
                 Self::render_string(
-                    db.get_entity_component_mut::<SoftwareFramebufferComponent<char>>(
+                    db.get_entity_component_mut::<SoftwareFramebuffer<char>>(
                         string_framebuffer_entity,
                     )?,
                     Vector2I(window_width, window_height),

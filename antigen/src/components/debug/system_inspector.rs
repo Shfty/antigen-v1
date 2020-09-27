@@ -1,9 +1,7 @@
-use crate::entity_component_system::{ComponentDebugTrait, ComponentTrait};
+use crate::entity_component_system::ComponentDebugTrait;
 
 #[derive(Debug, Default, Clone)]
 pub struct SystemInspector;
-
-impl ComponentTrait for SystemInspector {}
 
 impl ComponentDebugTrait for SystemInspector {
     fn get_name() -> String {

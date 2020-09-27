@@ -1,4 +1,4 @@
-use crate::entity_component_system::{ComponentDebugTrait, ComponentTrait, EntityID};
+use crate::entity_component_system::{ComponentDebugTrait, EntityID};
 
 #[derive(Debug, Clone)]
 pub struct List {
@@ -28,8 +28,6 @@ impl Default for List {
         List::new(None, None)
     }
 }
-
-impl ComponentTrait for List {}
 
 impl ComponentDebugTrait for List {
     fn get_name() -> String {

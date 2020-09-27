@@ -1,4 +1,4 @@
-use crate::entity_component_system::{ComponentDebugTrait, ComponentTrait, EntityID};
+use crate::entity_component_system::{ComponentDebugTrait, EntityID};
 
 #[derive(Debug, Default, Copy, Clone)]
 pub struct ParentEntity(pub EntityID);
@@ -14,8 +14,6 @@ impl Into<EntityID> for ParentEntity {
         self.0
     }
 }
-
-impl ComponentTrait for ParentEntity {}
 
 impl ComponentDebugTrait for ParentEntity {
     fn get_name() -> String {

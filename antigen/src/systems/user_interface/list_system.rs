@@ -294,10 +294,10 @@ where
                 .into();
 
                 *db.get_entity_component_mut::<Size>(*list_hover_entity)? =
-                    if hovered_item.is_some() {
+                    if let Some(hovered_item) = hovered_item {
                         Vector2I(
                             width,
-                            string_list[hovered_item.unwrap() as usize].len() as i64,
+                            string_list[hovered_item as usize].len() as i64,
                         )
                     } else {
                         Vector2I(0, 0)
@@ -309,7 +309,7 @@ where
 
                 *db.get_entity_component_mut::<Size>(*list_focus_entity)? =
                     if let Some(focused_item) = focused_item {
-                        if focused_item >= 0 {
+                        if focused_item >= 0 && focused_item < string_list.len() as i64 {
                             Vector2I(width, string_list[focused_item as usize].len() as i64)
                         } else {
                             Vector2I(0, 0)

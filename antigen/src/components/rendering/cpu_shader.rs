@@ -1,6 +1,5 @@
 use crate::{
     entity_component_system::ComponentDebugTrait,
-    entity_component_system::ComponentTrait,
     primitive_types::{Color, ColorRGBF, Vector2I},
 };
 
@@ -68,8 +67,6 @@ impl CPUShader {
         Some(input.color)
     }
 }
-
-impl ComponentTrait for CPUShader {}
 
 impl ComponentDebugTrait for CPUShader {
     fn get_name() -> String {

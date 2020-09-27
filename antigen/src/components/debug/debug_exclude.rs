@@ -1,9 +1,7 @@
-use crate::entity_component_system::{ComponentDebugTrait, ComponentTrait};
+use crate::entity_component_system::ComponentDebugTrait;
 
 #[derive(Debug, Default, Clone)]
 pub struct DebugExclude;
-
-impl ComponentTrait for DebugExclude {}
 
 impl ComponentDebugTrait for DebugExclude {
     fn get_name() -> String {

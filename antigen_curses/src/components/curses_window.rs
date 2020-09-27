@@ -1,4 +1,4 @@
-use antigen::entity_component_system::{ComponentDebugTrait, ComponentTrait};
+use antigen::entity_component_system::ComponentDebugTrait;
 use pancurses::Window;
 
 #[derive(Debug, Default)]
@@ -15,8 +15,6 @@ impl AsMut<Option<Window>> for CursesWindow {
         &mut self.0
     }
 }
-
-impl ComponentTrait for CursesWindow {}
 
 impl ComponentDebugTrait for CursesWindow {
     fn get_name() -> String {

@@ -29,11 +29,18 @@ impl Display for ComponentID {
 /// Base component trait
 pub trait ComponentTrait: UpcastComponentTrait + Debug {}
 
+impl<T> ComponentTrait for T where T: Debug + Any {}
+
 /// Debug information trait
 /// TODO: This is currently not coupled to ComponentTrait, that doesn't seem right
 pub trait ComponentDebugTrait {
-    fn get_name() -> String;
-    fn get_description() -> String;
+    fn get_name() -> String {
+        std::any::type_name::<Self>().into()
+    }
+
+    fn get_description() -> String {
+        format!("Component containing a {}", std::any::type_name::<Self>())
+    }
 
     fn is_debug_exclude() -> bool {
         false

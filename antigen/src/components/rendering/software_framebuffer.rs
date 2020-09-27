@@ -1,8 +1,6 @@
 use std::fmt::Debug;
 
-use crate::{
-    entity_component_system::ComponentDebugTrait, entity_component_system::ComponentTrait,
-};
+use crate::entity_component_system::ComponentDebugTrait;
 
 #[derive(Clone, PartialEq, PartialOrd)]
 pub struct SoftwareFramebuffer<T>
@@ -79,8 +77,6 @@ where
         }
     }
 }
-
-impl<T> ComponentTrait for SoftwareFramebuffer<T> where T: Copy + Clone + 'static {}
 
 impl<T> ComponentDebugTrait for SoftwareFramebuffer<T>
 where

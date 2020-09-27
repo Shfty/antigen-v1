@@ -1,7 +1,4 @@
-use crate::{
-    entity_component_system::{ComponentDebugTrait, ComponentTrait},
-    primitive_types::Vector2I,
-};
+use crate::{entity_component_system::ComponentDebugTrait, primitive_types::Vector2I};
 
 #[derive(Debug, Default, Copy, Clone)]
 pub struct GlobalPosition(Vector2I);
@@ -17,8 +14,6 @@ impl Into<Vector2I> for GlobalPosition {
         self.0
     }
 }
-
-impl ComponentTrait for GlobalPosition {}
 
 impl ComponentDebugTrait for GlobalPosition {
     fn get_name() -> String {

@@ -1,7 +1,4 @@
-use antigen::{
-    core::keyboard::Key,
-    entity_component_system::{ComponentDebugTrait, ComponentTrait},
-};
+use antigen::{core::keyboard::Key, entity_component_system::ComponentDebugTrait};
 
 #[derive(Debug, Copy, Clone)]
 pub struct DestructionTestInput(pub Key);
@@ -17,8 +14,6 @@ impl Into<Key> for DestructionTestInput {
         self.0
     }
 }
-
-impl ComponentTrait for DestructionTestInput {}
 
 impl ComponentDebugTrait for DestructionTestInput {
     fn get_name() -> String {

@@ -1,4 +1,4 @@
-use crate::entity_component_system::{ComponentDebugTrait, ComponentTrait, EntityID};
+use crate::entity_component_system::{ComponentDebugTrait, EntityID};
 
 #[derive(Debug, Clone)]
 pub struct ChildEntities(Vec<EntityID>);
@@ -20,8 +20,6 @@ impl Default for ChildEntities {
         ChildEntities(Vec::new())
     }
 }
-
-impl ComponentTrait for ChildEntities {}
 
 impl ComponentDebugTrait for ChildEntities {
     fn get_name() -> String {

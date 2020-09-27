@@ -1,5 +1,5 @@
 use crate::{
-    entity_component_system::{ComponentDebugTrait, ComponentTrait},
+    entity_component_system::{ComponentDebugTrait},
     primitive_types::Vector2I,
 };
 use std::fmt::Debug;
@@ -18,8 +18,6 @@ impl Into<Vector2I> for Position {
         self.0
     }
 }
-
-impl ComponentTrait for Position {}
 
 impl ComponentDebugTrait for Position {
     fn get_name() -> String {

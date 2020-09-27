@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Debug};
 
-use crate::entity_component_system::{ComponentDebugTrait, ComponentTrait, EntityID};
+use crate::entity_component_system::{ComponentDebugTrait, EntityID};
 
 #[derive(Clone)]
 pub struct EntityDebugLabels {
@@ -38,8 +38,6 @@ impl Default for EntityDebugLabels {
         EntityDebugLabels::new()
     }
 }
-
-impl ComponentTrait for EntityDebugLabels {}
 
 impl ComponentDebugTrait for EntityDebugLabels {
     fn get_name() -> String {

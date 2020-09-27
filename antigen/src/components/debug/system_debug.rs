@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Debug, time::Duration};
 
-use crate::entity_component_system::{ComponentDebugTrait, ComponentTrait, SystemID};
+use crate::entity_component_system::{ComponentDebugTrait, SystemID};
 
 #[derive(Clone)]
 pub struct SystemDebugInfo {
@@ -45,8 +45,6 @@ impl Default for SystemDebugInfo {
         SystemDebugInfo::new()
     }
 }
-
-impl ComponentTrait for SystemDebugInfo {}
 
 impl ComponentDebugTrait for SystemDebugInfo {
     fn get_name() -> String {

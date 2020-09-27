@@ -1,4 +1,4 @@
-use antigen::entity_component_system::{ComponentDebugTrait, ComponentTrait};
+use antigen::entity_component_system::ComponentDebugTrait;
 
 #[derive(Debug, Clone)]
 pub struct InputAxis {
@@ -7,7 +7,10 @@ pub struct InputAxis {
 }
 
 impl InputAxis {
-    pub fn new(negative_input: antigen::core::keyboard::Key, positive_input: antigen::core::keyboard::Key) -> Self {
+    pub fn new(
+        negative_input: antigen::core::keyboard::Key,
+        positive_input: antigen::core::keyboard::Key,
+    ) -> Self {
         InputAxis {
             negative_input,
             positive_input,
@@ -23,11 +26,9 @@ impl InputAxis {
     }
 }
 
-impl ComponentTrait for InputAxis {}
-
 impl ComponentDebugTrait for InputAxis {
     fn get_name() -> String {
-        "Curses Input Axis".into()
+        "Input Axis".into()
     }
 
     fn get_description() -> String {

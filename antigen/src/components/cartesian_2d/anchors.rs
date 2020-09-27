@@ -1,6 +1,6 @@
 use std::{fmt::Debug, ops::Range};
 
-use crate::entity_component_system::{ComponentDebugTrait, ComponentTrait};
+use crate::entity_component_system::ComponentDebugTrait;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Anchors {
@@ -41,8 +41,6 @@ impl Default for Anchors {
         }
     }
 }
-
-impl ComponentTrait for Anchors {}
 
 impl ComponentDebugTrait for Anchors {
     fn get_name() -> String {

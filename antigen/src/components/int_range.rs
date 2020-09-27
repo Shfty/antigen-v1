@@ -1,4 +1,4 @@
-use crate::entity_component_system::{ComponentDebugTrait, ComponentTrait};
+use crate::entity_component_system::ComponentDebugTrait;
 use std::ops::Range;
 
 #[derive(Debug, Clone)]
@@ -9,7 +9,10 @@ pub struct IntRange {
 
 impl IntRange {
     pub fn new(range: Range<i64>) -> Self {
-        IntRange { index: range.start, range }
+        IntRange {
+            index: range.start,
+            range,
+        }
     }
 
     pub fn get_index(&self) -> i64 {
@@ -32,8 +35,6 @@ impl Default for IntRange {
         IntRange::new(0..0)
     }
 }
-
-impl ComponentTrait for IntRange {}
 
 impl ComponentDebugTrait for IntRange {
     fn get_name() -> String {

@@ -1,6 +1,6 @@
-use std::{fmt::Debug};
+use std::fmt::Debug;
 
-use crate::entity_component_system::{ComponentDebugTrait, ComponentTrait};
+use crate::entity_component_system::ComponentDebugTrait;
 
 #[derive(Debug, Clone)]
 pub struct EventQueue<T>(Vec<T>)
@@ -33,8 +33,6 @@ where
         EventQueue(Vec::new())
     }
 }
-
-impl<T> ComponentTrait for EventQueue<T> where T: Debug + 'static {}
 
 impl<T> ComponentDebugTrait for EventQueue<T>
 where

@@ -1,9 +1,7 @@
-use crate::entity_component_system::{ComponentDebugTrait, ComponentTrait};
+use crate::entity_component_system::ComponentDebugTrait;
 
 #[derive(Debug, Default, Clone, Eq, PartialEq)]
 pub struct Control;
-
-impl ComponentTrait for Control {}
 
 impl ComponentDebugTrait for Control {
     fn get_name() -> String {

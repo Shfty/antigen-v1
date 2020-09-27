@@ -1,5 +1,3 @@
-use crate::entity_component_system::ComponentTrait;
-
 #[derive(Debug, Default, Copy, Clone)]
 pub struct Timer {
     duration: i64,
@@ -34,5 +32,3 @@ impl Timer {
         self
     }
 }
-
-impl ComponentTrait for Timer {}

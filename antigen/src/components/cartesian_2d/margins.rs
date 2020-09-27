@@ -1,4 +1,4 @@
-use crate::entity_component_system::{ComponentDebugTrait, ComponentTrait};
+use crate::entity_component_system::ComponentDebugTrait;
 
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct Margins {
@@ -30,8 +30,6 @@ impl Margins {
         self
     }
 }
-
-impl ComponentTrait for Margins {}
 
 impl ComponentDebugTrait for Margins {
     fn get_name() -> String {

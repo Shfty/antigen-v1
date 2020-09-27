@@ -1,3 +1,11 @@
+TODO: Blanket impl for ComponentDebugTrait if possible
+      Current issue is the need to override
+            A blanket impl can use std::any::type_name::<T>()
+            If you create an impl for a type, it conflicts with the blanket impl
+            Is there a language-level way to get around this?
+                  More traits / levels of indirection? Unsure how to deal with 'Type that is T and might also be Y'
+            
+
 TODO: Cleanup pass for distinction between CursesInput / CursesEvent
 
 TODO: Split IntRangeComponent into i64> and PrimitiveComponent<Range<i64>

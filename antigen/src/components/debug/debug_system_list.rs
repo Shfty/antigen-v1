@@ -1,9 +1,7 @@
-use crate::entity_component_system::{ComponentDebugTrait, ComponentTrait};
+use crate::entity_component_system::ComponentDebugTrait;
 
 #[derive(Debug, Default, Clone)]
 pub struct DebugSystemList;
-
-impl ComponentTrait for DebugSystemList {}
 
 impl ComponentDebugTrait for DebugSystemList {
     fn get_name() -> String {

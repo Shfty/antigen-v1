@@ -1,6 +1,8 @@
-use crate::CursesWindowComponent;
+use std::borrow::Borrow;
+
+use crate::CursesWindow;
 use antigen::{
-    components::{SizeComponent, SoftwareFramebufferComponent, WindowComponent},
+    components::{Size, SoftwareFramebuffer, Window},
     core::palette::Palette,
     entity_component_system::SystemDebugTrait,
     entity_component_system::{
@@ -56,30 +58,30 @@ where
             .entity_component_directory
             .get_entity_by_predicate(|entity_id| {
                 db.entity_component_directory
-                    .entity_has_component::<WindowComponent>(entity_id)
+                    .entity_has_component::<Window>(entity_id)
                     && db
                         .entity_component_directory
-                        .entity_has_component::<CursesWindowComponent>(entity_id)
+                        .entity_has_component::<CursesWindow>(entity_id)
                     && db
                         .entity_component_directory
-                        .entity_has_component::<SizeComponent>(entity_id)
+                        .entity_has_component::<Size>(entity_id)
             })
             .ok_or("No window entity")?;
 
         let window_width: i64;
         let window_height: i64;
         {
-            let window_component =
-                db.get_entity_component::<CursesWindowComponent>(window_entity)?;
+            let window_component = db.get_entity_component::<CursesWindow>(window_entity)?;
 
-            let window = window_component
-                .get_window()
-                .ok_or("Error fetching window handle")?;
+            let window: &Option<pancurses::Window> = window_component.borrow();
+            if let Some(window) = window {
+                let (height, width) = window.get_max_yx();
 
-            let (height, width) = window.get_max_yx();
-
-            window_width = width as i64;
-            window_height = height as i64;
+                window_width = width as i64;
+                window_height = height as i64;
+            } else {
+                panic!("Error fetching window handle");
+            }
         }
 
         // Fetch CPU framebuffer entity
@@ -87,20 +89,16 @@ where
             .entity_component_directory
             .get_entity_by_predicate(|entity_id| {
                 db.entity_component_directory
-                    .entity_has_component::<SoftwareFramebufferComponent<ColorRGBF>>(entity_id)
+                    .entity_has_component::<SoftwareFramebuffer<ColorRGBF>>(entity_id)
             })
             .expect("CPU framebuffer entity does not exist");
 
         let color_buffer = db
-            .get_entity_component::<SoftwareFramebufferComponent<ColorRGBF>>(
-                cpu_framebuffer_entity,
-            )?
+            .get_entity_component::<SoftwareFramebuffer<ColorRGBF>>(cpu_framebuffer_entity)?
             .get_color_buffer();
 
         let color_z_buffer = db
-            .get_entity_component::<SoftwareFramebufferComponent<ColorRGBF>>(
-                cpu_framebuffer_entity,
-            )?
+            .get_entity_component::<SoftwareFramebuffer<ColorRGBF>>(cpu_framebuffer_entity)?
             .get_z_buffer();
 
         // Fetch string framebuffer entity
@@ -108,16 +106,16 @@ where
             .entity_component_directory
             .get_entity_by_predicate(|entity_id| {
                 db.entity_component_directory
-                    .entity_has_component::<SoftwareFramebufferComponent<char>>(entity_id)
+                    .entity_has_component::<SoftwareFramebuffer<char>>(entity_id)
             })
             .expect("String framebuffer entity does not exist");
 
         let char_buffer = db
-            .get_entity_component::<SoftwareFramebufferComponent<char>>(string_framebuffer_enity)?
+            .get_entity_component::<SoftwareFramebuffer<char>>(string_framebuffer_enity)?
             .get_color_buffer();
 
         let char_z_buffer = db
-            .get_entity_component::<SoftwareFramebufferComponent<char>>(string_framebuffer_enity)?
+            .get_entity_component::<SoftwareFramebuffer<char>>(string_framebuffer_enity)?
             .get_z_buffer();
 
         // Create pancurses > palette map to make sure built-in pancurses colors are respected
@@ -243,21 +241,22 @@ where
             }
         }
 
-        let window_component = db.get_entity_component::<CursesWindowComponent>(window_entity)?;
-        let window = window_component
-            .get_window()
-            .ok_or("Error fetching window handle")?;
+        let window_component = db.get_entity_component::<CursesWindow>(window_entity)?;
+        let window: &Option<pancurses::Window> = window_component.borrow();
+        if let Some(window) = window {
+            window.erase();
+            for (x, y, char, color_pair) in cells {
+                window.mvaddch(
+                    y as i32,
+                    x as i32,
+                    char.to_chtype() | pancurses::COLOR_PAIR(color_pair as u64),
+                );
+            }
 
-        window.erase();
-        for (x, y, char, color_pair) in cells {
-            window.mvaddch(
-                y as i32,
-                x as i32,
-                char.to_chtype() | pancurses::COLOR_PAIR(color_pair as u64),
-            );
+            Ok(())
+        } else {
+            Err("Error fetching window handle".into())
         }
-
-        Ok(())
     }
 }
 

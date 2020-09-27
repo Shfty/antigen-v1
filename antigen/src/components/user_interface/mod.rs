@@ -1,9 +1,9 @@
-mod control_component;
-mod window_component;
-mod z_index_component;
-mod list_component;
+mod control;
+mod window;
+mod z_index;
+mod list;
 
-pub use control_component::*;
-pub use window_component::*;
-pub use z_index_component::*;
-pub use list_component::*;
+pub use control::*;
+pub use window::*;
+pub use z_index::*;
+pub use list::*;

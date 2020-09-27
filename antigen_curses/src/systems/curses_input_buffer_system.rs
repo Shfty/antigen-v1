@@ -1,12 +1,14 @@
+use std::borrow::{Borrow, BorrowMut};
+
 use antigen::{
-    components::WindowComponent,
+    components::Window,
     entity_component_system::{
         system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory,
         SystemDebugTrait, SystemError, SystemTrait,
     },
 };
 
-use crate::{CursesEventQueueComponent, CursesWindowComponent};
+use crate::{CursesEvent, CursesEventQueue, CursesWindow};
 
 /// Reads input from a pancurses window and pushes it into an event queue
 #[derive(Debug)]
@@ -27,7 +29,7 @@ where
             db.entity_component_directory
                 .get_entity_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<CursesEventQueueComponent>(entity_id)
+                        .entity_has_component::<CursesEventQueue>(entity_id)
                 });
 
         if let Some(event_queue_entity) = event_queue_entity {
@@ -36,25 +38,21 @@ where
                 db.entity_component_directory
                     .get_entity_by_predicate(|entity_id| {
                         db.entity_component_directory
-                            .entity_has_component::<WindowComponent>(entity_id)
+                            .entity_has_component::<Window>(entity_id)
                             && db
                                 .entity_component_directory
-                                .entity_has_component::<CursesWindowComponent>(entity_id)
+                                .entity_has_component::<CursesWindow>(entity_id)
                     });
 
             if let Some(entity_id) = window_entity {
-                if let Some(window) = db
-                    .get_entity_component::<CursesWindowComponent>(entity_id)?
-                    .get_window()
-                {
+                if let Some(window) = db.get_entity_component::<CursesWindow>(entity_id)?.borrow() {
                     if let Some(input) = window.getch() {
                         // Fetch the entity queue component and push inputs into it
-                        let event_queue_component = db
-                            .get_entity_component_mut::<CursesEventQueueComponent>(
-                                event_queue_entity,
-                            )?;
+                        let event_queue: &mut Vec<CursesEvent> = db
+                            .get_entity_component_mut::<CursesEventQueue>(event_queue_entity)?
+                            .borrow_mut();
 
-                        event_queue_component.push_event(input);
+                        event_queue.push(input);
                     }
                 }
             }

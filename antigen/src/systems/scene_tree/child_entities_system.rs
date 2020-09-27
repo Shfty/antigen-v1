@@ -1,13 +1,14 @@
+use std::borrow::{Borrow, BorrowMut};
+
 use crate::{
-    components::ChildEntitiesComponent,
+    components::ChildEntities,
     entity_component_system::ComponentStorage,
     entity_component_system::EntityComponentDirectory,
     entity_component_system::EntityID,
+    entity_component_system::SystemDebugTrait,
     entity_component_system::{SystemError, SystemTrait},
-entity_component_system::SystemDebugTrait};
-use crate::{
-    components::ParentEntityComponent, entity_component_system::system_interface::SystemInterface,
 };
+use crate::{components::ParentEntity, entity_component_system::system_interface::SystemInterface};
 
 #[derive(Debug)]
 pub struct ChildEntitiesSystem;
@@ -39,23 +40,22 @@ where
             db.entity_component_directory
                 .get_entities_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<ParentEntityComponent>(entity_id)
+                        .entity_has_component::<ParentEntity>(entity_id)
                 });
 
         for entity_id in entities_with_parents {
-            let parent_id = db
-                .get_entity_component::<ParentEntityComponent>(entity_id)?
-                .get_parent_id();
+            let parent_id: EntityID = (*db.get_entity_component::<ParentEntity>(entity_id)?).into();
 
-            let child_entities_component = match db
-                .get_entity_component_mut::<ChildEntitiesComponent>(parent_id)
-            {
-                Ok(child_entities_component) => child_entities_component,
-                Err(_) => db.insert_entity_component(parent_id, ChildEntitiesComponent::new())?,
-            };
+            let child_entities: &mut Vec<EntityID> =
+                match db.get_entity_component_mut::<ChildEntities>(parent_id) {
+                    Ok(child_entities) => child_entities.borrow_mut(),
+                    Err(_) => db
+                        .insert_entity_component(parent_id, ChildEntities::default())?
+                        .borrow_mut(),
+                };
 
-            if !child_entities_component.has_child_id(&entity_id) {
-                child_entities_component.add_child_id(entity_id);
+            if !child_entities.contains(&entity_id) {
+                child_entities.push(entity_id);
             }
         }
 
@@ -64,16 +64,13 @@ where
             db.entity_component_directory
                 .get_entities_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<ChildEntitiesComponent>(entity_id)
+                        .entity_has_component::<ChildEntities>(entity_id)
                 });
 
         for entity_id in entities_with_children {
-            let valid_entities: Vec<EntityID> = db
-                .get_entity_component::<ChildEntitiesComponent>(entity_id)?
-                .get_child_ids()
-                .iter()
-                .copied()
-                .collect();
+            let valid_entities: &Vec<EntityID> = db
+                .get_entity_component::<ChildEntities>(entity_id)?
+                .borrow();
 
             let valid_entities: Vec<EntityID> = valid_entities
                 .iter()
@@ -83,10 +80,12 @@ where
 
             if valid_entities.is_empty() {
                 println!("No valid children, removing component");
-                db.remove_component_from_entity::<ChildEntitiesComponent>(entity_id)?;
+                db.remove_component_from_entity::<ChildEntities>(entity_id)?;
             } else {
-                db.get_entity_component_mut::<ChildEntitiesComponent>(entity_id)?
-                    .set_child_ids(valid_entities);
+                let child_entities: &mut Vec<EntityID> = db
+                    .get_entity_component_mut::<ChildEntities>(entity_id)?
+                    .borrow_mut();
+                *child_entities = valid_entities;
             }
         }
 

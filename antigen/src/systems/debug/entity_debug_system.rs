@@ -5,7 +5,7 @@ use crate::{
     entity_component_system::{SystemError, SystemTrait},
 };
 use crate::{
-    components::{DebugEntityListComponent, DebugExcludeComponent, EntityDebugComponent},
+    components::{DebugEntityList, DebugExclude, EntityDebugLabels},
     entity_component_system::{
         system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory, EntityID,
         SystemDebugTrait,
@@ -29,7 +29,7 @@ where
             .entity_component_directory
             .get_entities_by_predicate(|entity_id| {
                 !db.entity_component_directory
-                    .entity_has_component::<DebugExcludeComponent>(entity_id)
+                    .entity_has_component::<DebugExclude>(entity_id)
             });
         debug_entities.sort();
 
@@ -37,12 +37,12 @@ where
             db.entity_component_directory
                 .get_entity_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<EntityDebugComponent>(entity_id)
+                        .entity_has_component::<EntityDebugLabels>(entity_id)
                 })
         {
             // Populate strings for debug entity list entities
             let entity_debug_component =
-                match db.get_entity_component::<EntityDebugComponent>(entity_debug_entity) {
+                match db.get_entity_component::<EntityDebugLabels>(entity_debug_entity) {
                     Ok(entity_debug_component) => entity_debug_component,
                     Err(err) => return Err(err.into()),
                 };
@@ -59,7 +59,7 @@ where
                 .entity_component_directory
                 .get_entities_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<DebugEntityListComponent>(entity_id)
+                        .entity_has_component::<DebugEntityList>(entity_id)
                         && db
                             .entity_component_directory
                             .entity_has_component::<StringListComponent>(entity_id)

@@ -1,7 +1,9 @@
-use crate::components::InputAxisComponent;
+use std::borrow::Borrow;
+
+use crate::components::InputAxis;
 use antigen::{
-    components::EventQueueComponent,
-    components::IntRangeComponent,
+    components::EventQueue,
+    components::IntRange,
     core::events::AntigenInputEvent,
     entity_component_system::system_interface::SystemInterface,
     entity_component_system::ComponentStorage,
@@ -12,12 +14,6 @@ use antigen::{
 
 #[derive(Debug)]
 pub struct InputAxisSystem;
-
-impl InputAxisSystem {
-    pub fn new() -> Self {
-        InputAxisSystem
-    }
-}
 
 impl<CS, CD> SystemTrait<CS, CD> for InputAxisSystem
 where
@@ -33,7 +29,7 @@ where
             db.entity_component_directory
                 .get_entity_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<EventQueueComponent<AntigenInputEvent>>(entity_id)
+                        .entity_has_component::<EventQueue<AntigenInputEvent>>(entity_id)
                 });
 
         if let Some(event_queue_entity) = event_queue_entity {
@@ -41,15 +37,14 @@ where
                 .entity_component_directory
                 .get_entities_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<InputAxisComponent>(entity_id)
+                        .entity_has_component::<InputAxis>(entity_id)
                         && db
                             .entity_component_directory
-                            .entity_has_component::<IntRangeComponent>(entity_id)
+                            .entity_has_component::<IntRange>(entity_id)
                 });
 
             for entity_id in entities {
-                let input_axis_component =
-                    db.get_entity_component::<InputAxisComponent>(entity_id)?;
+                let input_axis_component = db.get_entity_component::<InputAxis>(entity_id)?;
                 let (prev_input, next_input) = (
                     input_axis_component.get_negative_input(),
                     input_axis_component.get_positive_input(),
@@ -57,21 +52,22 @@ where
 
                 let mut offset: i64 = 0;
 
-                for event in db
-                    .get_entity_component::<EventQueueComponent<AntigenInputEvent>>(event_queue_entity)?
-                    .get_events()
-                {
+                let event_queue: &Vec<AntigenInputEvent> = db
+                    .get_entity_component::<EventQueue<AntigenInputEvent>>(event_queue_entity)?
+                    .borrow();
+
+                for event in event_queue {
                     if let AntigenInputEvent::KeyPress { key_code } = event {
-                        if *key_code == prev_input {
+                        let key_code = *key_code;
+                        if key_code == prev_input {
                             offset -= 1;
-                        } else if *key_code == next_input {
+                        } else if key_code == next_input {
                             offset += 1;
                         }
                     }
                 }
 
-                let ui_tab_input_component =
-                    db.get_entity_component_mut::<IntRangeComponent>(entity_id)?;
+                let ui_tab_input_component = db.get_entity_component_mut::<IntRange>(entity_id)?;
 
                 ui_tab_input_component.set_index(ui_tab_input_component.get_index() + offset);
             }

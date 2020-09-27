@@ -1,5 +1,5 @@
-mod destruction_test_input_component;
-mod input_axis_component;
+mod destruction_test_input;
+mod input_axis;
 
-pub use destruction_test_input_component::*;
-pub use input_axis_component::*;
+pub use destruction_test_input::*;
+pub use input_axis::*;

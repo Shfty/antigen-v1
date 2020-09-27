@@ -1,13 +1,15 @@
-mod anchors_component;
-mod global_position_component;
-mod margins_component;
-mod position_component;
-mod size_component;
-mod velocity_component;
+mod anchors;
+mod global_position;
+mod margins;
+mod position;
+mod size;
+mod velocity;
+mod local_position;
 
-pub use anchors_component::*;
-pub use global_position_component::*;
-pub use margins_component::*;
-pub use position_component::*;
-pub use size_component::*;
-pub use velocity_component::*;
+pub use anchors::*;
+pub use global_position::*;
+pub use margins::*;
+pub use position::*;
+pub use size::*;
+pub use velocity::*;
+pub use local_position::*;

@@ -1,5 +1,7 @@
+use std::borrow::{Borrow, BorrowMut};
+
 use antigen::{
-    components::EventQueueComponent,
+    components::EventQueue,
     core::events::AntigenInputEvent,
     entity_component_system::{
         system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory,
@@ -8,7 +10,7 @@ use antigen::{
     primitive_types::Vector2I,
 };
 
-use crate::CursesEventQueueComponent;
+use crate::{CursesEvent, CursesEventQueue};
 
 const WHEEL_UP: usize = 65536;
 const WHEEL_DOWN: usize = 2097152;
@@ -49,16 +51,16 @@ where
             db.entity_component_directory
                 .get_entity_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<CursesEventQueueComponent>(entity_id)
+                        .entity_has_component::<CursesEventQueue>(entity_id)
                 });
 
         if let Some(pancurses_event_queue_entity) = pancurses_event_queue_entity {
-            let event_queue_component =
-                db.get_entity_component::<CursesEventQueueComponent>(pancurses_event_queue_entity)?;
+            let pancurses_event_queue: &Vec<CursesEvent> = db
+                .get_entity_component::<CursesEventQueue>(pancurses_event_queue_entity)?
+                .borrow();
 
-            let events = event_queue_component.get_events().clone();
-            for event in events {
-                if event == pancurses::Input::KeyMouse {
+            for pancurses_event in pancurses_event_queue.clone() {
+                if pancurses_event == CursesEvent::KeyMouse {
                     // Check for mouse input
                     let mouse_event =
                         pancurses::getmouse().expect("Failed to get pancurses mouse event");
@@ -90,31 +92,31 @@ where
                         db.entity_component_directory
                             .get_entity_by_predicate(|entity_id| {
                                 db.entity_component_directory
-                                    .entity_has_component::<EventQueueComponent<AntigenInputEvent>>(
+                                    .entity_has_component::<EventQueue<AntigenInputEvent>>(
                                         entity_id,
                                     )
                             });
 
                     if let Some(event_queue_entity) = event_queue_entity {
-                        let event_queue_component = db
-                            .get_entity_component_mut::<EventQueueComponent<AntigenInputEvent>>(
+                        let antigen_event_queue: &mut Vec<AntigenInputEvent> = db
+                            .get_entity_component_mut::<EventQueue<AntigenInputEvent>>(
                                 event_queue_entity,
-                            )?;
+                            )?
+                            .borrow_mut();
 
                         if delta != Vector2I(0, 0) {
-                            event_queue_component.push_event(AntigenInputEvent::MouseMove {
+                            antigen_event_queue.push(AntigenInputEvent::MouseMove {
                                 position: prev_position + delta,
                                 delta,
                             })
                         }
 
                         if WHEEL_UP & self.button_mask > 0 {
-                            event_queue_component
-                                .push_event(AntigenInputEvent::MouseScroll { delta: -1 })
+                            antigen_event_queue.push(AntigenInputEvent::MouseScroll { delta: -1 })
                         }
 
                         if WHEEL_DOWN & self.button_mask > 0 {
-                            event_queue_component.push_event(AntigenInputEvent::MouseScroll { delta: 1 })
+                            antigen_event_queue.push(AntigenInputEvent::MouseScroll { delta: 1 })
                         }
 
                         if self.button_mask != prev_button_mask {
@@ -157,13 +159,13 @@ where
                             }
 
                             if pressed_mask != 0 {
-                                event_queue_component.push_event(AntigenInputEvent::MousePress {
+                                antigen_event_queue.push(AntigenInputEvent::MousePress {
                                     button_mask: pressed_mask,
                                 })
                             }
 
                             if released_mask != 0 {
-                                event_queue_component.push_event(AntigenInputEvent::MouseRelease {
+                                antigen_event_queue.push(AntigenInputEvent::MouseRelease {
                                     button_mask: released_mask,
                                 })
                             }

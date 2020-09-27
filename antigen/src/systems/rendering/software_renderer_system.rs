@@ -1,8 +1,9 @@
+use std::borrow::Borrow;
+
 use crate::{
     components::ColorComponent,
     components::{
-        CPUShaderComponent, ChildEntitiesComponent, GlobalPositionComponent, PositionComponent,
-        SizeComponent, WindowComponent, ZIndexComponent,
+        CPUShaderComponent, ChildEntities, GlobalPosition, Position, Size, Window, ZIndex,
     },
     entity_component_system::SystemDebugTrait,
     entity_component_system::{
@@ -14,7 +15,7 @@ use crate::{
     primitive_types::Vector2I,
 };
 use crate::{
-    components::{ControlComponent, SoftwareFramebufferComponent},
+    components::{Control, SoftwareFramebuffer},
     core::cpu_shader::{CPUShader, CPUShaderInput},
 };
 
@@ -23,7 +24,7 @@ pub struct SoftwareRendererSystem;
 
 impl SoftwareRendererSystem {
     fn render_rect(
-        framebuffer: &mut SoftwareFramebufferComponent<ColorRGBF>,
+        framebuffer: &mut SoftwareFramebuffer<ColorRGBF>,
         window_size: Vector2I,
         position: Vector2I,
         size: Vector2I,
@@ -74,19 +75,19 @@ where
             .entity_component_directory
             .get_entity_by_predicate(|entity_id| {
                 db.entity_component_directory
-                    .entity_has_component::<WindowComponent>(entity_id)
+                    .entity_has_component::<Window>(entity_id)
                     && db
                         .entity_component_directory
-                        .entity_has_component::<SizeComponent>(entity_id)
+                        .entity_has_component::<Size>(entity_id)
             })
             .ok_or("No window entity")?;
 
         let window_width: i64;
         let window_height: i64;
         {
-            let size_component = db.get_entity_component::<SizeComponent>(window_entity)?;
+            let size = db.get_entity_component::<Size>(window_entity)?;
 
-            let Vector2I(width, height) = size_component.get_size();
+            let Vector2I(width, height) = (*size).into();
 
             window_width = width as i64;
             window_height = height as i64;
@@ -97,15 +98,13 @@ where
             .entity_component_directory
             .get_entity_by_predicate(|entity_id| {
                 db.entity_component_directory
-                    .entity_has_component::<SoftwareFramebufferComponent<ColorRGBF>>(entity_id)
+                    .entity_has_component::<SoftwareFramebuffer<ColorRGBF>>(entity_id)
             })
             .unwrap_or_else(|| panic!("No CPU framebuffer component"));
 
         let cell_count = (window_width * window_height) as usize;
-        db.get_entity_component_mut::<SoftwareFramebufferComponent<ColorRGBF>>(
-            cpu_framebuffer_entity,
-        )?
-        .resize(cell_count);
+        db.get_entity_component_mut::<SoftwareFramebuffer<ColorRGBF>>(cpu_framebuffer_entity)?
+            .resize(cell_count);
 
         // Recursively traverse parent-child tree and populate Z-ordered list of controls
         let mut control_entities: Vec<(EntityID, i64)> = Vec::new();
@@ -122,23 +121,22 @@ where
         {
             if db
                 .entity_component_directory
-                .entity_has_component::<ControlComponent>(&entity_id)
+                .entity_has_component::<Control>(&entity_id)
                 && db
                     .entity_component_directory
-                    .entity_has_component::<SizeComponent>(&entity_id)
+                    .entity_has_component::<Size>(&entity_id)
             {
-                z_index = match db.get_entity_component::<ZIndexComponent>(entity_id) {
-                    Ok(z_index_component) => z_index_component.get_z(),
+                z_index = match db.get_entity_component::<ZIndex>(entity_id) {
+                    Ok(z_index) => (*z_index).into(),
                     Err(_) => z_index,
                 };
 
                 z_layers.push((entity_id, z_index));
             }
 
-            if let Ok(child_entities_component) =
-                db.get_entity_component::<ChildEntitiesComponent>(entity_id)
-            {
-                for child_id in child_entities_component.get_child_ids() {
+            if let Ok(child_entities) = db.get_entity_component::<ChildEntities>(entity_id) {
+                let child_entities: &Vec<EntityID> = child_entities.borrow();
+                for child_id in child_entities {
                     populate_control_entities(db, *child_id, z_layers, z_index)?;
                 }
             }
@@ -150,23 +148,24 @@ where
         control_entities.sort();
 
         // Render Entities
-        db.get_entity_component_mut::<SoftwareFramebufferComponent<ColorRGBF>>(
-            cpu_framebuffer_entity,
-        )?
-        .clear();
+        db.get_entity_component_mut::<SoftwareFramebuffer<ColorRGBF>>(cpu_framebuffer_entity)?
+            .clear();
 
         for (entity_id, z) in control_entities {
             // Get Position
-            let Vector2I(x, y) = if let Ok(global_position_component) =
-                db.get_entity_component::<GlobalPositionComponent>(entity_id)
-            {
-                global_position_component.get_global_position()
-            } else {
-                match db.get_entity_component::<PositionComponent>(entity_id) {
-                    Ok(position_component) => position_component.get_position(),
-                    Err(err) => return Err(err.into()),
-                }
-            };
+            let Vector2I(x, y) =
+                if let Ok(global_position) = db.get_entity_component::<GlobalPosition>(entity_id) {
+                    let global_position = *global_position;
+                    global_position.into()
+                } else {
+                    match db.get_entity_component::<Position>(entity_id) {
+                        Ok(position) => {
+                            let position = *position;
+                            position.into()
+                        }
+                        Err(err) => return Err(err.into()),
+                    }
+                };
 
             // Get Color
             let color = match db.get_entity_component::<ColorComponent>(entity_id) {
@@ -181,12 +180,10 @@ where
             };
 
             // Get size
-            let Vector2I(width, height) = db
-                .get_entity_component::<SizeComponent>(entity_id)?
-                .get_size();
+            let Vector2I(width, height) = (*db.get_entity_component::<Size>(entity_id)?).into();
 
             Self::render_rect(
-                db.get_entity_component_mut::<SoftwareFramebufferComponent<ColorRGBF>>(
+                db.get_entity_component_mut::<SoftwareFramebuffer<ColorRGBF>>(
                     cpu_framebuffer_entity,
                 )?,
                 Vector2I(window_width, window_height),

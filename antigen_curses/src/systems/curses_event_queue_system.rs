@@ -1,3 +1,5 @@
 use antigen::systems::EventQueueSystem;
 
-pub type CursesEventQueueSystem = EventQueueSystem<pancurses::Input>;
+use crate::CursesEvent;
+
+pub type CursesEventQueueSystem = EventQueueSystem<CursesEvent>;

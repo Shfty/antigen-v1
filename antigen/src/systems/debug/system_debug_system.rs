@@ -1,7 +1,7 @@
 use std::{fmt::Debug, time::Duration};
 
 use crate::{
-    components::DebugSystemListComponent, components::SystemDebugComponent,
+    components::DebugSystemList, components::SystemDebugInfo,
     entity_component_system::system_interface::SystemInterface,
     entity_component_system::ComponentStorage, entity_component_system::EntityComponentDirectory,
     entity_component_system::SystemDebugTrait, entity_component_system::SystemID,
@@ -28,12 +28,12 @@ where
             db.entity_component_directory
                 .get_entity_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<SystemDebugComponent>(entity_id)
+                        .entity_has_component::<SystemDebugInfo>(entity_id)
                 })
         {
             // Populate strings for debug system list entities
             let system_debug_component =
-                match db.get_entity_component::<SystemDebugComponent>(system_debug_entity) {
+                match db.get_entity_component::<SystemDebugInfo>(system_debug_entity) {
                     Ok(system_debug_component) => system_debug_component,
                     Err(err) => return Err(err.into()),
                 };
@@ -73,7 +73,7 @@ where
                 .entity_component_directory
                 .get_entities_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<DebugSystemListComponent>(entity_id)
+                        .entity_has_component::<DebugSystemList>(entity_id)
                         && db
                             .entity_component_directory
                             .entity_has_component::<StringListComponent>(entity_id)

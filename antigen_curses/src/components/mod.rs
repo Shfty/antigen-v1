@@ -1,5 +1,5 @@
-mod curses_event_queue_component;
-mod curses_window_component;
+mod curses_event_queue;
+mod curses_window;
 
-pub use curses_event_queue_component::*;
-pub use curses_window_component::*;
+pub use curses_event_queue::*;
+pub use curses_window::*;

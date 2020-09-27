@@ -21,8 +21,8 @@ pub use traits::{
 };
 
 use crate::{
-    components::ComponentDebugComponent, components::EntityDebugComponent,
-    components::SystemDebugComponent, systems::ComponentDataDebugSystem,
+    components::ComponentDebugInfo, components::EntityDebugLabels,
+    components::SystemDebugInfo, systems::ComponentDataDebugSystem,
     systems::ComponentDebugSystem, systems::EntityDebugSystem, systems::SceneTreeDebugSystem,
     systems::SystemDebugSystem,
 };
@@ -68,7 +68,7 @@ where
 
             let entity_debug_entity = db.create_entity(None)?;
             {
-                db.insert_entity_component(entity_debug_entity, EntityDebugComponent::default())?
+                db.insert_entity_component(entity_debug_entity, EntityDebugLabels::default())?
                     .register_entity(entity_debug_entity, "Entity Debug".into());
             }
 
@@ -76,13 +76,13 @@ where
             {
                 db.insert_entity_component(
                     component_debug_entity,
-                    ComponentDebugComponent::default(),
+                    ComponentDebugInfo::default(),
                 )?;
             }
 
             let system_debug_entity = db.create_entity("System Debug".into())?;
             {
-                db.insert_entity_component(system_debug_entity, SystemDebugComponent::default())?;
+                db.insert_entity_component(system_debug_entity, SystemDebugInfo::default())?;
             }
         }
 
@@ -105,12 +105,12 @@ where
             self.entity_component_directory
                 .get_entity_by_predicate(|entity_id| {
                     self.entity_component_directory
-                        .entity_has_component::<SystemDebugComponent>(entity_id)
+                        .entity_has_component::<SystemDebugInfo>(entity_id)
                 })
         {
             if let Ok(system_debug_component) = self
                 .get_system_interface()
-                .get_entity_component_mut::<SystemDebugComponent>(system_debug_entity)
+                .get_entity_component_mut::<SystemDebugInfo>(system_debug_entity)
             {
                 system_debug_component.register_system(system_id, T::get_name());
             }

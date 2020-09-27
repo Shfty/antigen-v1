@@ -1,5 +1,7 @@
+use std::borrow::{Borrow, BorrowMut};
+
 use antigen::{
-    components::{SizeComponent, StringComponent, WindowComponent},
+    components::{Size, StringComponent, Window},
     entity_component_system::{
         system_interface::SystemInterface, ComponentStorage, ComponentTrait,
         EntityComponentDirectory, EntityID, SystemDebugTrait, SystemError, SystemTrait,
@@ -7,7 +9,7 @@ use antigen::{
     primitive_types::Vector2I,
 };
 
-use crate::{CursesEventQueueComponent, CursesWindowComponent};
+use crate::{CursesEvent, CursesEventQueue, CursesWindow};
 
 // TODO: Properly delete windows when their component is removed
 
@@ -23,7 +25,7 @@ impl CursesWindowSystem {
             pancurses::endwin();
         }
 
-        component_storage.register_component_drop_callback::<CursesWindowComponent>(drop_callback);
+        component_storage.register_component_drop_callback::<CursesWindow>(drop_callback);
 
         CursesWindowSystem
     }
@@ -37,16 +39,13 @@ impl CursesWindowSystem {
         CS: ComponentStorage,
         CD: EntityComponentDirectory,
     {
-        let pancurses_window_component =
-            db.get_entity_component::<CursesWindowComponent>(entity_id)?;
-
-        if pancurses_window_component.get_window().is_some() {
+        let curses_window = db.get_entity_component::<CursesWindow>(entity_id)?;
+        let curses_window: &Option<pancurses::Window> = curses_window.borrow();
+        if curses_window.is_some() {
             return Ok(());
         }
 
-        let Vector2I(width, height) = db
-            .get_entity_component::<SizeComponent>(entity_id)?
-            .get_size();
+        let Vector2I(width, height) = (*db.get_entity_component::<Size>(entity_id)?).into();
 
         let title = match db.get_entity_component::<StringComponent>(entity_id) {
             Ok(string_component) => string_component.get_data(),
@@ -69,8 +68,11 @@ impl CursesWindowSystem {
         window.keypad(true);
         window.timeout(0);
 
-        db.get_entity_component_mut::<CursesWindowComponent>(entity_id)?
-            .set_window(Some(window));
+        let curses_window: &mut Option<pancurses::Window> = db
+            .get_entity_component_mut::<CursesWindow>(entity_id)?
+            .borrow_mut();
+
+        *curses_window = Some(window);
 
         Ok(())
     }
@@ -90,15 +92,16 @@ where
             db.entity_component_directory
                 .get_entity_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<CursesEventQueueComponent>(entity_id)
+                        .entity_has_component::<CursesEventQueue>(entity_id)
                 });
 
         if let Some(pancurses_event_queue_entity) = pancurses_event_queue_entity {
-            let pancurses_event_queue_component =
-                db.get_entity_component::<CursesEventQueueComponent>(pancurses_event_queue_entity)?;
+            let pancurses_event_queue: &Vec<CursesEvent> = db
+                .get_entity_component::<CursesEventQueue>(pancurses_event_queue_entity)?
+                .borrow();
 
-            for event in pancurses_event_queue_component.get_events() {
-                if let pancurses::Input::KeyResize = event {
+            for event in pancurses_event_queue {
+                if let CursesEvent::KeyResize = event {
                     pancurses::resize_term(0, 0);
                 }
             }
@@ -109,13 +112,13 @@ where
             .entity_component_directory
             .get_entity_by_predicate(|entity_id| {
                 db.entity_component_directory
-                    .entity_has_component::<WindowComponent>(entity_id)
+                    .entity_has_component::<Window>(entity_id)
                     && db
                         .entity_component_directory
-                        .entity_has_component::<CursesWindowComponent>(entity_id)
+                        .entity_has_component::<CursesWindow>(entity_id)
                     && db
                         .entity_component_directory
-                        .entity_has_component::<SizeComponent>(entity_id)
+                        .entity_has_component::<Size>(entity_id)
             });
 
         if let Some(window_entity) = window_entity {
@@ -127,31 +130,32 @@ where
                 .entity_component_directory
                 .get_entity_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<CursesEventQueueComponent>(entity_id)
+                        .entity_has_component::<CursesEventQueue>(entity_id)
                 });
 
             if let Some(pancurses_event_queue_entity) = pancurses_event_queue_entity {
-                let pancurses_event_queue_component = db
-                    .get_entity_component::<CursesEventQueueComponent>(
-                        pancurses_event_queue_entity,
-                    )?;
+                let pancurses_event_queue: &Vec<CursesEvent> = db
+                    .get_entity_component::<CursesEventQueue>(pancurses_event_queue_entity)?
+                    .borrow();
 
-                for event in pancurses_event_queue_component.get_events() {
-                    if let pancurses::Input::KeyResize = event {
-                        pancurses::resize_term(0, 0);
-                    }
+                if pancurses_event_queue
+                    .iter()
+                    .any(|input| *input == CursesEvent::KeyResize)
+                {
+                    pancurses::resize_term(0, 0);
                 }
             }
 
             // Update window component size
-            if let Some(window) = db
-                .get_entity_component::<CursesWindowComponent>(window_entity)?
-                .get_window()
-            {
+            let curses_window: &Option<pancurses::Window> = db
+                .get_entity_component::<CursesWindow>(window_entity)?
+                .borrow();
+
+            if let Some(window) = curses_window {
                 let (window_height, window_width) = window.get_max_yx();
 
-                db.get_entity_component_mut::<SizeComponent>(window_entity)?
-                    .set_size(Vector2I(window_width as i64, window_height as i64));
+                *db.get_entity_component_mut::<Size>(window_entity)? =
+                    Vector2I(window_width as i64, window_height as i64).into();
             }
         }
 

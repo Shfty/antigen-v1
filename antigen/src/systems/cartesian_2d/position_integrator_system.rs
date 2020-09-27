@@ -1,9 +1,12 @@
-use crate::entity_component_system::{
-    ComponentStorage, EntityComponentDirectory, SystemError, SystemTrait,
-SystemDebugTrait};
 use crate::{
-    components::{PositionComponent, VelocityComponent},
+    components::{Position, Velocity},
     entity_component_system::system_interface::SystemInterface,
+};
+use crate::{
+    entity_component_system::{
+        ComponentStorage, EntityComponentDirectory, SystemDebugTrait, SystemError, SystemTrait,
+    },
+    primitive_types::Vector2I,
 };
 
 #[derive(Debug)]
@@ -35,19 +38,21 @@ where
             .entity_component_directory
             .get_entities_by_predicate(|entity_id| {
                 db.entity_component_directory
-                    .entity_has_component::<PositionComponent>(entity_id)
+                    .entity_has_component::<Position>(entity_id)
                     && db
                         .entity_component_directory
-                        .entity_has_component::<VelocityComponent>(entity_id)
+                        .entity_has_component::<Velocity>(entity_id)
             });
 
         for entity_id in entities {
-            let velocity = db
-                .get_entity_component::<VelocityComponent>(entity_id)?
-                .get_velocity();
+            let velocity: Vector2I = (*db.get_entity_component::<Velocity>(entity_id)?).into();
 
-            let position_component = db.get_entity_component_mut::<PositionComponent>(entity_id)?;
-            position_component.set_position(position_component.get_position() + velocity);
+            let position = db.get_entity_component_mut::<Position>(entity_id)?;
+            *position = (velocity + {
+                let position = *position;
+                position.into()
+            })
+            .into();
         }
 
         Ok(())

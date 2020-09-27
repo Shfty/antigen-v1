@@ -3,20 +3,18 @@ use std::{collections::HashMap, ops::Range};
 use antigen::{
     components::CPUShaderComponent,
     components::ColorComponent,
-    components::ControlComponent,
-    components::DebugSceneTreeComponent,
-    components::DebugSystemListComponent,
-    components::ListComponent,
-    components::LocalMousePositionComponent,
-    components::SoftwareFramebufferComponent,
-    components::SystemInspectorComponent,
+    components::Control,
+    components::DebugSceneTree,
+    components::DebugSystemList,
+    components::List,
+    components::LocalPosition,
+    components::SoftwareFramebuffer,
+    components::SystemInspector,
     components::{
-        AnchorsComponent, CharComponent, ComponentInspectorComponent,
-        DebugComponentDataListComponent, DebugComponentListComponent, DebugEntityListComponent,
-        DebugExcludeComponent, EntityInspectorComponent, GlobalPositionComponent,
-        IntRangeComponent, MarginsComponent, ParentEntityComponent, PositionComponent,
-        SizeComponent, StringComponent, StringListComponent, VelocityComponent, WindowComponent,
-        ZIndexComponent,
+        Anchors, CharComponent, ComponentInspector, DebugComponentDataList, DebugComponentList,
+        DebugEntityList, DebugExclude, EntityInspector, GlobalPosition, IntRange, Margins,
+        ParentEntity, Position, Size, StringComponent, StringListComponent, Velocity, Window,
+        ZIndex,
     },
     core::cpu_shader::CPUShader,
     core::palette::RGBArrangementPalette,
@@ -38,11 +36,11 @@ use antigen::{
 };
 use antigen_curses::{
     CursesEventQueueSystem, CursesInputBufferSystem, CursesKeyboardSystem, CursesMouseSystem,
-    CursesRendererSystem, CursesWindowComponent, CursesWindowSystem, TextColorMode,
+    CursesRendererSystem, CursesWindow, CursesWindowSystem, TextColorMode,
 };
 
 use crate::systems::{DestructionTestInputSystem, InputAxisSystem, InputVelocitySystem};
-use crate::{components::DestructionTestInputComponent, systems::QuitKeySystem};
+use crate::{components::DestructionTestInput, systems::QuitKeySystem};
 
 #[derive(Eq, PartialEq, Hash)]
 enum EntityAssemblage {
@@ -75,7 +73,7 @@ impl Scene for AntigenDebugScene {
         ecs.push_system(pancurses_window_system);
 
         ecs.push_system(QuitKeySystem::new(antigen::core::keyboard::Key::Escape));
-        ecs.push_system(InputAxisSystem::new());
+        ecs.push_system(InputAxisSystem);
         ecs.push_system(DestructionTestInputSystem::new());
         ecs.push_system(LocalMousePositionSystem::new());
         ecs.push_system(ListSystem::new());
@@ -106,34 +104,31 @@ impl Scene for AntigenDebugScene {
         let cpu_framebuffer_entity = db.create_entity("CPU Framebuffer".into())?;
         db.insert_entity_component(
             cpu_framebuffer_entity,
-            SoftwareFramebufferComponent::new(Color(0.0f32, 0.0f32, 0.0f32)),
+            SoftwareFramebuffer::new(Color(0.0f32, 0.0f32, 0.0f32)),
         )?;
 
         let string_framebuffer_entity = db.create_entity("String Framebuffer".into())?;
-        db.insert_entity_component(
-            string_framebuffer_entity,
-            SoftwareFramebufferComponent::new(' '),
-        )?;
+        db.insert_entity_component(string_framebuffer_entity, SoftwareFramebuffer::new(' '))?;
 
         let main_window_entity = create_window_entity(
             db,
             Some("Main Window"),
-            Vector2I::default(),
-            Vector2I(256, 64),
+            Position::default(),
+            Size::from(Vector2I(256, 64)),
             None,
         )?;
 
         let entity_inspector_entity = db.create_entity(Some("Entity Inspector"))?;
-        db.insert_entity_component(entity_inspector_entity, EntityInspectorComponent)?;
-        db.insert_entity_component(entity_inspector_entity, IntRangeComponent::new(-1..-1))?;
+        db.insert_entity_component(entity_inspector_entity, EntityInspector)?;
+        db.insert_entity_component(entity_inspector_entity, IntRange::new(-1..-1))?;
 
         let component_inspector_entity = db.create_entity(Some("Component Inspector"))?;
-        db.insert_entity_component(component_inspector_entity, ComponentInspectorComponent)?;
-        db.insert_entity_component(component_inspector_entity, IntRangeComponent::new(-1..-1))?;
+        db.insert_entity_component(component_inspector_entity, ComponentInspector)?;
+        db.insert_entity_component(component_inspector_entity, IntRange::new(-1..-1))?;
 
         let system_inspector_entity = db.create_entity(Some("System Inspector"))?;
-        db.insert_entity_component(system_inspector_entity, SystemInspectorComponent)?;
-        db.insert_entity_component(system_inspector_entity, IntRangeComponent::new(-1..-1))?;
+        db.insert_entity_component(system_inspector_entity, SystemInspector)?;
+        db.insert_entity_component(system_inspector_entity, IntRange::new(-1..-1))?;
 
         create_game_window(db, &mut assemblages, main_window_entity)?;
         create_entity_list_window(
@@ -197,8 +192,7 @@ where
     db.get_entity_component_mut::<StringComponent>(entity_id)?
         .set_data(text.into());
 
-    db.get_entity_component_mut::<PositionComponent>(entity_id)?
-        .set_position(Vector2I(x, y));
+    *db.get_entity_component_mut::<Position>(entity_id)? = Vector2I(x, y).into();
 
     Ok(entity_id)
 }
@@ -206,8 +200,8 @@ where
 fn create_window_entity<S, D>(
     db: &mut SystemInterface<S, D>,
     debug_label: Option<&str>,
-    position: Vector2I,
-    size: Vector2I,
+    position: Position,
+    size: Size,
     parent_window_entity_id: Option<EntityID>,
 ) -> Result<EntityID, String>
 where
@@ -215,15 +209,12 @@ where
     D: EntityComponentDirectory,
 {
     let entity_id = db.create_entity(debug_label)?;
-    db.insert_entity_component(entity_id, WindowComponent)?;
-    db.insert_entity_component(entity_id, CursesWindowComponent::default())?;
-    db.insert_entity_component(entity_id, PositionComponent::new(position))?;
-    db.insert_entity_component(entity_id, SizeComponent::new(size))?;
+    db.insert_entity_component(entity_id, Window)?;
+    db.insert_entity_component(entity_id, CursesWindow::default())?;
+    db.insert_entity_component(entity_id, position)?;
+    db.insert_entity_component(entity_id, size)?;
     if let Some(parent_window_entity_id) = parent_window_entity_id {
-        db.insert_entity_component(
-            entity_id,
-            ParentEntityComponent::new(parent_window_entity_id),
-        )?;
+        db.insert_entity_component(entity_id, ParentEntity(parent_window_entity_id))?;
     }
     Ok(entity_id)
 }
@@ -241,29 +232,29 @@ where
             "Player Entity",
             "Controllable ASCII character with position and velocity",
         )
-        .add_component(ControlComponent)?
+        .add_component(Control)?
         .add_component(ColorComponent::new(Color(1.0, 0.6, 1.0)))?
         .add_component(CharComponent::new('@'))?
-        .add_component(PositionComponent::new(Vector2I(1, 1)))?
-        .add_component(VelocityComponent::new(Vector2I(1, 1)))?
+        .add_component(Position::from(Vector2I(1, 1)))?
+        .add_component(Velocity::default())?
         .finish(),
     );
 
     assemblages.insert(
         EntityAssemblage::StringControl,
         Assemblage::build("String Entity", "ASCII string control")
-            .add_component(ControlComponent)?
+            .add_component(Control)?
             .add_component(StringComponent::default())?
-            .add_component(PositionComponent::default())?
+            .add_component(Position::default())?
             .finish(),
     );
 
     assemblages.insert(
         EntityAssemblage::RectControl,
         Assemblage::build("Rect Entity", "ASCII Rectangle control")
-            .add_component(ControlComponent)?
-            .add_component(PositionComponent::default())?
-            .add_component(SizeComponent::default())?
+            .add_component(Control)?
+            .add_component(Position::default())?
+            .add_component(Size::default())?
             .add_component(CharComponent::default())?
             .add_component(ColorComponent::new(Color(0.753, 0.753, 0.753)))?
             .finish(),
@@ -272,9 +263,9 @@ where
     assemblages.insert(
         EntityAssemblage::BorderControl,
         Assemblage::build("Border Entity", "ASCII Border control")
-            .add_component(ControlComponent)?
-            .add_component(PositionComponent::default())?
-            .add_component(SizeComponent::default())?
+            .add_component(Control)?
+            .add_component(Position::default())?
+            .add_component(Size::default())?
             .add_component(CharComponent::default())?
             .add_component(CPUShaderComponent::new(CPUShader(CPUShader::rect)))?
             .add_component(ColorComponent::new(Color(0.753, 0.753, 0.753)))?
@@ -287,9 +278,7 @@ where
             "Destruction Test",
             "Assemblage for destroying entities when space is pressed",
         )
-        .add_component(DestructionTestInputComponent::new(
-            antigen::core::keyboard::Key::Space,
-        ))?
+        .add_component(DestructionTestInput(antigen::core::keyboard::Key::Space))?
         .finish(),
     );
 
@@ -307,17 +296,11 @@ where
 {
     // Create Game Window
     let game_window_entity = db.create_entity(Some("Game"))?;
-    db.insert_entity_component(game_window_entity, PositionComponent::default())?;
-    db.insert_entity_component(game_window_entity, SizeComponent::default())?;
-    db.insert_entity_component(
-        game_window_entity,
-        ParentEntityComponent::new(parent_window_entity),
-    )?;
+    db.insert_entity_component(game_window_entity, Position::default())?;
+    db.insert_entity_component(game_window_entity, Size::default())?;
+    db.insert_entity_component(game_window_entity, ParentEntity(parent_window_entity))?;
 
-    db.insert_entity_component(
-        game_window_entity,
-        AnchorsComponent::new(0.0..0.5, 0.0..1.0),
-    )?;
+    db.insert_entity_component(game_window_entity, Anchors::new(0.0..0.5, 0.0..1.0))?;
 
     // Create Test Rects
     for (position, shader, color) in [
@@ -369,16 +352,11 @@ where
             .unwrap()
             .create_and_assemble_entity(db, Some("Test Rect Control"))?;
         {
-            db.get_entity_component_mut::<PositionComponent>(test_rect_entity)?
-                .set_position(*position);
+            *db.get_entity_component_mut::<Position>(test_rect_entity)? = (*position).into();
+            *db.get_entity_component_mut::<Size>(test_rect_entity)? = Vector2I(48, 6).into();
 
-            db.get_entity_component_mut::<SizeComponent>(test_rect_entity)?
-                .set_size(Vector2I(48, 6));
-            db.insert_entity_component(
-                test_rect_entity,
-                ParentEntityComponent::new(game_window_entity),
-            )?;
-            db.insert_entity_component(test_rect_entity, GlobalPositionComponent::default())?;
+            db.insert_entity_component(test_rect_entity, ParentEntity(game_window_entity))?;
+            db.insert_entity_component(test_rect_entity, GlobalPosition::default())?;
             db.insert_entity_component(test_rect_entity, CPUShaderComponent::new(*shader))?;
             db.insert_entity_component(test_rect_entity, ColorComponent::new(*color))?;
         }
@@ -389,11 +367,8 @@ where
         .get_mut(&EntityAssemblage::Player)
         .unwrap()
         .create_and_assemble_entity(db, Some("Test Player"))?;
-    db.insert_entity_component(
-        test_player_entity,
-        ParentEntityComponent::new(game_window_entity),
-    )?;
-    db.insert_entity_component(test_player_entity, GlobalPositionComponent::default())?;
+    db.insert_entity_component(test_player_entity, ParentEntity(game_window_entity))?;
+    db.insert_entity_component(test_player_entity, GlobalPosition::default())?;
 
     // Create Test String
     let test_string_entity = assemblages
@@ -401,15 +376,11 @@ where
         .unwrap()
         .create_and_assemble_entity(db, Some("Test String Control"))?;
     {
-        db.get_entity_component_mut::<PositionComponent>(test_string_entity)?
-            .set_position(Vector2I(1, 1));
+        *db.get_entity_component_mut::<Position>(test_string_entity)? = Vector2I(1, 1).into();
         db.get_entity_component_mut::<StringComponent>(test_string_entity)?
             .set_data("Testing One Two Three".into());
-        db.insert_entity_component(
-            test_string_entity,
-            ParentEntityComponent::new(test_player_entity),
-        )?;
-        db.insert_entity_component(test_string_entity, GlobalPositionComponent::default())?;
+        db.insert_entity_component(test_string_entity, ParentEntity(test_player_entity))?;
+        db.insert_entity_component(test_string_entity, GlobalPosition::default())?;
     }
 
     Ok(game_window_entity)
@@ -435,16 +406,16 @@ where
     {
         db.get_entity_component_mut::<ColorComponent>(entity_list_window_entity)?
             .set_data(Color(0.0, 0.0, 0.0));
-        db.insert_entity_component(entity_list_window_entity, PositionComponent::default())?;
-        db.insert_entity_component(entity_list_window_entity, ZIndexComponent::new(1))?;
-        db.insert_entity_component(entity_list_window_entity, SizeComponent::default())?;
+        db.insert_entity_component(entity_list_window_entity, Position::default())?;
+        db.insert_entity_component(entity_list_window_entity, ZIndex(1))?;
+        db.insert_entity_component(entity_list_window_entity, Size::default())?;
         db.insert_entity_component(
             entity_list_window_entity,
-            ParentEntityComponent::new(parent_window_entity),
+            ParentEntity(parent_window_entity),
         )?;
         db.insert_entity_component(
             entity_list_window_entity,
-            AnchorsComponent::new(anchor_horizontal, anchor_vertical),
+            Anchors::new(anchor_horizontal, anchor_vertical),
         )?;
     }
 
@@ -455,12 +426,9 @@ where
     {
         db.insert_entity_component(
             entity_list_border_entity,
-            ParentEntityComponent::new(entity_list_window_entity),
+            ParentEntity(entity_list_window_entity),
         )?;
-        db.insert_entity_component(
-            entity_list_border_entity,
-            AnchorsComponent::new(0.0..1.0, 0.0..1.0),
-        )?;
+        db.insert_entity_component(entity_list_border_entity, Anchors::new(0.0..1.0, 0.0..1.0))?;
     }
 
     // Create Debug Window Title
@@ -476,31 +444,25 @@ where
     {
         db.insert_entity_component(
             entity_list_title_entity,
-            ParentEntityComponent::new(entity_list_border_entity),
+            ParentEntity(entity_list_border_entity),
         )?;
-        db.insert_entity_component(entity_list_title_entity, GlobalPositionComponent::default())?;
+        db.insert_entity_component(entity_list_title_entity, GlobalPosition::default())?;
     }
 
     // Create Entity List
     let entity_list_entity = db.create_entity(Some(window_name))?;
     {
-        let mut list_component = ListComponent::new(Some(entity_list_entity), list_index_entity);
+        let list_component = List::new(Some(entity_list_entity), list_index_entity);
 
         db.insert_entity_component(entity_list_entity, list_component)?;
-        db.insert_entity_component(entity_list_entity, PositionComponent::default())?;
-        db.insert_entity_component(entity_list_entity, SizeComponent::default())?;
-        db.insert_entity_component(
-            entity_list_entity,
-            ParentEntityComponent::new(entity_list_border_entity),
-        )?;
-        db.insert_entity_component(
-            entity_list_entity,
-            AnchorsComponent::new(0.0..1.0, 0.0..1.0),
-        )?;
-        db.insert_entity_component(entity_list_entity, MarginsComponent::new(2, 2, 3, 1))?;
+        db.insert_entity_component(entity_list_entity, Position::default())?;
+        db.insert_entity_component(entity_list_entity, Size::default())?;
+        db.insert_entity_component(entity_list_entity, ParentEntity(entity_list_border_entity))?;
+        db.insert_entity_component(entity_list_entity, Anchors::new(0.0..1.0, 0.0..1.0))?;
+        db.insert_entity_component(entity_list_entity, Margins::new(2, 2, 3, 1))?;
         db.insert_entity_component(entity_list_entity, StringListComponent::default())?;
-        db.insert_entity_component(entity_list_entity, LocalMousePositionComponent::default())?;
-        db.insert_entity_component(entity_list_entity, DebugExcludeComponent)?;
+        db.insert_entity_component(entity_list_entity, LocalPosition::default())?;
+        db.insert_entity_component(entity_list_entity, DebugExclude)?;
     }
 
     Ok(entity_list_entity)
@@ -525,7 +487,7 @@ where
         0.25..0.5,
         0.0..0.5,
     )?;
-    db.insert_entity_component(entity_list_entity, DebugEntityListComponent)?;
+    db.insert_entity_component(entity_list_entity, DebugEntityList)?;
     Ok(entity_list_entity)
 }
 
@@ -548,7 +510,7 @@ where
         0.25..0.5,
         0.5..1.0,
     )?;
-    db.insert_entity_component(entity_list_entity, DebugSceneTreeComponent)?;
+    db.insert_entity_component(entity_list_entity, DebugSceneTree)?;
     Ok(entity_list_entity)
 }
 
@@ -571,8 +533,8 @@ where
         0.5..0.75,
         0.0..0.5,
     )?;
-    db.insert_entity_component(component_list_entity, DebugComponentListComponent)?;
-    db.insert_entity_component(component_list_entity, DebugExcludeComponent)?;
+    db.insert_entity_component(component_list_entity, DebugComponentList)?;
+    db.insert_entity_component(component_list_entity, DebugExclude)?;
 
     Ok(component_list_entity)
 }
@@ -595,7 +557,7 @@ where
         0.75..1.0,
         0.0..1.0,
     )?;
-    db.insert_entity_component(component_list_entity, DebugComponentDataListComponent)?;
+    db.insert_entity_component(component_list_entity, DebugComponentDataList)?;
     Ok(component_list_entity)
 }
 
@@ -618,6 +580,6 @@ where
         0.5..0.75,
         0.5..1.0,
     )?;
-    db.insert_entity_component(system_list_entity, DebugSystemListComponent)?;
+    db.insert_entity_component(system_list_entity, DebugSystemList)?;
     Ok(system_list_entity)
 }

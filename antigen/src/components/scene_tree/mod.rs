@@ -1,5 +1,5 @@
-mod child_entities_component;
-mod parent_entity_component;
+mod child_entities;
+mod parent_entity;
 
-pub use child_entities_component::*;
-pub use parent_entity_component::*;
+pub use child_entities::*;
+pub use parent_entity::*;

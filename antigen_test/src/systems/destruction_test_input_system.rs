@@ -1,5 +1,7 @@
+use std::borrow::Borrow;
+
 use antigen::{
-    components::EventQueueComponent,
+    components::EventQueue,
     core::events::AntigenInputEvent,
     entity_component_system::ComponentStorage,
     entity_component_system::EntityComponentDirectory,
@@ -8,7 +10,7 @@ use antigen::{
     entity_component_system::{system_interface::SystemInterface, SystemTrait},
 };
 
-use crate::components::DestructionTestInputComponent;
+use crate::components::DestructionTestInput;
 
 #[derive(Debug)]
 pub struct DestructionTestInputSystem;
@@ -33,7 +35,7 @@ where
             db.entity_component_directory
                 .get_entity_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<EventQueueComponent<AntigenInputEvent>>(entity_id)
+                        .entity_has_component::<EventQueue<AntigenInputEvent>>(entity_id)
                 });
 
         if let Some(event_queue_entity) = event_queue_entity {
@@ -41,19 +43,18 @@ where
                 .entity_component_directory
                 .get_entities_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<DestructionTestInputComponent>(entity_id)
+                        .entity_has_component::<DestructionTestInput>(entity_id)
                 });
 
             for entity_id in destruction_test_entities {
-                let input_key = db
-                    .get_entity_component::<DestructionTestInputComponent>(entity_id)?
-                    .get_input_key();
+                let input_key: antigen::core::keyboard::Key =
+                    (*db.get_entity_component::<DestructionTestInput>(entity_id)?).into();
 
-                for event in db
-                    .get_entity_component::<EventQueueComponent<AntigenInputEvent>>(event_queue_entity)?
-                    .get_events()
-                    .clone()
-                {
+                let event_queue: &Vec<AntigenInputEvent> = db
+                    .get_entity_component::<EventQueue<AntigenInputEvent>>(event_queue_entity)?
+                    .borrow();
+
+                for event in event_queue.clone() {
                     if let AntigenInputEvent::KeyPress { key_code } = event {
                         if key_code == input_key {
                             db.destroy_entity(entity_id)?;

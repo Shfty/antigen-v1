@@ -1,4 +1,4 @@
-use crate::primitive_types::{Color, ColorRGBF};
+use crate::primitive_types::{ColorRGB, ColorRGBF};
 
 use super::Palette;
 
@@ -23,27 +23,27 @@ impl AdaptivePalette {
         }
 
         let sort_red = |lhs: &ColorRGBF, rhs: &ColorRGBF| {
-            let Color(lhs, _, _) = lhs;
-            let Color(rhs, _, _) = rhs;
+            let ColorRGB(lhs, _, _) = lhs;
+            let ColorRGB(rhs, _, _) = rhs;
             lhs.partial_cmp(&rhs)
                 .unwrap_or_else(|| panic!("No valid comparison"))
         };
 
         let sort_green = |lhs: &ColorRGBF, rhs: &ColorRGBF| {
-            let Color(_, lhs, _) = lhs;
-            let Color(_, rhs, _) = rhs;
+            let ColorRGB(_, lhs, _) = lhs;
+            let ColorRGB(_, rhs, _) = rhs;
             lhs.partial_cmp(&rhs)
                 .unwrap_or_else(|| panic!("No valid comparison"))
         };
 
         let sort_blue = |lhs: &ColorRGBF, rhs: &ColorRGBF| {
-            let Color(_, _, lhs) = lhs;
-            let Color(_, _, rhs) = rhs;
+            let ColorRGB(_, _, lhs) = lhs;
+            let ColorRGB(_, _, rhs) = rhs;
             lhs.partial_cmp(&rhs)
                 .unwrap_or_else(|| panic!("No valid comparison"))
         };
 
-        let Color(total_r, total_g, total_b) = colors
+        let ColorRGB(total_r, total_g, total_b) = colors
             .iter()
             .fold(ColorRGBF::default(), |acc, next| acc + *next);
 
@@ -77,8 +77,8 @@ impl AdaptivePalette {
         {
             let left_color = left_colors
                 .iter()
-                .fold(Color(0.0, 0.0, 0.0), |acc, next| acc + *next)
-                / Color(
+                .fold(ColorRGB(0.0, 0.0, 0.0), |acc, next| acc + *next)
+                / ColorRGB(
                     left_colors.len() as f32,
                     left_colors.len() as f32,
                     left_colors.len() as f32,
@@ -86,8 +86,8 @@ impl AdaptivePalette {
 
             let right_color = right_colors
                 .iter()
-                .fold(Color(0.0, 0.0, 0.0), |acc, next| acc + *next)
-                / Color(
+                .fold(ColorRGB(0.0, 0.0, 0.0), |acc, next| acc + *next)
+                / ColorRGB(
                     right_colors.len() as f32,
                     right_colors.len() as f32,
                     right_colors.len() as f32,
@@ -113,8 +113,8 @@ impl Palette<f32, f32> for AdaptivePalette {
         let mut colors: Vec<(usize, ColorRGBF)> =
             self.colors.clone().into_iter().enumerate().collect();
         colors.sort_by(|(_, lhs), (_, rhs)| {
-            let lhs_distance = Color::square_distance(&color, lhs);
-            let rhs_distance = Color::square_distance(&color, rhs);
+            let lhs_distance = ColorRGB::distance(&color, lhs);
+            let rhs_distance = ColorRGB::distance(&color, rhs);
             lhs_distance
                 .partial_cmp(&rhs_distance)
                 .unwrap_or_else(|| panic!("No valid comparison"))

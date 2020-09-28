@@ -1,6 +1,21 @@
+TODO: Refactor component/system/entity component debuggers to use local event queues as per entity debugger
+      Need to do some general cleanup afterward
+            List index entities in debug scene should use the list itself (index should probably be stored in the list component)
+            Replace inspector entities with appropriate event queue entities, track IDs inside systems
+
+TODO: Ensure one-to-many events (of multiple O -> I conversions) work properly
+      Events are currently consumed by the first LocalEventSystem
+      Need a way to clear local event queues
+            Split clearing functionality into a system that runs at the start of the frame for both global and local?
+            Would introduce more order-of-execution constraints, not sure if a problem
+
+TODO: Vertical scrolling for HSV shader
+
+TODO: Vertically-split 2x multisampling for each curses cell
+
 TODO: Cleanup pass for distinction between CursesInput / CursesEvent
 
-TODO: Split IntRangeComponent into i64> and PrimitiveComponent<Range<i64>
+TODO: Split IntRangeComponent into i64 and Range<i64>
       Would this be better codified as ListRange and ListIndex?
       Could do away with range altogether and draw directly from list size
 
@@ -31,24 +46,6 @@ TODO: Filtering for debug components
 
 TODO: Scrolling for lists
       Need to react to newly-implemented MouseScroll input events
-
-TODO: Event synthesis for list hover / click
-      Need to introduce the concept of entity-local event queues
-      Use the same basic EventQueueComponent<T> storage, but use for both output and input
-      Theory:
-            List sends out a 'list index changed' event
-            Debugger receives a 'set inspected entity' event
-            Use an intermediary system that knows about both event types to translate between them
-                  Generalize with function objects
-                        EventSystem<O, C, I> where C: fn(O) -> I
-                        Find all entities with EventQueue<O> and EventTargets<O> components
-                        Read events from EventQueue<O>
-                        Run function C provided via constructor to convert from output to input (non-capturing closures can be passed directly as fn args)
-                        Read target entity IDs from EventTargets<O>
-                        Use these IDs to fetch EventQueue<O> components
-                        Push converted events into them
-                  Neither list nor target systems need to know that the other exists, only care about pushing/pulling events to/from queues on the entities they process
-
 
 TODO: Profiler window
       Will need a custom shader input struct to draw graphs

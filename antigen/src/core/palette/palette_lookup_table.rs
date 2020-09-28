@@ -1,4 +1,4 @@
-use crate::primitive_types::{Color, ColorRGB8, ColorRGBF};
+use crate::primitive_types::{ColorRGB, ColorRGB8, ColorRGBF};
 
 use super::Palette;
 
@@ -17,7 +17,7 @@ impl PaletteLookupTable {
             for g in 0..256usize {
                 for b in 0..256usize {
                     let lut_idx = r * (256 * 256) + g * 256 + b;
-                    let rgbf: ColorRGBF = Color(r as u8, g as u8, b as u8).into();
+                    let rgbf: ColorRGBF = ColorRGB(r as u8, g as u8, b as u8).into();
                     let palette_idx = palette.get_color_idx(rgbf);
                     indices[lut_idx] = palette_idx;
                 }

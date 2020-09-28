@@ -10,8 +10,14 @@ use crate::{
         system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory, EntityID,
         SystemDebugTrait, SystemError, SystemTrait,
     },
-    primitive_types::{Color, ColorRGBF, Vector2I},
+    primitive_types::{ColorRGB, ColorRGBF, Vector2I},
 };
+
+#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
+pub enum ListEvent {
+    Hovered(i64),
+    Pressed(i64),
+}
 
 #[derive(Debug)]
 pub struct ListSystem {
@@ -80,7 +86,7 @@ where
                         .unwrap();
                     db.insert_entity_component(list_hover_entity, GlobalPosition::default())
                         .unwrap();
-                    db.insert_entity_component(list_hover_entity, Color(0.5f32, 0.5f32, 0.5f32))
+                    db.insert_entity_component(list_hover_entity, ColorRGB(0.5f32, 0.5f32, 0.5f32))
                         .unwrap();
                     db.insert_entity_component(
                         list_hover_entity,
@@ -250,6 +256,14 @@ where
                     }
                 }
 
+                // Clear local event queue
+                if let Ok(list_event_queue) =
+                    db.get_entity_component_mut::<EventQueue<ListEvent>>(list_control_entity)
+                {
+                    let list_event_queue: &mut Vec<ListEvent> = list_event_queue.as_mut();
+                    list_event_queue.clear();
+                }
+
                 // If the mouse was clicked inside this control, update the selected index
                 if contains_mouse {
                     let event_queue_entity =
@@ -270,18 +284,30 @@ where
                         let event_queue: &Vec<AntigenInputEvent> = event_queue_component.as_ref();
                         for event in event_queue.clone() {
                             if let AntigenInputEvent::MousePress { button_mask: 1 } = event {
+                                let index = if let Some(hovered_item) = hovered_item {
+                                    hovered_item as i64
+                                } else {
+                                    -1
+                                };
+
+                                // Push press event into queue
+                                if let Ok(list_event_queue) = db
+                                    .get_entity_component_mut::<EventQueue<ListEvent>>(
+                                        list_control_entity,
+                                    )
+                                {
+                                    let list_event_queue: &mut Vec<ListEvent> =
+                                        list_event_queue.as_mut();
+                                    list_event_queue.push(ListEvent::Pressed(index));
+                                    println!("List event queue: {:?}", list_event_queue);
+                                }
+
                                 if let Some(list_index_entity) = list_index_entity {
                                     if let Ok(int_range_component) =
                                         db.get_entity_component_mut::<IntRange>(list_index_entity)
                                     {
                                         int_range_component
                                             .set_range(-1..(string_list.len() as i64));
-
-                                        let index = if let Some(hovered_item) = hovered_item {
-                                            hovered_item as i64
-                                        } else {
-                                            -1
-                                        };
 
                                         int_range_component.set_index(index);
                                     }
@@ -351,9 +377,9 @@ where
 
                         // Update color pair based on focused item
                         let data = if Some(string_index as i64) == focused_item {
-                            Color(0.0, 0.0, 0.0)
+                            ColorRGB(0.0, 0.0, 0.0)
                         } else {
-                            Color(1.0, 1.0, 1.0)
+                            ColorRGB(1.0, 1.0, 1.0)
                         };
 
                         *db.get_entity_component_mut::<ColorRGBF>(string_entity)? = data;

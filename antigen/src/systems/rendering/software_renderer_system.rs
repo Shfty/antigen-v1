@@ -8,7 +8,7 @@ use crate::{
         system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory, EntityID,
         SystemError, SystemTrait,
     },
-    primitive_types::Color,
+    primitive_types::ColorRGB,
     primitive_types::ColorRGBF,
     primitive_types::Vector2I,
 };
@@ -164,7 +164,7 @@ where
             // Get Color
             let color = match db.get_entity_component::<ColorRGBF>(entity_id) {
                 Ok(color_component) => *color_component,
-                Err(_) => Color(1.0, 1.0, 1.0),
+                Err(_) => ColorRGB(1.0, 1.0, 1.0),
             };
 
             // Get shader

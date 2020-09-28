@@ -1,4 +1,4 @@
-use crate::entity_component_system::{ComponentDebugTrait, EntityID};
+use crate::entity_component_system::EntityID;
 
 #[derive(Debug, Clone)]
 pub struct ChildEntities(Vec<EntityID>);
@@ -18,15 +18,5 @@ impl AsMut<Vec<EntityID>> for ChildEntities {
 impl Default for ChildEntities {
     fn default() -> Self {
         ChildEntities(Vec::new())
-    }
-}
-
-impl ComponentDebugTrait for ChildEntities {
-    fn get_name() -> String {
-        "Child Entities".into()
-    }
-
-    fn get_description() -> String {
-        "Holds child entity IDs".into()
     }
 }

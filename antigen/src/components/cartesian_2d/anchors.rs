@@ -1,7 +1,5 @@
 use std::{fmt::Debug, ops::Range};
 
-use crate::entity_component_system::ComponentDebugTrait;
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct Anchors {
     horizontal: Range<f32>,
@@ -39,15 +37,5 @@ impl Default for Anchors {
             horizontal: 0.0..1.0,
             vertical: 0.0..1.0,
         }
-    }
-}
-
-impl ComponentDebugTrait for Anchors {
-    fn get_name() -> String {
-        "Anchors".into()
-    }
-
-    fn get_description() -> String {
-        "UI anchors".into()
     }
 }

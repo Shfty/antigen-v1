@@ -16,15 +16,13 @@ pub use system_interface::SystemInterface;
 pub use system_runner::SystemRunner;
 pub use system_storage::SystemStorage;
 pub use traits::{
-    ComponentDebugTrait, ComponentID, ComponentTrait, EntityID, Scene, SystemDebugTrait,
-    SystemError, SystemID, SystemTrait,
+    ComponentID, ComponentTrait, EntityID, Scene, SystemDebugTrait, SystemError, SystemID,
+    SystemTrait,
 };
 
 use crate::{
-    components::ComponentDebugInfo, components::EntityDebugLabels,
-    components::SystemDebugInfo, systems::ComponentDataDebugSystem,
-    systems::ComponentDebugSystem, systems::EntityDebugSystem, systems::SceneTreeDebugSystem,
-    systems::SystemDebugSystem,
+    components::SystemDebugInfo, systems::ComponentDataDebugSystem, systems::ComponentDebugSystem,
+    systems::EntityDebugSystem, systems::SceneTreeDebugSystem, systems::SystemDebugSystem,
 };
 
 pub struct EntityComponentSystem<CS, CD, SS, SR>
@@ -65,20 +63,6 @@ where
 
         {
             let mut db = ecs.get_system_interface();
-
-            let entity_debug_entity = db.create_entity(None)?;
-            {
-                db.insert_entity_component(entity_debug_entity, EntityDebugLabels::default())?
-                    .register_entity(entity_debug_entity, "Entity Debug".into());
-            }
-
-            let component_debug_entity = db.create_entity("Component Debug".into())?;
-            {
-                db.insert_entity_component(
-                    component_debug_entity,
-                    ComponentDebugInfo::default(),
-                )?;
-            }
 
             let system_debug_entity = db.create_entity("System Debug".into())?;
             {

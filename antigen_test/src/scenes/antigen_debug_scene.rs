@@ -304,42 +304,42 @@ where
         (
             Vector2I(1, 5),
             CPUShader(CPUShader::uv),
-            Color(1.0, 1.0, 1.0),
+            Color(1.0f32, 1.0f32, 1.0f32),
         ),
         (
             Vector2I(1, 12),
             CPUShader(CPUShader::gradient_horizontal),
-            Color(1.0, 1.0, 1.0),
+            Color(1.0f32, 1.0f32, 1.0f32),
         ),
         (
             Vector2I(1, 19),
             CPUShader(CPUShader::gradient_horizontal),
-            Color(1.0, 0.0, 0.0),
+            Color(1.0f32, 0.0f32, 0.0f32),
         ),
         (
             Vector2I(1, 26),
             CPUShader(CPUShader::gradient_horizontal),
-            Color(0.0, 1.0, 0.0),
+            Color(0.0f32, 1.0f32, 0.0f32),
         ),
         (
             Vector2I(1, 33),
             CPUShader(CPUShader::gradient_horizontal),
-            Color(0.0, 0.0, 1.0),
+            Color(0.0f32, 0.0f32, 1.0f32),
         ),
         (
             Vector2I(1, 40),
             CPUShader(CPUShader::gradient_horizontal),
-            Color(0.0, 1.0, 1.0),
+            Color(0.0f32, 1.0f32, 1.0f32),
         ),
         (
             Vector2I(1, 47),
             CPUShader(CPUShader::gradient_horizontal),
-            Color(1.0, 0.0, 1.0),
+            Color(1.0f32, 0.0f32, 1.0f32),
         ),
         (
             Vector2I(1, 54),
             CPUShader(CPUShader::gradient_horizontal),
-            Color(1.0, 1.0, 0.0),
+            Color(1.0f32, 1.0f32, 0.0f32),
         ),
     ]
     .iter()
@@ -459,7 +459,7 @@ where
         db.insert_entity_component(entity_list_entity, ParentEntity(entity_list_border_entity))?;
         db.insert_entity_component(entity_list_entity, Anchors::new(0.0..1.0, 0.0..1.0))?;
         db.insert_entity_component(entity_list_entity, Margins::new(2, 2, 3, 1))?;
-        db.insert_entity_component(entity_list_entity, Vec::new())?;
+        db.insert_entity_component(entity_list_entity, Vec::<String>::new())?;
         db.insert_entity_component(entity_list_entity, LocalPosition::default())?;
         db.insert_entity_component(entity_list_entity, DebugExclude)?;
     }

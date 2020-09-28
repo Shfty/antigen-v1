@@ -1,8 +1,7 @@
 use crate::entity_component_system::{SystemError, SystemTrait};
 use crate::{
-    components::ComponentDebugInfo, components::DebugComponentList, components::DebugExclude,
-    components::EntityInspector, components::IntRange,
-    entity_component_system::system_interface::SystemInterface,
+    components::DebugComponentList, components::DebugExclude, components::EntityInspector,
+    components::IntRange, entity_component_system::system_interface::SystemInterface,
     entity_component_system::ComponentStorage, entity_component_system::EntityComponentDirectory,
     entity_component_system::EntityID, entity_component_system::SystemDebugTrait,
 };
@@ -54,40 +53,30 @@ where
             if let Some(inspected_entity) =
                 debug_entities.get(int_range_component.get_index() as usize)
             {
-                let component_debug_entity =
+                let mut components =
                     db.entity_component_directory
-                        .get_entity_by_predicate(|entity_id| {
+                        .get_components_by_predicate(|component_id| {
                             db.entity_component_directory
-                                .entity_has_component::<ComponentDebugInfo>(entity_id)
+                                .entity_has_component_by_id(inspected_entity, component_id)
                         });
 
-                if let Some(component_debug_entity) = component_debug_entity {
-                    let mut components =
-                        db.entity_component_directory
-                            .get_components_by_predicate(|component_id| {
-                                db.entity_component_directory
-                                    .entity_has_component_by_id(inspected_entity, component_id)
-                            });
+                components.sort_by(|lhs, rhs| {
+                    let lhs_label = lhs.type_name;
+                    let rhs_label = rhs.type_name;
 
-                    let component_debug_component =
-                        db.get_entity_component::<ComponentDebugInfo>(component_debug_entity)?;
+                    lhs_label.cmp(&rhs_label)
+                });
 
-                    components.sort_by(|lhs, rhs| {
-                        let lhs_label = component_debug_component.get_label(lhs);
-                        let rhs_label = component_debug_component.get_label(rhs);
+                let component_strings: Vec<&str> = components
+                    .iter()
+                    .map(|component_id| component_id.type_name)
+                    .collect();
 
-                        lhs_label.cmp(&rhs_label)
-                    });
-
-                    let component_strings: Vec<String> = components
+                for entity_id in debug_component_list_entities {
+                    *db.get_entity_component_mut::<Vec<String>>(entity_id)? = component_strings
                         .iter()
-                        .map(|component_id| component_debug_component.get_label(component_id))
+                        .map(std::string::ToString::to_string)
                         .collect();
-
-                    for entity_id in debug_component_list_entities {
-                        *db.get_entity_component_mut::<Vec<String>>(entity_id)? =
-                            component_strings.clone();
-                    }
                 }
             }
         }

@@ -1,6 +1,6 @@
-use crate::components::{ComponentDebugInfo, EntityDebugLabels};
+use crate::components::Name;
 
-use super::{ComponentDebugTrait, ComponentID, ComponentTrait, EntityID, ComponentStorage, EntityComponentDirectory};
+use super::{ComponentID, ComponentStorage, ComponentTrait, EntityComponentDirectory, EntityID};
 
 /// Ties together component data storage, entity-component lookup, and callback handling
 pub struct SystemInterface<'a, CS, CD>
@@ -35,19 +35,7 @@ where
         let entity_id = self.entity_component_directory.create_entity()?;
 
         if let Some(debug_label) = debug_label {
-            if let Some(entity_debug_entity) = self
-                .entity_component_directory
-                .get_entity_by_predicate(|entity_id| {
-                    self.entity_component_directory
-                        .entity_has_component::<EntityDebugLabels>(entity_id)
-                })
-            {
-                if let Ok(entity_debug_component) =
-                    self.get_entity_component_mut::<EntityDebugLabels>(entity_debug_entity)
-                {
-                    entity_debug_component.register_entity(entity_id, debug_label.into());
-                }
-            }
+            self.insert_entity_component(entity_id, Name(debug_label.into()))?;
         }
 
         Ok(entity_id)
@@ -56,29 +44,9 @@ where
     // INSERT
     pub fn insert_component<T>(&mut self) -> Result<ComponentID, String>
     where
-        T: ComponentTrait + ComponentDebugTrait + 'static,
+        T: ComponentTrait + 'static,
     {
-        let component_id = self.entity_component_directory.insert_component::<T>()?;
-
-        if let Some(component_debug_entity) = self
-            .entity_component_directory
-            .get_entity_by_predicate(|entity_id| {
-                self.entity_component_directory
-                    .entity_has_component::<ComponentDebugInfo>(entity_id)
-            })
-        {
-            if let Ok(component_debug_component) =
-                self.get_entity_component_mut::<ComponentDebugInfo>(component_debug_entity)
-            {
-                component_debug_component.register_component(
-                    component_id,
-                    T::get_name(),
-                    T::get_description(),
-                );
-            }
-        }
-
-        Ok(component_id)
+        self.entity_component_directory.insert_component::<T>()
     }
 
     pub fn insert_entity_component<T>(
@@ -87,7 +55,7 @@ where
         component_data: T,
     ) -> Result<&mut T, String>
     where
-        T: ComponentTrait + ComponentDebugTrait + 'static,
+        T: ComponentTrait + 'static,
     {
         if !self.entity_component_directory.is_valid_component::<T>() {
             self.insert_component::<T>()?;
@@ -135,7 +103,7 @@ where
     where
         CS: ComponentStorage,
         CD: EntityComponentDirectory,
-        T: ComponentTrait + ComponentDebugTrait + 'static,
+        T: ComponentTrait + 'static,
     {
         let component_id = ComponentID::get::<T>();
 
@@ -173,7 +141,7 @@ where
     where
         CS: ComponentStorage,
         CD: EntityComponentDirectory,
-        T: ComponentTrait + ComponentDebugTrait + 'static,
+        T: ComponentTrait + 'static,
     {
         let component_id = ComponentID::get::<T>();
         let entities: Vec<EntityID> =

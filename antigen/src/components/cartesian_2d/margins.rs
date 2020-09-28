@@ -1,5 +1,3 @@
-use crate::entity_component_system::ComponentDebugTrait;
-
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct Margins {
     left: i64,
@@ -28,15 +26,5 @@ impl Margins {
         self.left = left;
         self.right = right;
         self
-    }
-}
-
-impl ComponentDebugTrait for Margins {
-    fn get_name() -> String {
-        "Margins".into()
-    }
-
-    fn get_description() -> String {
-        "UI margins".into()
     }
 }

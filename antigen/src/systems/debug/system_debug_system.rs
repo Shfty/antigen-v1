@@ -1,13 +1,11 @@
 use std::{fmt::Debug, time::Duration};
 
 use crate::{
-    components::DebugSystemList, components::SystemDebugInfo,
-    entity_component_system::system_interface::SystemInterface,
-    entity_component_system::ComponentStorage, entity_component_system::EntityComponentDirectory,
-    entity_component_system::SystemDebugTrait, entity_component_system::SystemID,
-};
-use crate::{
-    entity_component_system::{SystemError, SystemTrait},
+    components::{DebugSystemList, SystemDebugInfo},
+    entity_component_system::{
+        system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory,
+        SystemDebugTrait, SystemError, SystemID, SystemTrait,
+    },
 };
 
 #[derive(Debug)]

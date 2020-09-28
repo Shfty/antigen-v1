@@ -1,6 +1,6 @@
-use crate::entity_component_system::{ComponentDebugTrait, EntityID};
+use crate::entity_component_system::EntityID;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub struct List {
     string_list_entity: Option<EntityID>,
     list_index_entity: Option<EntityID>,
@@ -20,21 +20,5 @@ impl List {
 
     pub fn get_list_index_entity(&self) -> Option<EntityID> {
         self.list_index_entity
-    }
-}
-
-impl Default for List {
-    fn default() -> Self {
-        List::new(None, None)
-    }
-}
-
-impl ComponentDebugTrait for List {
-    fn get_name() -> String {
-        "List".into()
-    }
-
-    fn get_description() -> String {
-        "String list UI control with an assemblage for customizing items".into()
     }
 }

@@ -1,5 +1,3 @@
-use crate::entity_component_system::ComponentDebugTrait;
-
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct ZIndex(pub i64);
 
@@ -12,15 +10,5 @@ impl From<i64> for ZIndex {
 impl Into<i64> for ZIndex {
     fn into(self) -> i64 {
         self.0
-    }
-}
-
-impl ComponentDebugTrait for ZIndex {
-    fn get_name() -> String {
-        "Z Index".into()
-    }
-
-    fn get_description() -> String {
-        "Z index for 2D entities".into()
     }
 }

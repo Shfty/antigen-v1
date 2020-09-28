@@ -4,8 +4,7 @@ use std::{
 };
 
 use crate::{
-    core::uid::UID, entity_component_system::ComponentDebugTrait,
-    entity_component_system::ComponentID, entity_component_system::ComponentTrait,
+    core::uid::UID, entity_component_system::ComponentID, entity_component_system::ComponentTrait,
     entity_component_system::EntityID,
 };
 
@@ -53,7 +52,7 @@ where
 
     pub fn add_component<C>(mut self, component_data: C) -> Result<Self, String>
     where
-        C: ComponentTrait + ComponentDebugTrait + Clone + 'static,
+        C: ComponentTrait + Clone + 'static,
     {
         self.component_data.insert(
             ComponentID::get::<C>(),

@@ -68,33 +68,52 @@ where
                 });
 
         for list_control_entity in list_control_entities {
-            if !self.list_hover_entities.contains_key(&list_control_entity) {
-                let list_hover_entity = db.create_entity(Some("List Focus Entity"))?;
-                db.insert_entity_component(list_hover_entity, Control)?;
-                db.insert_entity_component(list_hover_entity, Position::default())?;
-                db.insert_entity_component(list_hover_entity, Size::default())?;
-                db.insert_entity_component(list_hover_entity, GlobalPosition::default())?;
-                db.insert_entity_component(list_hover_entity, Color(0.5f32, 0.5f32, 0.5f32))?;
-                db.insert_entity_component(list_hover_entity, ParentEntity(list_control_entity))?;
-                self.list_hover_entities
-                    .insert(list_control_entity, list_hover_entity);
-            }
+            self.list_hover_entities
+                .entry(list_control_entity)
+                .or_insert_with(|| {
+                    let list_hover_entity = db.create_entity(Some("List Focus Entity")).unwrap();
+                    db.insert_entity_component(list_hover_entity, Control)
+                        .unwrap();
+                    db.insert_entity_component(list_hover_entity, Position::default())
+                        .unwrap();
+                    db.insert_entity_component(list_hover_entity, Size::default())
+                        .unwrap();
+                    db.insert_entity_component(list_hover_entity, GlobalPosition::default())
+                        .unwrap();
+                    db.insert_entity_component(list_hover_entity, Color(0.5f32, 0.5f32, 0.5f32))
+                        .unwrap();
+                    db.insert_entity_component(
+                        list_hover_entity,
+                        ParentEntity(list_control_entity),
+                    )
+                    .unwrap();
+                    list_hover_entity
+                });
 
             let list_hover_entity = self
                 .list_hover_entities
                 .get(&list_control_entity)
                 .ok_or("Error getting list hover entity")?;
 
-            if !self.list_focus_entities.contains_key(&list_control_entity) {
-                let list_focus_entity = db.create_entity(Some("List Focus Entity"))?;
-                db.insert_entity_component(list_focus_entity, Control)?;
-                db.insert_entity_component(list_focus_entity, Position::default())?;
-                db.insert_entity_component(list_focus_entity, Size::default())?;
-                db.insert_entity_component(list_focus_entity, GlobalPosition::default())?;
-                db.insert_entity_component(list_focus_entity, ParentEntity(list_control_entity))?;
-                self.list_focus_entities
-                    .insert(list_control_entity, list_focus_entity);
-            }
+            self.list_focus_entities
+                .entry(list_control_entity)
+                .or_insert_with(|| {
+                    let list_focus_entity = db.create_entity(Some("List Focus Entity")).unwrap();
+                    db.insert_entity_component(list_focus_entity, Control)
+                        .unwrap();
+                    db.insert_entity_component(list_focus_entity, Position::default())
+                        .unwrap();
+                    db.insert_entity_component(list_focus_entity, Size::default())
+                        .unwrap();
+                    db.insert_entity_component(list_focus_entity, GlobalPosition::default())
+                        .unwrap();
+                    db.insert_entity_component(
+                        list_focus_entity,
+                        ParentEntity(list_control_entity),
+                    )
+                    .unwrap();
+                    list_focus_entity
+                });
 
             let list_focus_entity = self
                 .list_focus_entities
@@ -295,10 +314,7 @@ where
 
                 *db.get_entity_component_mut::<Size>(*list_hover_entity)? =
                     if let Some(hovered_item) = hovered_item {
-                        Vector2I(
-                            width,
-                            string_list[hovered_item as usize].len() as i64,
-                        )
+                        Vector2I(width, string_list[hovered_item as usize].len() as i64)
                     } else {
                         Vector2I(0, 0)
                     }

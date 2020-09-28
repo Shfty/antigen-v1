@@ -1,21 +1,13 @@
 use std::fmt::Debug;
 
-use crate::entity_component_system::ComponentDebugTrait;
-
 #[derive(Clone, PartialEq, PartialOrd)]
-pub struct SoftwareFramebuffer<T>
-where
-    T: Copy + Clone,
-{
+pub struct SoftwareFramebuffer<T> {
     clear_data: T,
     color_buffer: Vec<T>,
     z_buffer: Vec<Option<i64>>,
 }
 
-impl<T> Debug for SoftwareFramebuffer<T>
-where
-    T: Copy + Clone,
-{
+impl<T> Debug for SoftwareFramebuffer<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("CPUFramebufferComponent").finish()
     }
@@ -23,7 +15,7 @@ where
 
 impl<T> SoftwareFramebuffer<T>
 where
-    T: Copy + Clone,
+    T: Clone,
 {
     pub fn new(clear_data: T) -> SoftwareFramebuffer<T> {
         SoftwareFramebuffer {
@@ -42,11 +34,11 @@ where
     }
 
     pub fn clear(&mut self) {
-        let clear_data = self.clear_data;
+        let clear_data = self.clear_data.clone();
 
         self.color_buffer
             .iter_mut()
-            .for_each(|color| *color = clear_data);
+            .for_each(|color| *color = clear_data.clone());
 
         self.z_buffer.iter_mut().for_each(|z| *z = None);
     }
@@ -69,27 +61,11 @@ where
 
     pub fn resize(&mut self, new_size: usize) {
         if self.color_buffer.len() != new_size {
-            self.color_buffer.resize(new_size, self.clear_data);
+            self.color_buffer.resize(new_size, self.clear_data.clone());
         }
 
         if self.z_buffer.len() != new_size {
             self.z_buffer.resize(new_size, None);
         }
-    }
-}
-
-impl<T> ComponentDebugTrait for SoftwareFramebuffer<T>
-where
-    T: Copy + Clone,
-{
-    fn get_name() -> String {
-        format!("Software Framebuffer ({})", std::any::type_name::<T>())
-    }
-
-    fn get_description() -> String {
-        format!(
-            "Framebuffer holding data of type {}",
-            std::any::type_name::<T>()
-        )
     }
 }

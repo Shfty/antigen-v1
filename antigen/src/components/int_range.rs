@@ -1,6 +1,6 @@
-use crate::entity_component_system::ComponentDebugTrait;
 use std::ops::Range;
 
+/// Integer clamped to a range
 #[derive(Debug, Clone)]
 pub struct IntRange {
     index: i64,
@@ -33,15 +33,5 @@ impl IntRange {
 impl Default for IntRange {
     fn default() -> Self {
         IntRange::new(0..0)
-    }
-}
-
-impl ComponentDebugTrait for IntRange {
-    fn get_name() -> String {
-        "Int Range".into()
-    }
-
-    fn get_description() -> String {
-        "Integer clamped to a range".into()
     }
 }

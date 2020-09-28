@@ -15,7 +15,14 @@ impl ComponentID {
     pub fn get<T: ComponentTrait + 'static>() -> Self {
         ComponentID {
             type_id: TypeId::of::<T>(),
-            type_name: std::any::type_name::<T>(),
+            type_name: if true {
+                std::any::type_name::<T>()
+                    .split("::")
+                    .last()
+                    .expect("Failed to split component type name")
+            } else {
+                std::any::type_name::<T>()
+            },
         }
     }
 }
@@ -27,25 +34,9 @@ impl Display for ComponentID {
 }
 
 /// Base component trait
-pub trait ComponentTrait: UpcastComponentTrait + Debug {}
+pub trait ComponentTrait: Debug + UpcastComponentTrait {}
 
 impl<T> ComponentTrait for T where T: Debug + Any {}
-
-/// Debug information trait
-/// TODO: This is currently not coupled to ComponentTrait, that doesn't seem right
-pub trait ComponentDebugTrait {
-    fn get_name() -> String {
-        std::any::type_name::<Self>().into()
-    }
-
-    fn get_description() -> String {
-        format!("Component containing a {}", std::any::type_name::<Self>())
-    }
-
-    fn is_debug_exclude() -> bool {
-        false
-    }
-}
 
 /// Trait for upcasting a component to an Any reference
 pub trait UpcastComponentTrait: Any {

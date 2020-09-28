@@ -1,14 +1,2 @@
-use crate::entity_component_system::ComponentDebugTrait;
-
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct DebugEntityList;
-
-impl ComponentDebugTrait for DebugEntityList {
-    fn get_name() -> String {
-        "Debug Entity List".into()
-    }
-
-    fn get_description() -> String {
-        "Tag component for debug entity list".into()
-    }
-}

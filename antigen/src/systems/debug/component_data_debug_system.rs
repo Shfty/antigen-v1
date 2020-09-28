@@ -1,6 +1,6 @@
 use crate::entity_component_system::{SystemError, SystemTrait};
 use crate::{
-    components::ComponentDebugInfo, components::ComponentInspector,
+    components::ComponentInspector,
     components::DebugComponentDataList, components::DebugExclude, components::EntityInspector,
     components::IntRange, entity_component_system::system_interface::SystemInterface,
     entity_component_system::ComponentStorage, entity_component_system::EntityComponentDirectory,
@@ -44,71 +44,57 @@ where
             if let Some(inspected_entity) =
                 debug_entities.get(int_range_component.get_index() as usize)
             {
-                let component_debug_entity =
+                let mut components =
                     db.entity_component_directory
-                        .get_entity_by_predicate(|entity_id| {
+                        .get_components_by_predicate(|component_id| {
                             db.entity_component_directory
-                                .entity_has_component::<ComponentDebugInfo>(entity_id)
+                                .entity_has_component_by_id(inspected_entity, component_id)
                         });
 
-                if let Some(component_debug_entity) = component_debug_entity {
-                    let mut components =
+                components.sort_by(|lhs, rhs| {
+                    let lhs_label = lhs.type_name;
+                    let rhs_label = rhs.type_name;
+
+                    lhs_label.cmp(&rhs_label)
+                });
+
+                let component_inspector_entity = db
+                    .entity_component_directory
+                    .get_entity_by_predicate(|entity_id| {
                         db.entity_component_directory
-                            .get_components_by_predicate(|component_id| {
-                                db.entity_component_directory
-                                    .entity_has_component_by_id(inspected_entity, component_id)
-                            });
-
-                    let component_debug_component =
-                        db.get_entity_component::<ComponentDebugInfo>(component_debug_entity)?;
-
-                    components.sort_by(|lhs, rhs| {
-                        let lhs_label = component_debug_component.get_label(lhs);
-                        let rhs_label = component_debug_component.get_label(rhs);
-
-                        lhs_label.cmp(&rhs_label)
+                            .entity_has_component::<ComponentInspector>(entity_id)
                     });
 
-                    let component_inspector_entity = db
-                        .entity_component_directory
-                        .get_entity_by_predicate(|entity_id| {
-                            db.entity_component_directory
-                                .entity_has_component::<ComponentInspector>(entity_id)
-                        });
+                if let Some(component_inspector_entity) = component_inspector_entity {
+                    let int_range_component =
+                        db.get_entity_component::<IntRange>(component_inspector_entity)?;
 
-                    if let Some(component_inspector_entity) = component_inspector_entity {
-                        let int_range_component =
-                            db.get_entity_component::<IntRange>(component_inspector_entity)?;
+                    if let Some(inspected_component) =
+                        components.get(int_range_component.get_index() as usize)
+                    {
+                        let component_data_id = db
+                            .entity_component_directory
+                            .get_entity_component_data_id(inspected_entity, inspected_component)?;
 
-                        if let Some(inspected_component) =
-                            components.get(int_range_component.get_index() as usize)
-                        {
-                            let component_data_id =
-                                db.entity_component_directory.get_entity_component_data_id(
-                                    inspected_entity,
-                                    inspected_component,
-                                )?;
+                        let component_data_string = db
+                            .component_storage
+                            .get_component_data_string(&component_data_id)?;
+                        let component_data_string =
+                            format!("{}: {}", component_data_id, component_data_string);
 
-                            let component_data_string = db
-                                .component_storage
-                                .get_component_data_string(&component_data_id)?;
-                            let component_data_string =
-                                format!("{}: {}", component_data_id, component_data_string);
+                        let entity_component_debug_entities = db
+                            .entity_component_directory
+                            .get_entities_by_predicate(|entity_id| {
+                                db.entity_component_directory
+                                    .entity_has_component::<DebugComponentDataList>(entity_id)
+                                    && db
+                                        .entity_component_directory
+                                        .entity_has_component::<Vec<String>>(entity_id)
+                            });
 
-                            let entity_component_debug_entities = db
-                                .entity_component_directory
-                                .get_entities_by_predicate(|entity_id| {
-                                    db.entity_component_directory
-                                        .entity_has_component::<DebugComponentDataList>(entity_id)
-                                        && db
-                                            .entity_component_directory
-                                            .entity_has_component::<Vec<String>>(entity_id)
-                                });
-
-                            for entity_id in entity_component_debug_entities {
-                                *db.get_entity_component_mut::<Vec<String>>(entity_id)? =
-                                    vec![component_data_string.clone()];
-                            }
+                        for entity_id in entity_component_debug_entities {
+                            *db.get_entity_component_mut::<Vec<String>>(entity_id)? =
+                                vec![component_data_string.clone()];
                         }
                     }
                 }

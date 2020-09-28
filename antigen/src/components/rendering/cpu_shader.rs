@@ -1,7 +1,4 @@
-use crate::{
-    entity_component_system::ComponentDebugTrait,
-    primitive_types::{Color, ColorRGBF, Vector2I},
-};
+use crate::primitive_types::{Color, ColorRGBF, Vector2I};
 
 #[derive(Debug, Copy, Clone, PartialOrd, PartialEq)]
 pub struct CPUShaderInput {
@@ -65,15 +62,5 @@ impl CPUShader {
 
     pub fn color_passthrough(input: CPUShaderInput) -> Option<ColorRGBF> {
         Some(input.color)
-    }
-}
-
-impl ComponentDebugTrait for CPUShader {
-    fn get_name() -> String {
-        "CPU Shader".into()
-    }
-
-    fn get_description() -> String {
-        "Component holding a fn(CPUShaderInput) -> Option<ColorRGBF>".into()
     }
 }

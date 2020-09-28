@@ -3,18 +3,14 @@ use std::collections::HashMap;
 
 pub use single_threaded_directory::SingleThreadedDirectory;
 
-use crate::entity_component_system::{
-    ComponentDataID, ComponentDebugTrait, ComponentID, ComponentTrait, EntityID,
-};
+use crate::entity_component_system::{ComponentDataID, ComponentID, ComponentTrait, EntityID};
 
 pub trait EntityComponentDirectory {
     // CREATE
     fn create_entity(&mut self) -> Result<EntityID, String>;
 
     // INSERT
-    fn insert_component<T: ComponentTrait + ComponentDebugTrait + 'static>(
-        &mut self,
-    ) -> Result<ComponentID, String>;
+    fn insert_component<T: ComponentTrait + 'static>(&mut self) -> Result<ComponentID, String>;
 
     fn insert_entity_component<T>(
         &mut self,

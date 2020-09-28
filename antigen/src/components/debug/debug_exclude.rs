@@ -1,14 +1,2 @@
-use crate::entity_component_system::ComponentDebugTrait;
-
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct DebugExclude;
-
-impl ComponentDebugTrait for DebugExclude {
-    fn get_name() -> String {
-        "Debug Exclude".into()
-    }
-
-    fn get_description() -> String {
-        "Tag component for excluding an entity from debug visualization".into()
-    }
-}

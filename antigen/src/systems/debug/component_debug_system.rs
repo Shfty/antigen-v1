@@ -53,30 +53,23 @@ where
             if let Some(inspected_entity) =
                 debug_entities.get(int_range_component.get_index() as usize)
             {
-                let mut components =
+                let components =
                     db.entity_component_directory
                         .get_components_by_predicate(|component_id| {
                             db.entity_component_directory
                                 .entity_has_component_by_id(inspected_entity, component_id)
                         });
 
-                components.sort_by(|lhs, rhs| {
-                    let lhs_label = lhs.type_name;
-                    let rhs_label = rhs.type_name;
-
-                    lhs_label.cmp(&rhs_label)
-                });
-
-                let component_strings: Vec<&str> = components
+                let mut component_strings: Vec<String> = components
                     .iter()
-                    .map(|component_id| component_id.type_name)
+                    .map(|component_id| component_id.get_name())
                     .collect();
 
+                component_strings.sort();
+
                 for entity_id in debug_component_list_entities {
-                    *db.get_entity_component_mut::<Vec<String>>(entity_id)? = component_strings
-                        .iter()
-                        .map(std::string::ToString::to_string)
-                        .collect();
+                    *db.get_entity_component_mut::<Vec<String>>(entity_id)? =
+                        component_strings.clone();
                 }
             }
         }

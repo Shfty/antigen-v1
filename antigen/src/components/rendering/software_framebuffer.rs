@@ -9,7 +9,7 @@ pub struct SoftwareFramebuffer<T> {
 
 impl<T> Debug for SoftwareFramebuffer<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("CPUFramebufferComponent").finish()
+        f.debug_struct("SoftwareFramebuffer").finish()
     }
 }
 

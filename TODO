@@ -1,5 +1,3 @@
-TODO: Name(String) type to drive entity list in place of current debug setup
-
 TODO: Cleanup pass for distinction between CursesInput / CursesEvent
 
 TODO: Split IntRangeComponent into i64> and PrimitiveComponent<Range<i64>

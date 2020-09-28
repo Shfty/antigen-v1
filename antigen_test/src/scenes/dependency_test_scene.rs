@@ -8,7 +8,7 @@ use antigen::{
     entity_component_system::{
         system_storage::SystemStorage, Assemblage, EntityComponentSystem, SystemRunner,
     },
-    primitive_types::Color,
+    primitive_types::ColorRGB,
     primitive_types::Vector2I,
     systems::PositionIntegratorSystem,
 };
@@ -67,7 +67,7 @@ impl Scene for DependencyTestScene {
         // mut: CursesColorSetComponent
         ecs.push_system(CursesRendererSystem::new(
             RGBArrangementPalette::new_884(),
-            TextColorMode::Color(Color(0.0, 0.0, 0.0)),
+            TextColorMode::Color(ColorRGB(0.0, 0.0, 0.0)),
         ));
 
         Ok(())
@@ -95,7 +95,7 @@ impl Scene for DependencyTestScene {
         .add_component(Position::from(Vector2I(1, 1)))?
         .add_component(Velocity::default())?
         .add_component('@')?
-        .add_component(Color(1.0f32, 0.6f32, 1.0f32))?
+        .add_component(ColorRGB(1.0f32, 0.6f32, 1.0f32))?
         .finish();
 
         let test_player_entity =

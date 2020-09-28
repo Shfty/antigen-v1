@@ -5,14 +5,16 @@ use antigen::{
     components::Control,
     components::DebugSceneTree,
     components::DebugSystemList,
+    components::EventQueue,
+    components::EventTargets,
     components::List,
     components::LocalPosition,
     components::SoftwareFramebuffer,
     components::SystemInspector,
     components::{
         Anchors, ComponentInspector, DebugComponentDataList, DebugComponentList, DebugEntityList,
-        DebugExclude, EntityInspector, GlobalPosition, IntRange, Margins, ParentEntity, Position,
-        Size, Velocity, Window, ZIndex,
+        DebugExclude, GlobalPosition, IntRange, Margins, ParentEntity, Position, Size, Velocity,
+        Window, ZIndex,
     },
     core::palette::RGBArrangementPalette,
     entity_component_system::ComponentStorage,
@@ -22,14 +24,14 @@ use antigen::{
         system_interface::SystemInterface, system_storage::SystemStorage, Assemblage,
         EntityComponentSystem, EntityID, SystemRunner,
     },
-    primitive_types::Color,
+    primitive_types::ColorRGB,
     primitive_types::ColorRGBF,
     primitive_types::Vector2I,
     systems::AntigenInputEventQueueSystem,
     systems::{
-        AnchorsMarginsSystem, ChildEntitiesSystem, GlobalPositionSystem, ListSystem,
-        LocalMousePositionSystem, PositionIntegratorSystem, SoftwareRendererSystem,
-        StringRendererSystem,
+        AnchorsMarginsSystem, ChildEntitiesSystem, EntityInspectorEvent, GlobalPositionSystem,
+        ListEvent, ListSystem, LocalEventQueueSystem, LocalMousePositionSystem,
+        PositionIntegratorSystem, SoftwareRendererSystem, StringRendererSystem,
     },
 };
 use antigen_curses::{
@@ -75,6 +77,19 @@ impl Scene for AntigenDebugScene {
         ecs.push_system(DestructionTestInputSystem::new());
         ecs.push_system(LocalMousePositionSystem::new());
         ecs.push_system(ListSystem::new());
+        ecs.push_system(
+            LocalEventQueueSystem::<ListEvent, EntityInspectorEvent>::new(
+                |list_event: ListEvent| match list_event {
+                    ListEvent::Pressed(index) => {
+                        Some(EntityInspectorEvent::SetInspectedEntity(match index {
+                            -1 => None,
+                            index => Some(index as usize),
+                        }))
+                    }
+                    _ => None,
+                },
+            ),
+        );
         ecs.push_system(InputVelocitySystem::new());
 
         ecs.push_system(PositionIntegratorSystem::new());
@@ -102,7 +117,7 @@ impl Scene for AntigenDebugScene {
         let cpu_framebuffer_entity = db.create_entity("CPU Framebuffer".into())?;
         db.insert_entity_component(
             cpu_framebuffer_entity,
-            SoftwareFramebuffer::new(Color(0.0f32, 0.0f32, 0.0f32)),
+            SoftwareFramebuffer::new(ColorRGB(0.0f32, 0.0f32, 0.0f32)),
         )?;
 
         let string_framebuffer_entity = db.create_entity("String Framebuffer".into())?;
@@ -117,16 +132,19 @@ impl Scene for AntigenDebugScene {
         )?;
 
         let entity_inspector_entity = db.create_entity(Some("Entity Inspector"))?;
-        db.insert_entity_component(entity_inspector_entity, EntityInspector)?;
-        db.insert_entity_component(entity_inspector_entity, IntRange::new(-1..-1))?;
+        db.insert_entity_component(
+            entity_inspector_entity,
+            EventQueue::<EntityInspectorEvent>::default(),
+        )?;
+        db.insert_entity_component(entity_inspector_entity, IntRange::new(-1..0))?;
 
         let component_inspector_entity = db.create_entity(Some("Component Inspector"))?;
         db.insert_entity_component(component_inspector_entity, ComponentInspector)?;
-        db.insert_entity_component(component_inspector_entity, IntRange::new(-1..-1))?;
+        db.insert_entity_component(component_inspector_entity, IntRange::new(-1..0))?;
 
         let system_inspector_entity = db.create_entity(Some("System Inspector"))?;
         db.insert_entity_component(system_inspector_entity, SystemInspector)?;
-        db.insert_entity_component(system_inspector_entity, IntRange::new(-1..-1))?;
+        db.insert_entity_component(system_inspector_entity, IntRange::new(-1..0))?;
 
         create_game_window(db, &mut assemblages, main_window_entity)?;
         create_entity_list_window(
@@ -230,7 +248,7 @@ where
             "Controllable ASCII character with position and velocity",
         )
         .add_component(Control)?
-        .add_component(Color(1.0f32, 0.6f32, 1.0f32))?
+        .add_component(ColorRGB(1.0f32, 0.6f32, 1.0f32))?
         .add_component('@')?
         .add_component(Position::from(Vector2I(1, 1)))?
         .add_component(Velocity::default())?
@@ -253,7 +271,7 @@ where
             .add_component(Position::default())?
             .add_component(Size::default())?
             .add_component(char::default())?
-            .add_component(Color(0.753f32, 0.753f32, 0.753f32))?
+            .add_component(ColorRGB(0.753f32, 0.753f32, 0.753f32))?
             .finish(),
     );
 
@@ -265,7 +283,7 @@ where
             .add_component(Size::default())?
             .add_component(char::default())?
             .add_component(CPUShader(CPUShader::rect))?
-            .add_component(Color(0.753f32, 0.753f32, 0.753f32))?
+            .add_component(ColorRGB(0.753f32, 0.753f32, 0.753f32))?
             .finish(),
     );
 
@@ -300,63 +318,17 @@ where
     db.insert_entity_component(game_window_entity, Anchors::new(0.0..0.5, 0.0..1.0))?;
 
     // Create Test Rects
-    for (position, shader, color) in [
-        (
-            Vector2I(1, 5),
-            CPUShader(CPUShader::uv),
-            Color(1.0f32, 1.0f32, 1.0f32),
-        ),
-        (
-            Vector2I(1, 12),
-            CPUShader(CPUShader::gradient_horizontal),
-            Color(1.0f32, 1.0f32, 1.0f32),
-        ),
-        (
-            Vector2I(1, 19),
-            CPUShader(CPUShader::gradient_horizontal),
-            Color(1.0f32, 0.0f32, 0.0f32),
-        ),
-        (
-            Vector2I(1, 26),
-            CPUShader(CPUShader::gradient_horizontal),
-            Color(0.0f32, 1.0f32, 0.0f32),
-        ),
-        (
-            Vector2I(1, 33),
-            CPUShader(CPUShader::gradient_horizontal),
-            Color(0.0f32, 0.0f32, 1.0f32),
-        ),
-        (
-            Vector2I(1, 40),
-            CPUShader(CPUShader::gradient_horizontal),
-            Color(0.0f32, 1.0f32, 1.0f32),
-        ),
-        (
-            Vector2I(1, 47),
-            CPUShader(CPUShader::gradient_horizontal),
-            Color(1.0f32, 0.0f32, 1.0f32),
-        ),
-        (
-            Vector2I(1, 54),
-            CPUShader(CPUShader::gradient_horizontal),
-            Color(1.0f32, 1.0f32, 0.0f32),
-        ),
-    ]
-    .iter()
+    let test_rect_entity = assemblages
+        .get_mut(&EntityAssemblage::RectControl)
+        .unwrap()
+        .create_and_assemble_entity(db, Some("Test Rect Control"))?;
     {
-        let test_rect_entity = assemblages
-            .get_mut(&EntityAssemblage::RectControl)
-            .unwrap()
-            .create_and_assemble_entity(db, Some("Test Rect Control"))?;
-        {
-            *db.get_entity_component_mut::<Position>(test_rect_entity)? = (*position).into();
-            *db.get_entity_component_mut::<Size>(test_rect_entity)? = Vector2I(48, 6).into();
+        *db.get_entity_component_mut::<Position>(test_rect_entity)? = Vector2I(0, 0).into();
+        *db.get_entity_component_mut::<Size>(test_rect_entity)? = Vector2I(64, 64).into();
 
-            db.insert_entity_component(test_rect_entity, ParentEntity(game_window_entity))?;
-            db.insert_entity_component(test_rect_entity, GlobalPosition::default())?;
-            db.insert_entity_component(test_rect_entity, *shader)?;
-            db.insert_entity_component(test_rect_entity, *color)?;
-        }
+        db.insert_entity_component(test_rect_entity, ParentEntity(game_window_entity))?;
+        db.insert_entity_component(test_rect_entity, GlobalPosition::default())?;
+        db.insert_entity_component(test_rect_entity, CPUShader(CPUShader::hsv))?;
     }
 
     // Create Test Player
@@ -403,7 +375,7 @@ where
         .create_and_assemble_entity(db, Some(&format!("{} Window", window_name)))?;
     {
         *db.get_entity_component_mut::<ColorRGBF>(entity_list_window_entity)? =
-            Color(0.0, 0.0, 0.0);
+            ColorRGB(0.0, 0.0, 0.0);
 
         db.insert_entity_component(entity_list_window_entity, Position::default())?;
         db.insert_entity_component(entity_list_window_entity, ZIndex(1))?;
@@ -477,16 +449,27 @@ where
     S: ComponentStorage,
     D: EntityComponentDirectory,
 {
+    let index_entity = db.create_entity(Some("Entity List Index"))?;
+    db.insert_entity_component(index_entity, IntRange::new(-1..0));
+
     let entity_list_entity = create_debug_window(
         db,
         assemblages,
         parent_window_entity,
-        Some(entity_inspector_entity),
+        Some(index_entity),
         "Entities",
         0.25..0.5,
         0.0..0.5,
     )?;
+
     db.insert_entity_component(entity_list_entity, DebugEntityList)?;
+    db.insert_entity_component(entity_list_entity, IntRange::default())?;
+    db.insert_entity_component(entity_list_entity, EventQueue::<ListEvent>::default())?;
+    db.insert_entity_component(
+        entity_list_entity,
+        EventTargets::new(vec![entity_inspector_entity]),
+    )?;
+
     Ok(entity_list_entity)
 }
 

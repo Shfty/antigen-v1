@@ -1,3 +1,3 @@
-use crate::{core::events::AntigenInputEvent, systems::EventQueueSystem};
+use crate::{core::events::AntigenInputEvent, systems::GlobalEventQueueSystem};
 
-pub type AntigenInputEventQueueSystem = EventQueueSystem<AntigenInputEvent>;
+pub type AntigenInputEventQueueSystem = GlobalEventQueueSystem<AntigenInputEvent>;

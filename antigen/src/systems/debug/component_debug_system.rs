@@ -1,10 +1,15 @@
-use crate::entity_component_system::{SystemError, SystemTrait};
 use crate::{
-    components::DebugComponentList, components::DebugExclude, components::EntityInspector,
-    components::IntRange, entity_component_system::system_interface::SystemInterface,
+    components::DebugComponentList, components::DebugExclude, components::IntRange,
+    entity_component_system::system_interface::SystemInterface,
     entity_component_system::ComponentStorage, entity_component_system::EntityComponentDirectory,
     entity_component_system::EntityID, entity_component_system::SystemDebugTrait,
 };
+use crate::{
+    components::EventQueue,
+    entity_component_system::{SystemError, SystemTrait},
+};
+
+use super::EntityInspectorEvent;
 
 #[derive(Debug)]
 pub struct ComponentDebugSystem;
@@ -32,7 +37,10 @@ where
             db.entity_component_directory
                 .get_entity_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<EntityInspector>(entity_id)
+                        .entity_has_component::<EventQueue<EntityInspectorEvent>>(entity_id)
+                        && db
+                            .entity_component_directory
+                            .entity_has_component::<IntRange>(entity_id)
                 });
 
         // Populate strings for debug component list entities

@@ -1,5 +1,5 @@
-use antigen::systems::EventQueueSystem;
+use antigen::systems::GlobalEventQueueSystem;
 
 use crate::CursesEvent;
 
-pub type CursesEventQueueSystem = EventQueueSystem<CursesEvent>;
+pub type CursesEventQueueSystem = GlobalEventQueueSystem<CursesEvent>;

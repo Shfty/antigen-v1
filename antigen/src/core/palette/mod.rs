@@ -6,20 +6,20 @@ pub use adaptive_palette::AdaptivePalette;
 pub use palette_lookup_table::PaletteLookupTable;
 pub use rgb_arrangement_palette::RGBArrangementPalette;
 
-use crate::primitive_types::{Color, ColorRGBF};
+use crate::primitive_types::{ColorRGB, ColorRGBF};
 
 pub trait Palette<F, T>
 where
     F: Copy + Clone + PartialOrd + PartialEq,
     T: Copy + Clone + PartialOrd + PartialEq,
 {
-    fn get_color_idx(&self, color: Color<F>) -> usize;
-    fn get_color(&self, idx: usize) -> Color<T>;
-    fn get_colors(&self) -> Vec<Color<T>>;
+    fn get_color_idx(&self, color: ColorRGB<F>) -> usize;
+    fn get_color(&self, idx: usize) -> ColorRGB<T>;
+    fn get_colors(&self) -> Vec<ColorRGB<T>>;
 }
 
 impl Palette<f32, f32> for Vec<ColorRGBF> {
-    fn get_colors(&self) -> Vec<Color<f32>> {
+    fn get_colors(&self) -> Vec<ColorRGB<f32>> {
         self.clone()
     }
 
@@ -30,8 +30,8 @@ impl Palette<f32, f32> for Vec<ColorRGBF> {
     fn get_color_idx(&self, color: ColorRGBF) -> usize {
         let mut colors: Vec<(usize, ColorRGBF)> = self.clone().into_iter().enumerate().collect();
         colors.sort_by(|(_, lhs), (_, rhs)| {
-            let dist_lhs = Color::square_distance(lhs, &color);
-            let dist_rhs = Color::square_distance(rhs, &color);
+            let dist_lhs = ColorRGB::distance(lhs, &color);
+            let dist_rhs = ColorRGB::distance(rhs, &color);
 
             dist_lhs
                 .partial_cmp(&dist_rhs)
@@ -65,7 +65,7 @@ mod tests {
         for r in 0..10 {
             for g in 0..10 {
                 for b in 0..10 {
-                    let color = Color(r as f32, g as f32, b as f32) / Color(9.0f32, 9.0f32, 9.0f32);
+                    let color = ColorRGB(r as f32, g as f32, b as f32) / ColorRGB(9.0f32, 9.0f32, 9.0f32);
                     let idx = palette.get_color_idx(color);
                     let color = palette.get_color(idx);
                     println!("Color: {:?}", color);

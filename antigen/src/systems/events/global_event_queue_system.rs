@@ -9,34 +9,34 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct EventQueueSystem<T>
+pub struct GlobalEventQueueSystem<T>
 where
     T: Debug,
 {
     _phantom_data: PhantomData<T>,
 }
 
-impl<T> EventQueueSystem<T>
+impl<T> GlobalEventQueueSystem<T>
 where
     T: Debug,
 {
     pub fn new() -> Self {
-        EventQueueSystem {
+        GlobalEventQueueSystem {
             _phantom_data: PhantomData,
         }
     }
 }
 
-impl<T> Default for EventQueueSystem<T>
+impl<T> Default for GlobalEventQueueSystem<T>
 where
     T: Debug,
 {
     fn default() -> Self {
-        EventQueueSystem::<T>::new()
+        GlobalEventQueueSystem::<T>::new()
     }
 }
 
-impl<CS, CD, T> SystemTrait<CS, CD> for EventQueueSystem<T>
+impl<CS, CD, T> SystemTrait<CS, CD> for GlobalEventQueueSystem<T>
 where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
@@ -82,7 +82,7 @@ where
     }
 }
 
-impl<T> SystemDebugTrait for EventQueueSystem<T>
+impl<T> SystemDebugTrait for GlobalEventQueueSystem<T>
 where
     T: Debug + 'static,
 {

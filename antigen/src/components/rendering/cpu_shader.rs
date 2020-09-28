@@ -1,4 +1,4 @@
-use crate::primitive_types::{Color, ColorRGBF, Vector2I};
+use crate::primitive_types::{ColorRGB, ColorRGBF, Vector2I};
 
 #[derive(Debug, Copy, Clone, PartialOrd, PartialEq)]
 pub struct CPUShaderInput {
@@ -32,7 +32,7 @@ impl CPUShader {
 
     pub fn uv(input: CPUShaderInput) -> Option<ColorRGBF> {
         let (u, v) = Self::get_uv(input);
-        Some(Color(u, v, 0.0))
+        Some(ColorRGB(u, v, 0.0))
     }
 
     pub fn gradient_horizontal(input: CPUShaderInput) -> Option<ColorRGBF> {
@@ -43,6 +43,18 @@ impl CPUShader {
     pub fn gradient_vertical(input: CPUShaderInput) -> Option<ColorRGBF> {
         let (_, v) = Self::get_uv(input);
         Some(input.color * v)
+    }
+
+    pub fn hsv(input: CPUShaderInput) -> Option<ColorRGBF> {
+        let (u, v) = Self::get_uv(input);
+
+        let h = v * 360.0;
+
+        let n = (u - 0.5) * -2.0;
+        let s = 1.0 - n.min(0.0).abs();
+        let v = 1.0 - n.max(0.0);
+
+        Some(ColorRGB::from_hsv(h, s, v))
     }
 
     pub fn rect(input: CPUShaderInput) -> Option<ColorRGBF> {

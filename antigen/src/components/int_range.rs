@@ -19,14 +19,12 @@ impl IntRange {
         self.index
     }
 
-    pub fn set_index(&mut self, index: i64) -> &mut Self {
+    pub fn set_index(&mut self, index: i64) {
         self.index = std::cmp::min(std::cmp::max(index, self.range.start), self.range.end - 1);
-        self
     }
 
-    pub fn set_range(&mut self, range: Range<i64>) -> &mut Self {
+    pub fn set_range(&mut self, range: Range<i64>) {
         self.range = range;
-        self
     }
 }
 

@@ -7,7 +7,7 @@ use antigen::{
         system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory, SystemError,
         SystemTrait,
     },
-    primitive_types::Color,
+    primitive_types::ColorRGB,
     primitive_types::ColorRGBF,
 };
 use pancurses::ToChtype;
@@ -120,35 +120,35 @@ where
         let indices = [
             (
                 pancurses::COLOR_BLACK,
-                self.palette.get_color_idx(Color(0.0, 0.0, 0.0)),
+                self.palette.get_color_idx(ColorRGB(0.0, 0.0, 0.0)),
             ),
             (
                 pancurses::COLOR_BLUE,
-                self.palette.get_color_idx(Color(0.0, 0.0, 1.0)),
+                self.palette.get_color_idx(ColorRGB(0.0, 0.0, 1.0)),
             ),
             (
                 pancurses::COLOR_CYAN,
-                self.palette.get_color_idx(Color(0.0, 1.0, 1.0)),
+                self.palette.get_color_idx(ColorRGB(0.0, 1.0, 1.0)),
             ),
             (
                 pancurses::COLOR_GREEN,
-                self.palette.get_color_idx(Color(0.0, 1.0, 0.0)),
+                self.palette.get_color_idx(ColorRGB(0.0, 1.0, 0.0)),
             ),
             (
                 pancurses::COLOR_MAGENTA,
-                self.palette.get_color_idx(Color(1.0, 1.0, 0.0)),
+                self.palette.get_color_idx(ColorRGB(1.0, 1.0, 0.0)),
             ),
             (
                 pancurses::COLOR_RED,
-                self.palette.get_color_idx(Color(1.0, 0.0, 0.0)),
+                self.palette.get_color_idx(ColorRGB(1.0, 0.0, 0.0)),
             ),
             (
                 pancurses::COLOR_YELLOW,
-                self.palette.get_color_idx(Color(1.0, 0.0, 1.0)),
+                self.palette.get_color_idx(ColorRGB(1.0, 0.0, 1.0)),
             ),
             (
                 pancurses::COLOR_WHITE,
-                self.palette.get_color_idx(Color(1.0, 1.0, 1.0)),
+                self.palette.get_color_idx(ColorRGB(1.0, 1.0, 1.0)),
             ),
         ];
 
@@ -159,7 +159,7 @@ where
 
         // Register colors
         for (i, color) in colors.iter().enumerate() {
-            let Color(r, g, b) = color;
+            let ColorRGB(r, g, b) = color;
             let i = i as i16;
 
             pancurses::init_color(
@@ -172,17 +172,17 @@ where
             let foreground_color = match self.text_color_mode {
                 TextColorMode::Color(color) => self.palette.get_color_idx(color),
                 TextColorMode::BlackWhite => {
-                    if Color::square_distance(color, &Color(1.0f32, 1.0f32, 1.0f32))
-                        > Color::square_distance(color, &Color(0.0f32, 0.0f32, 0.0f32))
+                    if ColorRGB::distance(color, &ColorRGB(1.0f32, 1.0f32, 1.0f32))
+                        > ColorRGB::distance(color, &ColorRGB(0.0f32, 0.0f32, 0.0f32))
                     {
-                        self.palette.get_color_idx(Color(1.0f32, 1.0f32, 1.0f32))
+                        self.palette.get_color_idx(ColorRGB(1.0f32, 1.0f32, 1.0f32))
                     } else {
-                        self.palette.get_color_idx(Color(0.0f32, 0.0f32, 0.0f32))
+                        self.palette.get_color_idx(ColorRGB(0.0f32, 0.0f32, 0.0f32))
                     }
                 }
                 TextColorMode::Invert => self
                     .palette
-                    .get_color_idx(Color(1.0f32, 1.0f32, 1.0f32) - *color),
+                    .get_color_idx(ColorRGB(1.0f32, 1.0f32, 1.0f32) - *color),
             };
 
             let mut foreground_color = foreground_color as i16;
@@ -212,7 +212,7 @@ where
                 let char = char_buffer[idx];
                 let char_z = char_z_buffer[idx];
 
-                if color == Color(0.0, 0.0, 0.0) && char == ' ' {
+                if color == ColorRGB(0.0, 0.0, 0.0) && char == ' ' {
                     continue;
                 }
 

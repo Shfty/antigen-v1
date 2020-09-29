@@ -1,15 +1,16 @@
 use crate::{
-    components::ComponentInspector, components::DebugComponentDataList, components::DebugExclude,
-    components::IntRange, entity_component_system::system_interface::SystemInterface,
-    entity_component_system::ComponentStorage, entity_component_system::EntityComponentDirectory,
-    entity_component_system::EntityID, entity_component_system::SystemDebugTrait,
+    components::DebugComponentDataList, components::DebugExclude, components::IntRange,
+    entity_component_system::system_interface::SystemInterface,
+    entity_component_system::ComponentID, entity_component_system::ComponentStorage,
+    entity_component_system::EntityComponentDirectory, entity_component_system::EntityID,
+    entity_component_system::SystemDebugTrait,
 };
 use crate::{
     components::EventQueue,
     entity_component_system::{SystemError, SystemTrait},
 };
 
-use super::EntityInspectorEvent;
+use super::{ComponentInspectorEvent, EntityInspectorEvent};
 
 #[derive(Debug)]
 pub struct ComponentDataDebugSystem;
@@ -58,18 +59,16 @@ where
                                 .entity_has_component_by_id(inspected_entity, component_id)
                         });
 
-                components.sort_by(|lhs, rhs| {
-                    let lhs_label = lhs.type_name;
-                    let rhs_label = rhs.type_name;
-
-                    lhs_label.cmp(&rhs_label)
-                });
+                components.sort_by_key(ComponentID::get_name);
 
                 let component_inspector_entity = db
                     .entity_component_directory
                     .get_entity_by_predicate(|entity_id| {
                         db.entity_component_directory
-                            .entity_has_component::<ComponentInspector>(entity_id)
+                            .entity_has_component::<EventQueue<ComponentInspectorEvent>>(entity_id)
+                            && db
+                                .entity_component_directory
+                                .entity_has_component::<IntRange>(entity_id)
                     });
 
                 if let Some(component_inspector_entity) = component_inspector_entity {

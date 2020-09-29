@@ -299,7 +299,6 @@ where
                                     let list_event_queue: &mut Vec<ListEvent> =
                                         list_event_queue.as_mut();
                                     list_event_queue.push(ListEvent::Pressed(index));
-                                    println!("List event queue: {:?}", list_event_queue);
                                 }
 
                                 if let Some(list_index_entity) = list_index_entity {

@@ -1,23 +1,17 @@
-mod component_inspector;
 mod debug_component_data_list;
 mod debug_component_list;
 mod debug_entity_list;
 mod debug_exclude;
 mod debug_scene_tree;
 mod debug_system_list;
-mod entity_inspector;
 mod name;
 mod system_debug;
-mod system_inspector;
 
-pub use component_inspector::*;
 pub use debug_component_data_list::*;
 pub use debug_component_list::*;
 pub use debug_entity_list::*;
 pub use debug_exclude::*;
 pub use debug_scene_tree::*;
 pub use debug_system_list::*;
-pub use entity_inspector::*;
 pub use name::*;
 pub use system_debug::*;
-pub use system_inspector::*;

@@ -10,7 +10,7 @@ use crate::{
 use crate::{components::EventTargets, entity_component_system::system_interface::SystemInterface};
 
 #[derive(Debug)]
-pub struct LocalEventQueueSystem<O, I>
+pub struct EventProcessorSystem<O, I>
 where
     O: Debug,
     I: Debug,
@@ -18,17 +18,17 @@ where
     convert: fn(O) -> Option<I>,
 }
 
-impl<O, I> LocalEventQueueSystem<O, I>
+impl<O, I> EventProcessorSystem<O, I>
 where
     O: Debug,
     I: Debug,
 {
     pub fn new(convert: fn(O) -> Option<I>) -> Self {
-        LocalEventQueueSystem { convert }
+        EventProcessorSystem { convert }
     }
 }
 
-impl<CS, CD, O, I> SystemTrait<CS, CD> for LocalEventQueueSystem<O, I>
+impl<CS, CD, O, I> SystemTrait<CS, CD> for EventProcessorSystem<O, I>
 where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
@@ -51,13 +51,13 @@ where
                 });
 
         for output_entity in output_entities {
-            let mut events: Vec<O> = Vec::new();
+            let events: Vec<O>;
             {
                 let event_queue: &mut Vec<O> = db
                     .get_entity_component_mut::<EventQueue<O>>(output_entity)?
                     .as_mut();
 
-                events.append(event_queue);
+                events = event_queue.clone();
             }
 
             let events: Vec<I> = events.into_iter().flat_map(self.convert).collect();
@@ -66,13 +66,18 @@ where
                 .get_entity_component::<EventTargets>(output_entity)?
                 .as_ref();
 
-            let event_targets: Vec<EntityID> = event_targets.iter().copied().collect();
+            let event_targets: Vec<EntityID> = event_targets
+                .iter()
+                .filter(|entity_id| {
+                    db.entity_component_directory
+                        .entity_has_component::<EventQueue<I>>(entity_id)
+                })
+                .copied()
+                .collect();
 
             for event_target in event_targets {
-                let event_queue: &mut Vec<I> = db
-                    .get_entity_component_mut::<EventQueue<I>>(event_target)?
-                    .as_mut();
-
+                let event_queue = db.get_entity_component_mut::<EventQueue<I>>(event_target)?;
+                let event_queue: &mut Vec<I> = event_queue.as_mut();
                 event_queue.append(&mut events.clone());
             }
         }
@@ -81,12 +86,12 @@ where
     }
 }
 
-impl<O, I> SystemDebugTrait for LocalEventQueueSystem<O, I>
+impl<O, I> SystemDebugTrait for EventProcessorSystem<O, I>
 where
     O: Debug,
     I: Debug,
 {
     fn get_name() -> &'static str {
-        "Local Event Queue"
+        "Event Processor"
     }
 }

@@ -10,12 +10,11 @@ use antigen::{
     components::List,
     components::LocalPosition,
     components::SoftwareFramebuffer,
-    components::SystemInspector,
     components::{
-        Anchors, ComponentInspector, DebugComponentDataList, DebugComponentList, DebugEntityList,
-        DebugExclude, GlobalPosition, IntRange, Margins, ParentEntity, Position, Size, Velocity,
-        Window, ZIndex,
+        Anchors, DebugComponentDataList, DebugComponentList, DebugEntityList, DebugExclude,
+        GlobalPosition, IntRange, Margins, ParentEntity, Position, Size, Velocity, Window, ZIndex,
     },
+    core::events::AntigenInputEvent,
     core::palette::RGBArrangementPalette,
     entity_component_system::ComponentStorage,
     entity_component_system::EntityComponentDirectory,
@@ -27,15 +26,15 @@ use antigen::{
     primitive_types::ColorRGB,
     primitive_types::ColorRGBF,
     primitive_types::Vector2I,
-    systems::AntigenInputEventQueueSystem,
     systems::{
-        AnchorsMarginsSystem, ChildEntitiesSystem, EntityInspectorEvent, GlobalPositionSystem,
-        ListEvent, ListSystem, LocalEventQueueSystem, LocalMousePositionSystem,
-        PositionIntegratorSystem, SoftwareRendererSystem, StringRendererSystem,
+        AnchorsMarginsSystem, ChildEntitiesSystem, ComponentInspectorEvent, EntityInspectorEvent,
+        EventConsumerSystem, EventProcessorSystem, GlobalPositionSystem, ListEvent, ListSystem,
+        LocalMousePositionSystem, PositionIntegratorSystem, SoftwareRendererSystem,
+        StringRendererSystem, SystemInspectorEvent,
     },
 };
 use antigen_curses::{
-    CursesEventQueueSystem, CursesInputBufferSystem, CursesKeyboardSystem, CursesMouseSystem,
+    CursesEvent, CursesInputBufferSystem, CursesKeyboardSystem, CursesMouseSystem,
     CursesRendererSystem, CursesWindow, CursesWindowSystem, TextColorMode,
 };
 
@@ -63,9 +62,9 @@ impl Scene for AntigenDebugScene {
         SS: SystemStorage<CS, CD> + 'static,
         SR: SystemRunner + 'static,
     {
-        ecs.push_system(AntigenInputEventQueueSystem::new());
-        ecs.push_system(CursesEventQueueSystem::new());
-
+        ecs.push_system(EventConsumerSystem::<AntigenInputEvent>::new());
+        ecs.push_system(EventConsumerSystem::<CursesEvent>::new());
+        
         ecs.push_system(CursesInputBufferSystem);
         ecs.push_system(CursesKeyboardSystem);
         ecs.push_system(CursesMouseSystem::new());
@@ -76,9 +75,11 @@ impl Scene for AntigenDebugScene {
         ecs.push_system(InputAxisSystem);
         ecs.push_system(DestructionTestInputSystem::new());
         ecs.push_system(LocalMousePositionSystem::new());
+
         ecs.push_system(ListSystem::new());
+
         ecs.push_system(
-            LocalEventQueueSystem::<ListEvent, EntityInspectorEvent>::new(
+            EventProcessorSystem::<ListEvent, EntityInspectorEvent>::new(
                 |list_event: ListEvent| match list_event {
                     ListEvent::Pressed(index) => {
                         Some(EntityInspectorEvent::SetInspectedEntity(match index {
@@ -90,6 +91,37 @@ impl Scene for AntigenDebugScene {
                 },
             ),
         );
+
+        ecs.push_system(
+            EventProcessorSystem::<ListEvent, ComponentInspectorEvent>::new(
+                |list_event: ListEvent| match list_event {
+                    ListEvent::Pressed(index) => Some(
+                        ComponentInspectorEvent::SetInspectedComponent(match index {
+                            -1 => None,
+                            index => Some(index as usize),
+                        }),
+                    ),
+                    _ => None,
+                },
+            ),
+        );
+
+        ecs.push_system(
+            EventProcessorSystem::<ListEvent, SystemInspectorEvent>::new(
+                |list_event: ListEvent| match list_event {
+                    ListEvent::Pressed(index) => {
+                        Some(SystemInspectorEvent::SetInspectedSystem(match index {
+                            -1 => None,
+                            index => Some(index as usize),
+                        }))
+                    }
+                    _ => None,
+                },
+            ),
+        );
+
+        ecs.push_system(EventConsumerSystem::<ListEvent>::new());
+
         ecs.push_system(InputVelocitySystem::new());
 
         ecs.push_system(PositionIntegratorSystem::new());
@@ -112,6 +144,17 @@ impl Scene for AntigenDebugScene {
         CD: EntityComponentDirectory,
     {
         let mut assemblages = create_assemblages()?;
+
+        // Create global event queues
+        let global_event_queues_entity = db.create_entity("Global Event Queues".into())?;
+        db.insert_entity_component(
+            global_event_queues_entity,
+            EventQueue::<CursesEvent>::default(),
+        )?;
+        db.insert_entity_component(
+            global_event_queues_entity,
+            EventQueue::<AntigenInputEvent>::default(),
+        )?;
 
         // Create main window
         let cpu_framebuffer_entity = db.create_entity("CPU Framebuffer".into())?;
@@ -139,14 +182,21 @@ impl Scene for AntigenDebugScene {
         db.insert_entity_component(entity_inspector_entity, IntRange::new(-1..0))?;
 
         let component_inspector_entity = db.create_entity(Some("Component Inspector"))?;
-        db.insert_entity_component(component_inspector_entity, ComponentInspector)?;
+        db.insert_entity_component(
+            component_inspector_entity,
+            EventQueue::<ComponentInspectorEvent>::default(),
+        )?;
         db.insert_entity_component(component_inspector_entity, IntRange::new(-1..0))?;
 
         let system_inspector_entity = db.create_entity(Some("System Inspector"))?;
-        db.insert_entity_component(system_inspector_entity, SystemInspector)?;
+        db.insert_entity_component(
+            system_inspector_entity,
+            EventQueue::<SystemInspectorEvent>::default(),
+        )?;
         db.insert_entity_component(system_inspector_entity, IntRange::new(-1..0))?;
 
         create_game_window(db, &mut assemblages, main_window_entity)?;
+
         create_entity_list_window(
             db,
             &mut assemblages,
@@ -463,7 +513,6 @@ where
     )?;
 
     db.insert_entity_component(entity_list_entity, DebugEntityList)?;
-    db.insert_entity_component(entity_list_entity, IntRange::default())?;
     db.insert_entity_component(entity_list_entity, EventQueue::<ListEvent>::default())?;
     db.insert_entity_component(
         entity_list_entity,
@@ -506,17 +555,25 @@ where
     S: ComponentStorage,
     D: EntityComponentDirectory,
 {
+    let index_entity = db.create_entity(Some("Component List Index"))?;
+    db.insert_entity_component(index_entity, IntRange::new(-1..0))?;
+
     let component_list_entity = create_debug_window(
         db,
         assemblages,
         parent_window_entity,
-        Some(component_inspector_entity),
+        Some(index_entity),
         "Components",
         0.5..0.75,
         0.0..0.5,
     )?;
     db.insert_entity_component(component_list_entity, DebugComponentList)?;
     db.insert_entity_component(component_list_entity, DebugExclude)?;
+    db.insert_entity_component(component_list_entity, EventQueue::<ListEvent>::default())?;
+    db.insert_entity_component(
+        component_list_entity,
+        EventTargets::new(vec![component_inspector_entity]),
+    )?;
 
     Ok(component_list_entity)
 }
@@ -553,15 +610,23 @@ where
     S: ComponentStorage,
     D: EntityComponentDirectory,
 {
+    let index_entity = db.create_entity(Some("System List Index"))?;
+    db.insert_entity_component(index_entity, IntRange::new(-1..0))?;
+
     let system_list_entity = create_debug_window(
         db,
         assemblages,
         parent_window_entity,
-        Some(system_inspector_entity),
+        Some(index_entity),
         "Systems",
         0.5..0.75,
         0.5..1.0,
     )?;
     db.insert_entity_component(system_list_entity, DebugSystemList)?;
+    db.insert_entity_component(system_list_entity, EventQueue::<ListEvent>::default())?;
+    db.insert_entity_component(
+        system_list_entity,
+        EventTargets::new(vec![system_inspector_entity]),
+    )?;
     Ok(system_list_entity)
 }

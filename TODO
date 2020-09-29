@@ -1,13 +1,7 @@
-TODO: Refactor component/system/entity component debuggers to use local event queues as per entity debugger
-      Need to do some general cleanup afterward
-            List index entities in debug scene should use the list itself (index should probably be stored in the list component)
-            Replace inspector entities with appropriate event queue entities, track IDs inside systems
+TODO: Entity / component / system debugger cleanup
+      List index entities in debug scene should use the list itself (index should probably be stored in the list component)
 
-TODO: Ensure one-to-many events (of multiple O -> I conversions) work properly
-      Events are currently consumed by the first LocalEventSystem
-      Need a way to clear local event queues
-            Split clearing functionality into a system that runs at the start of the frame for both global and local?
-            Would introduce more order-of-execution constraints, not sure if a problem
+TODO: Refactor event processing such that LocalEventSystem removes events from output queues, but only when it can actually use them
 
 TODO: Refactor system IDs to store type name as per component IDs, refactor system debugger appropriately
 

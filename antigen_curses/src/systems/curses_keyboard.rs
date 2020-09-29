@@ -4,17 +4,17 @@ use antigen::{
     core::keyboard::IntoKey,
     entity_component_system::{
         system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory,
-        SystemDebugTrait, SystemError, SystemTrait,
+        SystemError, SystemTrait,
     },
 };
 
-use crate::{CursesEvent, CursesEventQueue, CursesInput};
+use crate::{CursesInput, components::CursesEvent, components::CursesEventQueue};
 
 /// Converts pancurses keyboard inputs into antigen keyboard inputs
 #[derive(Debug)]
-pub struct CursesKeyboardSystem;
+pub struct CursesKeyboard;
 
-impl<CS, CD> SystemTrait<CS, CD> for CursesKeyboardSystem
+impl<CS, CD> SystemTrait<CS, CD> for CursesKeyboard
 where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
@@ -76,11 +76,5 @@ where
         }
 
         Ok(())
-    }
-}
-
-impl SystemDebugTrait for CursesKeyboardSystem {
-    fn get_name() -> &'static str {
-        "Curses Keyboard"
     }
 }

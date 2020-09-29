@@ -2,13 +2,13 @@ use std::collections::HashMap;
 
 use crate::{
     components::{
-        Control, DebugExclude, EventQueue, GlobalPosition, List, LocalMousePosition, ParentEntity,
-        Position, Size,
+        Control, DebugExclude, EventQueue, GlobalPositionData, ListData, LocalMousePositionData,
+        ParentEntity, Position, Size,
     },
     core::events::AntigenInputEvent,
     entity_component_system::{
         system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory, EntityID,
-        SystemDebugTrait, SystemError, SystemTrait,
+        SystemError, SystemTrait,
     },
     primitive_types::{ColorRGB, ColorRGBF, Vector2I},
 };
@@ -20,7 +20,7 @@ pub enum ListEvent {
 }
 
 #[derive(Debug)]
-pub struct ListSystem {
+pub struct List {
     // Maps list control entities -> rectangle entities
     list_focus_entities: HashMap<EntityID, EntityID>,
 
@@ -31,9 +31,9 @@ pub struct ListSystem {
     list_string_entities: HashMap<EntityID, Vec<EntityID>>,
 }
 
-impl ListSystem {
+impl List {
     pub fn new() -> Self {
-        ListSystem {
+        List {
             list_focus_entities: HashMap::new(),
             list_hover_entities: HashMap::new(),
             list_string_entities: HashMap::new(),
@@ -41,13 +41,13 @@ impl ListSystem {
     }
 }
 
-impl Default for ListSystem {
+impl Default for List {
     fn default() -> Self {
-        ListSystem::new()
+        List::new()
     }
 }
 
-impl<CS, CD> SystemTrait<CS, CD> for ListSystem
+impl<CS, CD> SystemTrait<CS, CD> for List
 where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
@@ -61,7 +61,7 @@ where
             db.entity_component_directory
                 .get_entities_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<List>(entity_id)
+                        .entity_has_component::<ListData>(entity_id)
                         && db
                             .entity_component_directory
                             .entity_has_component::<Position>(entity_id)
@@ -84,7 +84,7 @@ where
                         .unwrap();
                     db.insert_entity_component(list_hover_entity, Size::default())
                         .unwrap();
-                    db.insert_entity_component(list_hover_entity, GlobalPosition::default())
+                    db.insert_entity_component(list_hover_entity, GlobalPositionData::default())
                         .unwrap();
                     db.insert_entity_component(list_hover_entity, ColorRGB(0.5f32, 0.5f32, 0.5f32))
                         .unwrap();
@@ -111,7 +111,7 @@ where
                         .unwrap();
                     db.insert_entity_component(list_focus_entity, Size::default())
                         .unwrap();
-                    db.insert_entity_component(list_focus_entity, GlobalPosition::default())
+                    db.insert_entity_component(list_focus_entity, GlobalPositionData::default())
                         .unwrap();
                     db.insert_entity_component(
                         list_focus_entity,
@@ -127,12 +127,14 @@ where
                 .ok_or("Error getting list focus entity")?;
 
             // Fetch entity references
-            let string_list_entity = match db.get_entity_component::<List>(list_control_entity) {
-                Ok(pancurses_list_control_component) => {
-                    pancurses_list_control_component.get_string_list_entity()
-                }
-                Err(err) => return Err(err.into()),
-            };
+            let (string_list_entity, scroll_offset) =
+                match db.get_entity_component::<ListData>(list_control_entity) {
+                    Ok(pancurses_list_control_component) => (
+                        pancurses_list_control_component.get_string_list_entity(),
+                        pancurses_list_control_component.get_scroll_offset(),
+                    ),
+                    Err(err) => return Err(err.into()),
+                };
 
             if let Some(string_list_entity) = string_list_entity {
                 // The list entity is valid
@@ -144,19 +146,21 @@ where
                         Err(err) => return Err(err.into()),
                     };
 
-                // TODO: Scroll offset
-                let scroll_offset = 0usize;
-
                 // Fetch strings
                 let string_list: Vec<Vec<String>> = (*db
                     .get_entity_component::<Vec<String>>(string_list_entity)?)
                 .iter()
                 .skip(scroll_offset)
+                .take(height as usize)
                 .map(|string| {
                     let substrings: Vec<String> = string
                         .split('\n')
-                        .map(|string| &string[..std::cmp::min(width, string.len() as i64) as usize])
-                        .map(std::string::ToString::to_string)
+                        .map(|string| {
+                            string
+                                .chars()
+                                .take(std::cmp::min(width as usize, string.len() as usize))
+                                .collect::<String>()
+                        })
                         .collect();
                     substrings
                 })
@@ -183,11 +187,12 @@ where
 
                 // Create item entities for uninitialized lines
                 let string_count: usize = string_list.iter().map(|strings| strings.len()).sum();
+                let string_count = std::cmp::min(string_count, height as usize);
                 while string_entities.len() < string_count {
                     let string_entity = db.create_entity(Some("List String Entity"))?;
                     db.insert_entity_component(string_entity, Control)?;
                     db.insert_entity_component(string_entity, Position::default())?;
-                    db.insert_entity_component(string_entity, GlobalPosition::default())?;
+                    db.insert_entity_component(string_entity, GlobalPositionData::default())?;
                     db.insert_entity_component(string_entity, ParentEntity(list_control_entity))?;
                     db.insert_entity_component(string_entity, String::default())?;
                     db.insert_entity_component(string_entity, ColorRGBF::default())?;
@@ -205,7 +210,7 @@ where
 
                 // Fetch local mouse position
                 let local_mouse_position: Option<Vector2I> =
-                    match db.get_entity_component::<LocalMousePosition>(list_control_entity) {
+                    match db.get_entity_component::<LocalMousePositionData>(list_control_entity) {
                         Ok(local_position) => {
                             let local_position = *local_position;
                             let local_position: Vector2I = local_position.into();
@@ -266,29 +271,39 @@ where
 
                         let event_queue: &Vec<AntigenInputEvent> = event_queue_component.as_ref();
                         for event in event_queue.clone() {
-                            if let AntigenInputEvent::MousePress { button_mask: 1 } = event {
-                                let index = if let Some(hovered_item) = hovered_item {
-                                    Some(hovered_item)
-                                } else {
-                                    None
-                                };
+                            match event {
+                                AntigenInputEvent::MousePress { button_mask: 1 } => {
+                                    let index = if let Some(hovered_item) = hovered_item {
+                                        Some(hovered_item)
+                                    } else {
+                                        None
+                                    };
 
-                                // Push press event into queue
-                                if let Ok(list_event_queue) = db
-                                    .get_entity_component_mut::<EventQueue<ListEvent>>(
-                                        list_control_entity,
-                                    )
-                                {
-                                    let list_event_queue: &mut Vec<ListEvent> =
-                                        list_event_queue.as_mut();
-                                    list_event_queue.push(ListEvent::Pressed(index));
-                                }
+                                    // Push press event into queue
+                                    if let Ok(list_event_queue) = db
+                                        .get_entity_component_mut::<EventQueue<ListEvent>>(
+                                            list_control_entity,
+                                        )
+                                    {
+                                        let list_event_queue: &mut Vec<ListEvent> =
+                                            list_event_queue.as_mut();
+                                        list_event_queue.push(ListEvent::Pressed(index));
+                                    }
 
-                                if let Ok(list) =
-                                    db.get_entity_component_mut::<List>(list_control_entity)
-                                {
-                                    list.set_selected_index(index);
+                                    if let Ok(list) =
+                                        db.get_entity_component_mut::<ListData>(list_control_entity)
+                                    {
+                                        list.set_selected_index(index);
+                                    }
                                 }
+                                AntigenInputEvent::MouseScroll { delta } => {
+                                    if let Ok(list) =
+                                        db.get_entity_component_mut::<ListData>(list_control_entity)
+                                    {
+                                        list.add_scroll_offset(delta as i64);
+                                    }
+                                }
+                                _ => (),
                             }
                         }
                     }
@@ -296,7 +311,7 @@ where
 
                 // Fetch the selected index from the list's IntRangeComponent
                 let focused_item = db
-                    .get_entity_component_mut::<List>(list_control_entity)?
+                    .get_entity_component_mut::<ListData>(list_control_entity)?
                     .get_selected_index();
 
                 *db.get_entity_component_mut::<Position>(*list_hover_entity)? = Vector2I(
@@ -336,7 +351,13 @@ where
                 let mut y = 0i64;
                 for (string_index, strings) in string_list.iter().enumerate() {
                     let mut done = false;
+
                     for string in strings {
+                        if y >= height {
+                            done = true;
+                            break;
+                        }
+
                         let string_entity = string_entities[y as usize];
 
                         // Update each string entity's position
@@ -356,10 +377,6 @@ where
                         *db.get_entity_component_mut::<ColorRGBF>(string_entity)? = data;
 
                         y += 1;
-                        if y >= height {
-                            done = true;
-                            break;
-                        }
                     }
 
                     if done {
@@ -377,11 +394,5 @@ where
         }
 
         Ok(())
-    }
-}
-
-impl SystemDebugTrait for ListSystem {
-    fn get_name() -> &'static str {
-        "List"
     }
 }

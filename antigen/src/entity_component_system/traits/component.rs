@@ -22,32 +22,7 @@ impl ComponentID {
 
 impl ComponentID {
     pub fn get_name(&self) -> String {
-        Self::strip_namespaces(self.type_name)
-    }
-
-    /// __NOTE:__
-    /// Depends on <std::any::type_name> returning strings in the form `crate::subcrate::type<crate::subcrate::type>`,
-    /// which may change in future versions of Rust
-    // (Ideally this should be codified internally, but for now avoiding manual ComponentTrait impls is preferred)
-    fn strip_namespaces(string: &str) -> String {
-        let before: &str;
-        let after: Option<&str>;
-
-        if let Some(open_bracket) = string.find('<') {
-            let (split_before, split_after) = string.split_at(open_bracket);
-            before = split_before;
-            after = Some(split_after);
-        } else {
-            before = string;
-            after = None;
-        }
-
-        let before = before.split("::").last().unwrap();
-        if let Some(after) = after {
-            before.to_string() + "<" + &Self::strip_namespaces(&after[1..after.len() - 1]) + ">"
-        } else {
-            before.into()
-        }
+        crate::core::type_name::strip_crate_names(self.type_name)
     }
 }
 
@@ -95,7 +70,7 @@ where
         component.as_any().downcast_ref::<T>().unwrap_or_else(|| {
             panic!(
                 "Failed to downcast component to type {}",
-                std::any::type_name::<T>()
+                crate::core::type_name::type_name::<T>()
             )
         })
     }
@@ -107,7 +82,7 @@ where
             .unwrap_or_else(|| {
                 panic!(
                     "Failed to downcast component to type {}",
-                    std::any::type_name::<T>()
+                    crate::core::type_name::type_name::<T>()
                 )
             })
     }

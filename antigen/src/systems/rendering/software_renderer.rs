@@ -1,9 +1,8 @@
 use crate::components::{Control, SoftwareFramebuffer};
 use crate::{
     components::{
-        CPUShader, CPUShaderInput, ChildEntities, GlobalPosition, Position, Size, Window, ZIndex,
+        CPUShader, CPUShaderInput, ChildEntitiesData, GlobalPositionData, Position, Size, Window, ZIndex,
     },
-    entity_component_system::SystemDebugTrait,
     entity_component_system::{
         system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory, EntityID,
         SystemError, SystemTrait,
@@ -14,9 +13,9 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct SoftwareRendererSystem;
+pub struct SoftwareRenderer;
 
-impl SoftwareRendererSystem {
+impl SoftwareRenderer {
     fn render_rect(
         framebuffer: &mut SoftwareFramebuffer<ColorRGBF>,
         window_size: Vector2I,
@@ -54,7 +53,7 @@ impl SoftwareRendererSystem {
     }
 }
 
-impl<CS, CD> SystemTrait<CS, CD> for SoftwareRendererSystem
+impl<CS, CD> SystemTrait<CS, CD> for SoftwareRenderer
 where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
@@ -128,7 +127,7 @@ where
                 z_layers.push((entity_id, z_index));
             }
 
-            if let Ok(child_entities) = db.get_entity_component::<ChildEntities>(entity_id) {
+            if let Ok(child_entities) = db.get_entity_component::<ChildEntitiesData>(entity_id) {
                 let child_entities: &Vec<EntityID> = child_entities.as_ref();
                 for child_id in child_entities {
                     populate_control_entities(db, *child_id, z_layers, z_index)?;
@@ -148,7 +147,7 @@ where
         for (entity_id, z) in control_entities {
             // Get Position
             let Vector2I(x, y) =
-                if let Ok(global_position) = db.get_entity_component::<GlobalPosition>(entity_id) {
+                if let Ok(global_position) = db.get_entity_component::<GlobalPositionData>(entity_id) {
                     let global_position = *global_position;
                     global_position.into()
                 } else {
@@ -190,11 +189,5 @@ where
         }
 
         Ok(())
-    }
-}
-
-impl SystemDebugTrait for SoftwareRendererSystem {
-    fn get_name() -> &'static str {
-        "CPU Renderer"
     }
 }

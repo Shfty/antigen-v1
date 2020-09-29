@@ -3,39 +3,39 @@ use antigen::{
     core::events::AntigenInputEvent,
     entity_component_system::{
         system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory,
-        SystemDebugTrait, SystemError, SystemTrait,
+        SystemError, SystemTrait,
     },
     primitive_types::Vector2I,
 };
 
-use crate::{CursesEvent, CursesEventQueue};
+use crate::components::{CursesEvent, CursesEventQueue};
 
 const WHEEL_UP: usize = 65536;
 const WHEEL_DOWN: usize = 2097152;
 
 /// Converts pancurses mouse inputs into antigen mouse inputs
 #[derive(Debug)]
-pub struct CursesMouseSystem {
+pub struct CursesMouse {
     position: Vector2I,
     button_mask: usize,
 }
 
-impl CursesMouseSystem {
+impl CursesMouse {
     pub fn new() -> Self {
-        CursesMouseSystem {
+        CursesMouse {
             position: Vector2I::default(),
             button_mask: 0,
         }
     }
 }
 
-impl Default for CursesMouseSystem {
+impl Default for CursesMouse {
     fn default() -> Self {
-        CursesMouseSystem::new()
+        CursesMouse::new()
     }
 }
 
-impl<CS, CD> SystemTrait<CS, CD> for CursesMouseSystem
+impl<CS, CD> SystemTrait<CS, CD> for CursesMouse
 where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
@@ -174,11 +174,5 @@ where
         }
 
         Ok(())
-    }
-}
-
-impl SystemDebugTrait for CursesMouseSystem {
-    fn get_name() -> &'static str {
-        "Curses Mouse"
     }
 }

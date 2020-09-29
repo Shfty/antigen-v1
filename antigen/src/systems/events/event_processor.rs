@@ -3,14 +3,14 @@ use std::fmt::Debug;
 use crate::{
     components::EventQueue,
     entity_component_system::{
-        ComponentStorage, EntityComponentDirectory, EntityID, SystemDebugTrait, SystemError,
+        ComponentStorage, EntityComponentDirectory, EntityID, SystemError,
         SystemTrait,
     },
 };
 use crate::{components::EventTargets, entity_component_system::system_interface::SystemInterface};
 
 #[derive(Debug)]
-pub struct EventProcessorSystem<O, I>
+pub struct EventProcessor<O, I>
 where
     O: Debug,
     I: Debug,
@@ -18,17 +18,17 @@ where
     convert: fn(O) -> Option<I>,
 }
 
-impl<O, I> EventProcessorSystem<O, I>
+impl<O, I> EventProcessor<O, I>
 where
     O: Debug,
     I: Debug,
 {
     pub fn new(convert: fn(O) -> Option<I>) -> Self {
-        EventProcessorSystem { convert }
+        EventProcessor { convert }
     }
 }
 
-impl<CS, CD, O, I> SystemTrait<CS, CD> for EventProcessorSystem<O, I>
+impl<CS, CD, O, I> SystemTrait<CS, CD> for EventProcessor<O, I>
 where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
@@ -83,15 +83,5 @@ where
         }
 
         Ok(())
-    }
-}
-
-impl<O, I> SystemDebugTrait for EventProcessorSystem<O, I>
-where
-    O: Debug,
-    I: Debug,
-{
-    fn get_name() -> &'static str {
-        "Event Processor"
     }
 }

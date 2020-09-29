@@ -5,21 +5,20 @@ use antigen::{
     entity_component_system::system_interface::SystemInterface,
     entity_component_system::ComponentStorage,
     entity_component_system::EntityComponentDirectory,
-    entity_component_system::SystemDebugTrait,
     entity_component_system::{SystemError, SystemTrait},
     primitive_types::Vector2I,
 };
 
 #[derive(Debug)]
-pub struct InputVelocitySystem;
+pub struct InputVelocity;
 
-impl InputVelocitySystem {
+impl InputVelocity {
     pub fn new() -> Self {
-        InputVelocitySystem
+        InputVelocity
     }
 }
 
-impl<CS, CD> SystemTrait<CS, CD> for InputVelocitySystem
+impl<CS, CD> SystemTrait<CS, CD> for InputVelocity
 where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
@@ -76,11 +75,5 @@ where
         }
 
         Ok(())
-    }
-}
-
-impl SystemDebugTrait for InputVelocitySystem {
-    fn get_name() -> &'static str {
-        "Input Velocity"
     }
 }

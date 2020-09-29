@@ -1,8 +1,7 @@
 use crate::{
     components::EventQueue,
-    components::{GlobalPosition, ParentEntity, Position, Window},
+    components::{GlobalPositionData, ParentEntity, Position, Window},
     core::events::AntigenInputEvent,
-    entity_component_system::SystemDebugTrait,
     entity_component_system::{
         system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory, SystemError,
         SystemTrait,
@@ -10,24 +9,24 @@ use crate::{
     primitive_types::Vector2I,
 };
 
-use crate::components::LocalMousePosition;
+use crate::components::LocalMousePositionData;
 
 #[derive(Debug)]
-pub struct LocalMousePositionSystem;
+pub struct LocalMousePosition;
 
-impl Default for LocalMousePositionSystem {
+impl Default for LocalMousePosition {
     fn default() -> Self {
-        LocalMousePositionSystem
+        LocalMousePosition
     }
 }
 
-impl LocalMousePositionSystem {
+impl LocalMousePosition {
     pub fn new() -> Self {
-        LocalMousePositionSystem::default()
+        LocalMousePosition::default()
     }
 }
 
-impl<CS, CD> SystemTrait<CS, CD> for LocalMousePositionSystem
+impl<CS, CD> SystemTrait<CS, CD> for LocalMousePosition
 where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
@@ -59,7 +58,7 @@ where
                     db.entity_component_directory
                         .get_entities_by_predicate(|entity_id| {
                             db.entity_component_directory
-                                .entity_has_component::<LocalMousePosition>(entity_id)
+                                .entity_has_component::<LocalMousePositionData>(entity_id)
                                 && db
                                     .entity_component_directory
                                     .entity_has_component::<Position>(entity_id)
@@ -85,7 +84,7 @@ where
                     }
 
                     let position: Vector2I =
-                        match db.get_entity_component::<GlobalPosition>(entity_id) {
+                        match db.get_entity_component::<GlobalPositionData>(entity_id) {
                             Ok(global_position) => {
                                 let global_position = *global_position;
                                 global_position.into()
@@ -99,18 +98,12 @@ where
                             },
                         };
 
-                    *db.get_entity_component_mut::<LocalMousePosition>(entity_id)? =
+                    *db.get_entity_component_mut::<LocalMousePositionData>(entity_id)? =
                         (mouse_position - (window_position + position)).into();
                 }
             }
         }
 
         Ok(())
-    }
-}
-
-impl SystemDebugTrait for LocalMousePositionSystem {
-    fn get_name() -> &'static str {
-        "Local Mouse Position"
     }
 }

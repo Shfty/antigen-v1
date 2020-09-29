@@ -16,13 +16,12 @@ pub use system_interface::SystemInterface;
 pub use system_runner::SystemRunner;
 pub use system_storage::SystemStorage;
 pub use traits::{
-    ComponentID, ComponentTrait, EntityID, Scene, SystemDebugTrait, SystemError, SystemID,
-    SystemTrait,
+    ComponentID, ComponentTrait, EntityID, Scene, SystemError, SystemID, SystemTrait,
 };
 
 use crate::{
-    components::SystemDebugInfo, systems::ComponentDataDebugSystem, systems::ComponentDebugSystem,
-    systems::EntityDebugSystem, systems::SceneTreeDebugSystem, systems::SystemDebugSystem,
+    components::SystemProfilingData, systems::ComponentDataDebug, systems::ComponentDebug,
+    systems::EntityDebug, systems::SceneTreeDebug, systems::SystemDebug,
 };
 
 pub struct EntityComponentSystem<CS, CD, SS, SR>
@@ -64,41 +63,26 @@ where
         {
             let mut db = ecs.get_system_interface();
 
-            let system_debug_entity = db.create_entity("System Debug".into())?;
+            let system_debug_entity = db.create_entity("System Profiling Data".into())?;
             {
-                db.insert_entity_component(system_debug_entity, SystemDebugInfo::default())?;
+                db.insert_entity_component(system_debug_entity, SystemProfilingData::default())?;
             }
         }
 
-        ecs.push_system(EntityDebugSystem);
-        ecs.push_system(SceneTreeDebugSystem);
-        ecs.push_system(ComponentDebugSystem);
-        ecs.push_system(SystemDebugSystem);
-        ecs.push_system(ComponentDataDebugSystem);
+        ecs.push_system(EntityDebug);
+        ecs.push_system(SceneTreeDebug);
+        ecs.push_system(ComponentDebug);
+        ecs.push_system(SystemDebug);
+        ecs.push_system(ComponentDataDebug);
 
         Ok(ecs)
     }
 
     pub fn push_system<T>(&mut self, system: T)
     where
-        T: SystemTrait<CS, CD> + SystemDebugTrait + 'static,
+        T: SystemTrait<CS, CD> + 'static,
     {
-        let system_id = self.system_storage.insert_system(system);
-
-        if let Some(system_debug_entity) =
-            self.entity_component_directory
-                .get_entity_by_predicate(|entity_id| {
-                    self.entity_component_directory
-                        .entity_has_component::<SystemDebugInfo>(entity_id)
-                })
-        {
-            if let Ok(system_debug_component) = self
-                .get_system_interface()
-                .get_entity_component_mut::<SystemDebugInfo>(system_debug_entity)
-            {
-                system_debug_component.register_system(system_id, T::get_name());
-            }
-        }
+        self.system_storage.insert_system(system);
     }
 
     pub fn run(&'a mut self) -> Result<(), SystemError> {

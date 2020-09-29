@@ -2,19 +2,19 @@ use antigen::{
     components::{Size, Window},
     entity_component_system::{
         system_interface::SystemInterface, ComponentStorage, ComponentTrait,
-        EntityComponentDirectory, EntityID, SystemDebugTrait, SystemError, SystemTrait,
+        EntityComponentDirectory, EntityID, SystemError, SystemTrait,
     },
     primitive_types::Vector2I,
 };
 
-use crate::{CursesEvent, CursesEventQueue, CursesWindow};
+use crate::components::{CursesEvent, CursesEventQueue, CursesWindowData};
 
 // TODO: Properly delete windows when their component is removed
 
 #[derive(Debug)]
-pub struct CursesWindowSystem;
+pub struct CursesWindow;
 
-impl CursesWindowSystem {
+impl CursesWindow {
     pub fn new<CS>(component_storage: &mut CS) -> Self
     where
         CS: ComponentStorage,
@@ -23,9 +23,9 @@ impl CursesWindowSystem {
             pancurses::endwin();
         }
 
-        component_storage.register_component_drop_callback::<CursesWindow>(drop_callback);
+        component_storage.register_component_drop_callback::<CursesWindowData>(drop_callback);
 
-        CursesWindowSystem
+        CursesWindow
     }
 
     fn try_create_window<CS, CD>(
@@ -37,7 +37,7 @@ impl CursesWindowSystem {
         CS: ComponentStorage,
         CD: EntityComponentDirectory,
     {
-        let curses_window = db.get_entity_component::<CursesWindow>(entity_id)?;
+        let curses_window = db.get_entity_component::<CursesWindowData>(entity_id)?;
         let curses_window: &Option<pancurses::Window> = curses_window.as_ref();
         if curses_window.is_some() {
             return Ok(());
@@ -67,7 +67,7 @@ impl CursesWindowSystem {
         window.timeout(0);
 
         let curses_window: &mut Option<pancurses::Window> = db
-            .get_entity_component_mut::<CursesWindow>(entity_id)?
+            .get_entity_component_mut::<CursesWindowData>(entity_id)?
             .as_mut();
 
         *curses_window = Some(window);
@@ -76,7 +76,7 @@ impl CursesWindowSystem {
     }
 }
 
-impl<CS, CD> SystemTrait<CS, CD> for CursesWindowSystem
+impl<CS, CD> SystemTrait<CS, CD> for CursesWindow
 where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
@@ -113,7 +113,7 @@ where
                     .entity_has_component::<Window>(entity_id)
                     && db
                         .entity_component_directory
-                        .entity_has_component::<CursesWindow>(entity_id)
+                        .entity_has_component::<CursesWindowData>(entity_id)
                     && db
                         .entity_component_directory
                         .entity_has_component::<Size>(entity_id)
@@ -146,7 +146,7 @@ where
 
             // Update window component size
             let curses_window: &Option<pancurses::Window> = db
-                .get_entity_component::<CursesWindow>(window_entity)?
+                .get_entity_component::<CursesWindowData>(window_entity)?
                 .as_ref();
 
             if let Some(window) = curses_window {
@@ -158,11 +158,5 @@ where
         }
 
         Ok(())
-    }
-}
-
-impl SystemDebugTrait for CursesWindowSystem {
-    fn get_name() -> &'static str {
-        "Curses Window"
     }
 }

@@ -4,22 +4,21 @@ use antigen::{
     entity_component_system::system_interface::SystemInterface,
     entity_component_system::ComponentStorage,
     entity_component_system::EntityComponentDirectory,
-    entity_component_system::SystemDebugTrait,
     entity_component_system::{SystemError, SystemTrait},
 };
 
 #[derive(Debug)]
-pub struct QuitKeySystem {
+pub struct QuitKey {
     key: antigen::core::keyboard::Key,
 }
 
-impl QuitKeySystem {
+impl QuitKey {
     pub fn new(key: antigen::core::keyboard::Key) -> Self {
-        QuitKeySystem { key }
+        QuitKey { key }
     }
 }
 
-impl<CS, CD> SystemTrait<CS, CD> for QuitKeySystem
+impl<CS, CD> SystemTrait<CS, CD> for QuitKey
 where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
@@ -51,11 +50,5 @@ where
         }
 
         Ok(())
-    }
-}
-
-impl SystemDebugTrait for QuitKeySystem {
-    fn get_name() -> &'static str {
-        "Quit"
     }
 }

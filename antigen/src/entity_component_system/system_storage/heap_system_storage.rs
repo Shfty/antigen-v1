@@ -45,7 +45,7 @@ where
     where
         T: SystemTrait<CS, CD> + 'static,
     {
-        let id = SystemID::next();
+        let id = SystemID::next::<T>();
         self.systems.insert(id, Box::new(system));
         id
     }

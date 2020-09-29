@@ -1,22 +1,22 @@
 use std::{collections::HashMap, fmt::Debug, time::Duration};
 
 use crate::{
-    components::{DebugSystemList, EventQueue, IntRange, SystemDebugInfo},
+    components::{DebugSystemList, EventQueue, IntRange, SystemProfilingData},
     entity_component_system::{
         system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory,
-        SystemDebugTrait, SystemError, SystemID, SystemTrait,
+        SystemError, SystemID, SystemTrait,
     },
 };
 
 #[derive(Debug)]
-pub struct SystemDebugSystem;
+pub struct SystemDebug;
 
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub enum SystemInspectorEvent {
     SetInspectedSystem(Option<usize>),
 }
 
-impl<CS, CD> SystemTrait<CS, CD> for SystemDebugSystem
+impl<CS, CD> SystemTrait<CS, CD> for SystemDebug
 where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
@@ -30,19 +30,17 @@ where
             db.entity_component_directory
                 .get_entity_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<SystemDebugInfo>(entity_id)
+                        .entity_has_component::<SystemProfilingData>(entity_id)
                 })
         {
             // Populate strings for debug system list entities
-            let system_strings: HashMap<SystemID, String>;
             let system_durations: HashMap<SystemID, Duration>;
             {
                 let system_debug_component =
-                    match db.get_entity_component::<SystemDebugInfo>(system_debug_entity) {
+                    match db.get_entity_component::<SystemProfilingData>(system_debug_entity) {
                         Ok(system_debug_component) => system_debug_component,
                         Err(err) => return Err(err.into()),
                     };
-                system_strings = system_debug_component.get_labels().clone();
                 system_durations = system_debug_component.get_durations().clone();
             }
             let total_duration: Duration = system_durations.values().sum();
@@ -71,7 +69,7 @@ where
                 }
 
                 let int_range = db.get_entity_component_mut::<IntRange>(system_inspector_entity)?;
-                int_range.set_range(0..system_strings.len() as i64);
+                int_range.set_range(0..system_durations.len() as i64);
                 for event in events {
                     let SystemInspectorEvent::SetInspectedSystem(index) = event;
                     if let Some(index) = index {
@@ -83,17 +81,16 @@ where
             }
 
             // Compile system strings
-            let mut system_strings: Vec<(&SystemID, &String)> = system_strings.iter().collect();
-            system_strings.sort_by(|(lhs_id, _), (rhs_id, _)| lhs_id.cmp(rhs_id));
-            let mut system_strings: Vec<String> = system_strings
+            let mut system_ids: Vec<&SystemID> = system_durations.keys().collect();
+            system_ids.sort();
+            let mut system_strings: Vec<String> = system_ids
                 .iter()
-                .flat_map(|(system_id, system_name)| {
+                .flat_map(|system_id| {
                     let duration = system_durations.get(system_id)?;
 
                     Some(format!(
-                        "{}:\t{} ({}ms / {}us / {}ns)",
+                        "{} ({}ms / {}us / {}ns)",
                         system_id,
-                        system_name,
                         duration.as_millis(),
                         duration.as_micros(),
                         duration.as_nanos(),
@@ -126,11 +123,5 @@ where
         }
 
         Ok(())
-    }
-}
-
-impl SystemDebugTrait for SystemDebugSystem {
-    fn get_name() -> &'static str {
-        "System Debug"
     }
 }

@@ -10,14 +10,13 @@ use antigen::{
     },
     primitive_types::ColorRGB,
     primitive_types::Vector2I,
-    systems::PositionIntegratorSystem,
+    systems::PositionIntegrator,
 };
-use antigen_curses::{
-    CursesInputBufferSystem, CursesRendererSystem, CursesWindow, CursesWindowSystem, TextColorMode,
-};
+use antigen_curses::systems as curses_systems;
+use antigen_curses::components as curses_components;
 
-use crate::systems::InputVelocitySystem;
-use crate::systems::QuitKeySystem;
+use crate::systems::InputVelocity;
+use crate::systems::QuitKey;
 
 pub struct DependencyTestScene;
 
@@ -41,33 +40,33 @@ impl Scene for DependencyTestScene {
         // pred: (WindowComponent, CursesWindowComponent, SizeComponent)
         // ref: CursesWindowComponent, SizeComponent, CharComponent, CursesColorPairComponent, StringComponent
         // mut: SizeComponent, CursesColorSetComponent, CursesWindowComponent
-        let pancurses_window_system = CursesWindowSystem::new(&mut ecs.component_storage);
+        let pancurses_window_system = curses_systems::CursesWindow::new(&mut ecs.component_storage);
         ecs.push_system(pancurses_window_system);
 
         // pred: (WindowComponent, CursesWindowComponent)
         // ref: CursesWindowComponent
         // mut: ?MouseComponent, EventQueueComponent<AntigenEvent>
-        ecs.push_system(CursesInputBufferSystem);
+        ecs.push_system(curses_systems::CursesInputBuffer);
 
-        ecs.push_system(QuitKeySystem::new(antigen::core::keyboard::Key::Escape));
+        ecs.push_system(QuitKey::new(antigen::core::keyboard::Key::Escape));
 
         // pred: VelocityComponent
         // ref: EventQueueComponent<AntigenEvent>
         // mut: VelocityComponent
-        ecs.push_system(InputVelocitySystem::new());
+        ecs.push_system(InputVelocity::new());
 
         // pred: (PositionComponent, VelocityComponent)
         // ref: VelocityComponent
         // mut: PositionComponent
-        ecs.push_system(PositionIntegratorSystem::new());
+        ecs.push_system(PositionIntegrator::new());
 
         // pred: CursesColorSetComponent, (ControlComponent, ParentEntityComponent, PositionComponent), (WindowComponent, CursesWindowComponent, SizeComponent)
         // ref: ParentEntityComponent, ZIndexComponent, ChildEntitiesComponent, CursesWindowComponent, ParentEntityComponent, CursesWindowComponent,
         //      ParentEntityComponent, GlobalPositionComponent, PositionComponent, CursesColorPairComponent, CharComponent, SizeComponent, StringComponent, CursesWindowComponent
         // mut: CursesColorSetComponent
-        ecs.push_system(CursesRendererSystem::new(
+        ecs.push_system(curses_systems::CursesRenderer::new(
             RGBArrangementPalette::new_884(),
-            TextColorMode::Color(ColorRGB(0.0, 0.0, 0.0)),
+            curses_systems::TextColorMode::Color(ColorRGB(0.0, 0.0, 0.0)),
         ));
 
         Ok(())
@@ -82,7 +81,7 @@ impl Scene for DependencyTestScene {
         let main_window_entity = db.create_entity(Some("Main Window"))?;
         {
             db.insert_entity_component(main_window_entity, Window)?;
-            db.insert_entity_component(main_window_entity, CursesWindow::default())?;
+            db.insert_entity_component(main_window_entity, curses_components::CursesWindowData::default())?;
             db.insert_entity_component(main_window_entity, Size::from(Vector2I(64, 32)))?;
         }
 

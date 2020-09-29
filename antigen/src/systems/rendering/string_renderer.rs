@@ -1,7 +1,6 @@
 use crate::components::{Control, SoftwareFramebuffer};
 use crate::{
-    components::{ChildEntities, GlobalPosition, Position, Size, Window, ZIndex},
-    entity_component_system::SystemDebugTrait,
+    components::{ChildEntitiesData, GlobalPositionData, Position, Size, Window, ZIndex},
     entity_component_system::{
         system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory, EntityID,
         SystemError, SystemTrait,
@@ -9,12 +8,12 @@ use crate::{
     primitive_types::Vector2I,
 };
 
-const TAB_WIDTH: i32 = 4;
+const TAB_WIDTH: i64 = 4;
 
 #[derive(Debug)]
-pub struct StringRendererSystem;
+pub struct StringRenderer;
 
-impl StringRendererSystem {
+impl StringRenderer {
     fn render_string(
         framebuffer: &mut SoftwareFramebuffer<char>,
         window_size: Vector2I,
@@ -47,7 +46,7 @@ impl StringRendererSystem {
             return;
         }
 
-        let mut x = 0;
+        let mut x = 0i64;
         for char in new_str.chars() {
             match char {
                 '\0' => continue,
@@ -59,15 +58,18 @@ impl StringRendererSystem {
                     x += TAB_WIDTH - (x % TAB_WIDTH);
                 }
                 _ => {
-                    framebuffer.draw(new_x + x as i64, y, window_width, char, z);
+                    framebuffer.draw(new_x + x, y, window_width, char, z);
                     x += 1;
+                    if x >= window_width || y >= window_height {
+                        break;
+                    }
                 }
             }
         }
     }
 }
 
-impl<CS, CD> SystemTrait<CS, CD> for StringRendererSystem
+impl<CS, CD> SystemTrait<CS, CD> for StringRenderer
 where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
@@ -144,7 +146,7 @@ where
             }
 
             if let Ok(child_entities_component) =
-                db.get_entity_component::<ChildEntities>(entity_id)
+                db.get_entity_component::<ChildEntitiesData>(entity_id)
             {
                 let child_entities: &Vec<EntityID> = child_entities_component.as_ref();
                 for child_id in child_entities {
@@ -165,7 +167,7 @@ where
         for (entity_id, z) in control_entities {
             // Get Position
             let Vector2I(x, y) =
-                if let Ok(global_position) = db.get_entity_component::<GlobalPosition>(entity_id) {
+                if let Ok(global_position) = db.get_entity_component::<GlobalPositionData>(entity_id) {
                     let global_position = *global_position;
                     global_position.into()
                 } else {
@@ -179,13 +181,9 @@ where
                 };
 
             // Get String
-            let string = if let Ok(string) =
-                db.get_entity_component::<String>(entity_id)
-            {
+            let string = if let Ok(string) = db.get_entity_component::<String>(entity_id) {
                 string.clone()
-            } else if let Ok(char) =
-                db.get_entity_component::<char>(entity_id)
-            {
+            } else if let Ok(char) = db.get_entity_component::<char>(entity_id) {
                 char.to_string()
             } else {
                 return Err("No valid string component".into());
@@ -205,11 +203,5 @@ where
         }
 
         Ok(())
-    }
-}
-
-impl SystemDebugTrait for StringRendererSystem {
-    fn get_name() -> &'static str {
-        "String Renderer"
     }
 }

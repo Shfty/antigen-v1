@@ -1,29 +1,22 @@
-use crate::{
-    components::ChildEntities,
-    entity_component_system::ComponentStorage,
-    entity_component_system::EntityComponentDirectory,
-    entity_component_system::EntityID,
-    entity_component_system::SystemDebugTrait,
-    entity_component_system::{SystemError, SystemTrait},
-};
+use crate::{components::ChildEntitiesData, entity_component_system::ComponentStorage, entity_component_system::EntityComponentDirectory, entity_component_system::EntityID, entity_component_system::{SystemError, SystemTrait}};
 use crate::{components::ParentEntity, entity_component_system::system_interface::SystemInterface};
 
 #[derive(Debug)]
-pub struct ChildEntitiesSystem;
+pub struct ChildEntities;
 
-impl Default for ChildEntitiesSystem {
+impl Default for ChildEntities {
     fn default() -> Self {
-        ChildEntitiesSystem
+        ChildEntities
     }
 }
 
-impl ChildEntitiesSystem {
+impl ChildEntities {
     pub fn new() -> Self {
-        ChildEntitiesSystem::default()
+        ChildEntities::default()
     }
 }
 
-impl<CS, CD> SystemTrait<CS, CD> for ChildEntitiesSystem
+impl<CS, CD> SystemTrait<CS, CD> for ChildEntities
 where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
@@ -45,10 +38,10 @@ where
             let parent_id: EntityID = (*db.get_entity_component::<ParentEntity>(entity_id)?).into();
 
             let child_entities: &mut Vec<EntityID> =
-                match db.get_entity_component_mut::<ChildEntities>(parent_id) {
+                match db.get_entity_component_mut::<ChildEntitiesData>(parent_id) {
                     Ok(child_entities) => child_entities.as_mut(),
                     Err(_) => db
-                        .insert_entity_component(parent_id, ChildEntities::default())?
+                        .insert_entity_component(parent_id, ChildEntitiesData::default())?
                         .as_mut(),
                 };
 
@@ -62,12 +55,12 @@ where
             db.entity_component_directory
                 .get_entities_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<ChildEntities>(entity_id)
+                        .entity_has_component::<ChildEntitiesData>(entity_id)
                 });
 
         for entity_id in entities_with_children {
             let valid_entities: &Vec<EntityID> = db
-                .get_entity_component::<ChildEntities>(entity_id)?
+                .get_entity_component::<ChildEntitiesData>(entity_id)?
                 .as_ref();
 
             let valid_entities: Vec<EntityID> = valid_entities
@@ -78,21 +71,15 @@ where
 
             if valid_entities.is_empty() {
                 println!("No valid children, removing component");
-                db.remove_component_from_entity::<ChildEntities>(entity_id)?;
+                db.remove_component_from_entity::<ChildEntitiesData>(entity_id)?;
             } else {
                 let child_entities: &mut Vec<EntityID> = db
-                    .get_entity_component_mut::<ChildEntities>(entity_id)?
+                    .get_entity_component_mut::<ChildEntitiesData>(entity_id)?
                     .as_mut();
                 *child_entities = valid_entities;
             }
         }
 
         Ok(())
-    }
-}
-
-impl SystemDebugTrait for ChildEntitiesSystem {
-    fn get_name() -> &'static str {
-        "Child Entities"
     }
 }

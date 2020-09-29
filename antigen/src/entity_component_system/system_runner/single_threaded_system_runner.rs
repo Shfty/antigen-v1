@@ -1,5 +1,5 @@
 use crate::{
-    components::SystemDebugInfo, core::profiler::Profiler,
+    components::SystemProfilingData, core::profiler::Profiler,
     entity_component_system::system_storage::SystemStorage,
     entity_component_system::ComponentStorage, entity_component_system::EntityComponentDirectory,
     entity_component_system::SystemError, entity_component_system::SystemID,
@@ -29,24 +29,16 @@ impl SystemRunner for SingleThreadedSystemRunner {
             .get_entity_by_predicate(|entity_id| {
                 entity_component_database
                     .entity_component_directory
-                    .entity_has_component::<SystemDebugInfo>(entity_id)
+                    .entity_has_component::<SystemProfilingData>(entity_id)
             })
         {
-            let labels = entity_component_database
-                .get_entity_component::<SystemDebugInfo>(system_debug_entity)?
-                .get_labels()
-                .clone();
-
             let systems = system_storage.get_systems();
             let mut systems: Vec<(SystemID, &mut dyn SystemTrait<CS, CD>)> =
                 systems.into_iter().collect();
             systems.sort_by(|(lhs_id, _), (rhs_id, _)| lhs_id.cmp(rhs_id));
 
             for (system_id, system) in systems {
-                let label = labels
-                    .get(&system_id)
-                    .unwrap_or_else(|| panic!("No label for system {}", system_id));
-
+                let label = system_id.get_name();
                 let profiler = Profiler::start();
                 superluminal_perf::begin_event_with_data("Run System", &label, 0);
                 system.run(entity_component_database)?;
@@ -54,7 +46,7 @@ impl SystemRunner for SingleThreadedSystemRunner {
                 let duration = profiler.finish();
 
                 entity_component_database
-                    .get_entity_component_mut::<SystemDebugInfo>(system_debug_entity)?
+                    .get_entity_component_mut::<SystemProfilingData>(system_debug_entity)?
                     .set_duration(system_id, duration);
             }
         }

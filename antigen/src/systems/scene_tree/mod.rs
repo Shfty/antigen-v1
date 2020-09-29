@@ -1,3 +1,3 @@
-mod child_entities_system;
+mod child_entities;
 
-pub use child_entities_system::*;
+pub use child_entities::*;

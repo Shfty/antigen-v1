@@ -3,7 +3,6 @@ use crate::{
     entity_component_system::system_interface::SystemInterface,
     entity_component_system::ComponentID, entity_component_system::ComponentStorage,
     entity_component_system::EntityComponentDirectory, entity_component_system::EntityID,
-    entity_component_system::SystemDebugTrait,
 };
 use crate::{
     components::EventQueue,
@@ -13,9 +12,9 @@ use crate::{
 use super::{ComponentInspectorEvent, EntityInspectorEvent};
 
 #[derive(Debug)]
-pub struct ComponentDataDebugSystem;
+pub struct ComponentDataDebug;
 
-impl<CS, CD> SystemTrait<CS, CD> for ComponentDataDebugSystem
+impl<CS, CD> SystemTrait<CS, CD> for ComponentDataDebug
 where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
@@ -108,11 +107,5 @@ where
         }
 
         Ok(())
-    }
-}
-
-impl SystemDebugTrait for ComponentDataDebugSystem {
-    fn get_name() -> &'static str {
-        "Component Data Debug"
     }
 }

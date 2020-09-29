@@ -3,17 +3,16 @@ use crate::{
     entity_component_system::{SystemError, SystemTrait},
 };
 use crate::{
-    components::{ChildEntities, DebugExclude, DebugSceneTree, ParentEntity},
+    components::{ChildEntitiesData, DebugExclude, DebugSceneTree, ParentEntity},
     entity_component_system::{
         system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory, EntityID,
-        SystemDebugTrait,
     },
 };
 
 #[derive(Debug)]
-pub struct SceneTreeDebugSystem;
+pub struct SceneTreeDebug;
 
-impl<CS, CD> SystemTrait<CS, CD> for SceneTreeDebugSystem
+impl<CS, CD> SystemTrait<CS, CD> for SceneTreeDebug
 where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
@@ -76,7 +75,7 @@ where
             let label = format!("{}:\t{}{}", entity_id, &prefix, label);
             scene_tree_strings.push(label);
 
-            if let Ok(child_entities) = db.get_entity_component::<ChildEntities>(*entity_id) {
+            if let Ok(child_entities) = db.get_entity_component::<ChildEntitiesData>(*entity_id) {
                 let child_ids: &Vec<EntityID> = child_entities.as_ref();
                 let child_ids: Vec<EntityID> = child_ids
                     .iter()
@@ -124,11 +123,5 @@ where
         }
 
         Ok(())
-    }
-}
-
-impl SystemDebugTrait for SceneTreeDebugSystem {
-    fn get_name() -> &'static str {
-        "Scene Tree Debug"
     }
 }

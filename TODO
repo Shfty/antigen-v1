@@ -1,10 +1,3 @@
-TODO: Entity / component / system debugger cleanup
-      List index entities in debug scene should use the list itself (index should probably be stored in the list component)
-
-TODO: Refactor system IDs to store type name as per component IDs, refactor system debugger appropriately
-
-TODO: Anchor HSV rect to game entity
-
 TODO: Can anchors/margins be refactored into separate systems?
       More specifically, can margins be generalized?
             Would need somewhere to store final position / size data
@@ -26,6 +19,8 @@ TODO: Custom mode for pancurses text color registration - pass fn(Color) -> Colo
 
 TODO: Cleanup pass for distinction between CursesInput / CursesEvent
 
+TODO: Lists should scroll line-by-line, not item-by-item
+
 TODO: Split IntRangeComponent into i64 and Range<i64>
       Would this be better codified as ListRange and ListIndex?
       Could do away with range altogether and draw directly from list size
@@ -35,7 +30,9 @@ TODO: Refactor software renderer / string renderer into a single generic system
       Need to figure out a good abstraction
       Could move common logic into an impl, have the renderers call it manually
 
-TODO: Re-add list item assemblage support to allow for debug excluding list items, but not their parent lists
+TODO: Debug excluding every list item entity is too specific
+      List system shouldn't know about DebugExclude
+      How to solve? Assemblages would be idea, but they're generic over component storage / entity-component directory
 
 TODO: Component data inspector
 
@@ -55,9 +52,6 @@ TODO: Filtering for debug components
         If an entity is selected, filter out data from other entities
         If a component is selected, filter out data from other components
         If a system is selected, filter out data from components that system doesn't process (pending system dependency setup)
-
-TODO: Scrolling for lists
-      Need to react to newly-implemented MouseScroll input events
 
 TODO: Profiler window
       Will need a custom shader input struct to draw graphs

@@ -5,6 +5,10 @@ TODO: Can anchors/margins be refactored into separate systems?
             Preferable to keep things unified if possible - too much overlap between GlobalPosition and MarginPosition
             Could handle in renderer?
 
+TODO: Max limit for list scroll offset
+TODO: Scrollbar for lists
+TODO: Lists should scroll line-by-line, not item-by-item
+
 TODO: Vertical scrolling for HSV shader
 
 TODO: Vertically-split 2x multisampling for each curses cell
@@ -18,8 +22,6 @@ TODO: Shader chaining - take an Option<fn(ShaderInput)> to allow for combination
 TODO: Custom mode for pancurses text color registration - pass fn(Color) -> Color as part of enum
 
 TODO: Cleanup pass for distinction between CursesInput / CursesEvent
-
-TODO: Lists should scroll line-by-line, not item-by-item
 
 TODO: Split IntRangeComponent into i64 and Range<i64>
       Would this be better codified as ListRange and ListIndex?

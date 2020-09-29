@@ -309,8 +309,8 @@ where
                     }
                 }
 
-                // Fetch the selected index from the list's IntRangeComponent
-                let focused_item = db
+                // Fetch focused / selected indices
+                let selected_item = db
                     .get_entity_component_mut::<ListData>(list_control_entity)?
                     .get_selected_index();
 
@@ -333,10 +333,10 @@ where
                     .into();
 
                 *db.get_entity_component_mut::<Position>(*list_focus_entity)? =
-                    Vector2I(0, focused_item.unwrap_or(0) as i64).into();
+                    Vector2I(0, selected_item.unwrap_or(0) as i64).into();
 
                 *db.get_entity_component_mut::<Size>(*list_focus_entity)? =
-                    if let Some(focused_item) = focused_item {
+                    if let Some(focused_item) = selected_item {
                         if focused_item < string_list.len() {
                             Vector2I(width, string_list[focused_item as usize].len() as i64)
                         } else {
@@ -368,7 +368,7 @@ where
                         *db.get_entity_component_mut::<String>(string_entity)? = string.clone();
 
                         // Update color pair based on focused item
-                        let data = if Some(string_index) == focused_item {
+                        let data = if Some(string_index) == selected_item {
                             ColorRGB(0.0, 0.0, 0.0)
                         } else {
                             ColorRGB(1.0, 1.0, 1.0)

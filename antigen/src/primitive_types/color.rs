@@ -25,56 +25,56 @@ impl ColorRGBF {
         square.sqrt()
     }
 
-    pub fn from_hsv(h: f32, s: f32, v: f32) -> Self {
-        let c: f32 = v * s; // Chroma
-        let hue_prime = (h / 60.0) % 6.0;
-        let x = c * (1.0 - ((hue_prime % 2.0) - 1.0).abs());
-        let m = v - c;
+    pub fn from_hsv(hue: f32, sat: f32, val: f32) -> Self {
+        let chroma: f32 = val * sat;
+        let primary_hue = (hue / 60.0) % 6.0;
+        let secondary_hue = chroma * (1.0 - ((primary_hue % 2.0) - 1.0).abs());
+        let delta = val - chroma;
 
         let mut r: f32;
         let mut g: f32;
         let mut b: f32;
-        if 0.0 <= hue_prime && hue_prime < 1.0 {
-            r = c;
-            g = x;
+        if 0.0 <= primary_hue && primary_hue < 1.0 {
+            r = chroma;
+            g = secondary_hue;
             b = 0.0;
-        } else if 1.0 <= hue_prime && hue_prime < 2.0 {
-            r = x;
-            g = c;
+        } else if 1.0 <= primary_hue && primary_hue < 2.0 {
+            r = secondary_hue;
+            g = chroma;
             b = 0.0;
-        } else if 2.0 <= hue_prime && hue_prime < 3.0 {
+        } else if 2.0 <= primary_hue && primary_hue < 3.0 {
             r = 0.0;
-            g = c;
-            b = x;
-        } else if 3.0 <= hue_prime && hue_prime < 4.0 {
+            g = chroma;
+            b = secondary_hue;
+        } else if 3.0 <= primary_hue && primary_hue < 4.0 {
             r = 0.0;
-            g = x;
-            b = c;
-        } else if 4.0 <= hue_prime && hue_prime < 5.0 {
-            r = x;
+            g = secondary_hue;
+            b = chroma;
+        } else if 4.0 <= primary_hue && primary_hue < 5.0 {
+            r = secondary_hue;
             g = 0.0;
-            b = c;
-        } else if 5.0 <= hue_prime && hue_prime < 6.0 {
-            r = c;
+            b = chroma;
+        } else if 5.0 <= primary_hue && primary_hue < 6.0 {
+            r = chroma;
             g = 0.0;
-            b = x;
+            b = secondary_hue;
         } else {
             r = 0.0;
             g = 0.0;
             b = 0.0;
         }
 
-        r += m;
-        g += m;
-        b += m;
+        r += delta;
+        g += delta;
+        b += delta;
 
         ColorRGB(r, g, b)
     }
 
     pub fn hsv(&self) -> (f32, f32, f32) {
-        let h: f32;
-        let s: f32;
-        let v: f32;
+        let hue: f32;
+        let sat: f32;
+        let val: f32;
 
         let r = self.0;
         let g = self.1;
@@ -84,27 +84,27 @@ impl ColorRGBF {
         let cmin = r.min(g.min(b));
         let diff = cmax - cmin;
 
-        if cmax == cmin {
-            h = 0.0;
-        } else if cmax == r {
-            h = (60.0 * ((g - b) / diff) + 360.0) % 360.0;
-        } else if cmax == g {
-            h = (60.0 * ((b - r) / diff) + 120.0) % 360.0;
-        } else if cmax == b {
-            h = (60.0 * ((r - g) / diff) + 240.0) % 360.0;
+        if let Some(std::cmp::Ordering::Equal) = cmax.partial_cmp(&cmin) {
+            hue = 0.0;
+        } else if let Some(std::cmp::Ordering::Equal) = cmax.partial_cmp(&r) {
+            hue = (60.0 * ((g - b) / diff) + 360.0) % 360.0;
+        } else if let Some(std::cmp::Ordering::Equal) = cmax.partial_cmp(&g) {
+            hue = (60.0 * ((b - r) / diff) + 120.0) % 360.0;
+        } else if let Some(std::cmp::Ordering::Equal) = cmax.partial_cmp(&b) {
+            hue = (60.0 * ((r - g) / diff) + 240.0) % 360.0;
         } else {
             panic!("Failed to convert color {:?} to HSV", self);
         }
 
         if cmax == 0.0 {
-            s = 0.0;
+            sat = 0.0;
         } else {
-            s = (diff / cmax) * 100.0;
+            sat = (diff / cmax) * 100.0;
         }
 
-        v = cmax * 100.0;
+        val = cmax * 100.0;
 
-        (h, s, v)
+        (hue, sat, val)
     }
 }
 

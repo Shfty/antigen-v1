@@ -450,7 +450,7 @@ where
     D: EntityComponentDirectory,
 {
     let index_entity = db.create_entity(Some("Entity List Index"))?;
-    db.insert_entity_component(index_entity, IntRange::new(-1..0));
+    db.insert_entity_component(index_entity, IntRange::new(-1..0))?;
 
     let entity_list_entity = create_debug_window(
         db,

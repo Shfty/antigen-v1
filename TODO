@@ -9,9 +9,28 @@ TODO: Ensure one-to-many events (of multiple O -> I conversions) work properly
             Split clearing functionality into a system that runs at the start of the frame for both global and local?
             Would introduce more order-of-execution constraints, not sure if a problem
 
+TODO: Refactor system IDs to store type name as per component IDs, refactor system debugger appropriately
+
+TODO: Anchor HSV rect to game entity
+
+TODO: Can anchors/margins be refactored into separate systems?
+      More specifically, can margins be generalized?
+            Would need somewhere to store final position / size data
+            GlobalPosition already does this, but is in and of itself more general
+            Preferable to keep things unified if possible - too much overlap between GlobalPosition and MarginPosition
+            Could handle in renderer?
+
 TODO: Vertical scrolling for HSV shader
 
 TODO: Vertically-split 2x multisampling for each curses cell
+
+TODO: Palettes as components - have renderer take an entity reference for runtime switching
+
+TODO: Text shaders for char buffer
+
+TODO: Shader chaining - take an Option<fn(ShaderInput)> to allow for combination (ex. a rect that has a color effect)
+
+TODO: Custom mode for pancurses text color registration - pass fn(Color) -> Color as part of enum
 
 TODO: Cleanup pass for distinction between CursesInput / CursesEvent
 
@@ -19,7 +38,7 @@ TODO: Split IntRangeComponent into i64 and Range<i64>
       Would this be better codified as ListRange and ListIndex?
       Could do away with range altogether and draw directly from list size
 
-TODO: Refactor software renderer / string renderer into a single system
+TODO: Refactor software renderer / string renderer into a single generic system
       Input data fetching + rendering code is the only major difference
       Need to figure out a good abstraction
       Could move common logic into an impl, have the renderers call it manually
@@ -29,6 +48,7 @@ TODO: Re-add list item assemblage support to allow for debug excluding list item
 TODO: Component data inspector
 
 TODO: Filtering for debug components
+      (Would this be better expressed as a sort + color highlight?)
       Entities
         If a component is selected, filter out entities that don't have it
         If component data is selected, filter out other entities

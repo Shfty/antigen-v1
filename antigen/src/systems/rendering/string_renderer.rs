@@ -48,6 +48,10 @@ impl StringRenderer {
 
         let mut x = 0i64;
         for char in new_str.chars() {
+            if x >= window_width || y >= window_height {
+                break;
+            }
+            
             match char {
                 '\0' => continue,
                 '\n' => {
@@ -60,9 +64,6 @@ impl StringRenderer {
                 _ => {
                     framebuffer.draw(new_x + x, y, window_width, char, z);
                     x += 1;
-                    if x >= window_width || y >= window_height {
-                        break;
-                    }
                 }
             }
         }

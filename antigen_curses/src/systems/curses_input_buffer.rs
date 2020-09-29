@@ -2,17 +2,17 @@ use antigen::{
     components::Window,
     entity_component_system::{
         system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory,
-        SystemDebugTrait, SystemError, SystemTrait,
+        SystemError, SystemTrait,
     },
 };
 
-use crate::{CursesEvent, CursesEventQueue, CursesWindow};
+use crate::components::{CursesEvent, CursesEventQueue, CursesWindowData};
 
 /// Reads input from a pancurses window and pushes it into an event queue
 #[derive(Debug)]
-pub struct CursesInputBufferSystem;
+pub struct CursesInputBuffer;
 
-impl<CS, CD> SystemTrait<CS, CD> for CursesInputBufferSystem
+impl<CS, CD> SystemTrait<CS, CD> for CursesInputBuffer
 where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
@@ -39,11 +39,11 @@ where
                             .entity_has_component::<Window>(entity_id)
                             && db
                                 .entity_component_directory
-                                .entity_has_component::<CursesWindow>(entity_id)
+                                .entity_has_component::<CursesWindowData>(entity_id)
                     });
 
             if let Some(entity_id) = window_entity {
-                if let Some(window) = db.get_entity_component::<CursesWindow>(entity_id)?.as_ref() {
+                if let Some(window) = db.get_entity_component::<CursesWindowData>(entity_id)?.as_ref() {
                     if let Some(input) = window.getch() {
                         // Fetch the entity queue component and push inputs into it
                         let event_queue: &mut Vec<CursesEvent> = db
@@ -57,11 +57,5 @@ where
         }
 
         Ok(())
-    }
-}
-
-impl SystemDebugTrait for CursesInputBufferSystem {
-    fn get_name() -> &'static str {
-        "Curses Input Buffer"
     }
 }

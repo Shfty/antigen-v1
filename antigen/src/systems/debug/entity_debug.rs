@@ -10,7 +10,6 @@ use crate::{
     components::{DebugEntityList, DebugExclude},
     entity_component_system::{
         system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory, EntityID,
-        SystemDebugTrait,
     },
 };
 
@@ -20,9 +19,9 @@ pub enum EntityInspectorEvent {
 }
 
 #[derive(Debug)]
-pub struct EntityDebugSystem;
+pub struct EntityDebug;
 
-impl<CS, CD> SystemTrait<CS, CD> for EntityDebugSystem
+impl<CS, CD> SystemTrait<CS, CD> for EntityDebug
 where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
@@ -101,11 +100,5 @@ where
         }
 
         Ok(())
-    }
-}
-
-impl SystemDebugTrait for EntityDebugSystem {
-    fn get_name() -> &'static str {
-        "Entity Debug"
     }
 }

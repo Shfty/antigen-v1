@@ -4,27 +4,27 @@ use crate::{
 };
 use crate::{
     entity_component_system::{
-        ComponentStorage, EntityComponentDirectory, SystemDebugTrait, SystemError, SystemTrait,
+        ComponentStorage, EntityComponentDirectory, SystemError, SystemTrait,
     },
     primitive_types::Vector2I,
 };
 
 #[derive(Debug)]
-pub struct PositionIntegratorSystem;
+pub struct PositionIntegrator;
 
-impl Default for PositionIntegratorSystem {
+impl Default for PositionIntegrator {
     fn default() -> Self {
-        PositionIntegratorSystem
+        PositionIntegrator
     }
 }
 
-impl PositionIntegratorSystem {
+impl PositionIntegrator {
     pub fn new() -> Self {
-        PositionIntegratorSystem::default()
+        PositionIntegrator::default()
     }
 }
 
-impl<CS, CD> SystemTrait<CS, CD> for PositionIntegratorSystem
+impl<CS, CD> SystemTrait<CS, CD> for PositionIntegrator
 where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
@@ -56,11 +56,5 @@ where
         }
 
         Ok(())
-    }
-}
-
-impl SystemDebugTrait for PositionIntegratorSystem {
-    fn get_name() -> &'static str {
-        "Position Integrator"
     }
 }

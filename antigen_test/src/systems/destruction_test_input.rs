@@ -3,23 +3,22 @@ use antigen::{
     core::events::AntigenInputEvent,
     entity_component_system::ComponentStorage,
     entity_component_system::EntityComponentDirectory,
-    entity_component_system::SystemDebugTrait,
     entity_component_system::SystemError,
     entity_component_system::{system_interface::SystemInterface, SystemTrait},
 };
 
-use crate::components::DestructionTestInput;
+use crate::components::DestructionTestInputData;
 
 #[derive(Debug)]
-pub struct DestructionTestInputSystem;
+pub struct DestructionTestInput;
 
-impl DestructionTestInputSystem {
+impl DestructionTestInput {
     pub fn new() -> Self {
-        DestructionTestInputSystem
+        DestructionTestInput
     }
 }
 
-impl<CS, CD> SystemTrait<CS, CD> for DestructionTestInputSystem
+impl<CS, CD> SystemTrait<CS, CD> for DestructionTestInput
 where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
@@ -41,12 +40,12 @@ where
                 .entity_component_directory
                 .get_entities_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<DestructionTestInput>(entity_id)
+                        .entity_has_component::<DestructionTestInputData>(entity_id)
                 });
 
             for entity_id in destruction_test_entities {
                 let input_key: antigen::core::keyboard::Key =
-                    (*db.get_entity_component::<DestructionTestInput>(entity_id)?).into();
+                    (*db.get_entity_component::<DestructionTestInputData>(entity_id)?).into();
 
                 let event_queue: &Vec<AntigenInputEvent> = db
                     .get_entity_component::<EventQueue<AntigenInputEvent>>(event_queue_entity)?
@@ -63,11 +62,5 @@ where
         }
 
         Ok(())
-    }
-}
-
-impl SystemDebugTrait for DestructionTestInputSystem {
-    fn get_name() -> &'static str {
-        "Destruction Test Input"
     }
 }

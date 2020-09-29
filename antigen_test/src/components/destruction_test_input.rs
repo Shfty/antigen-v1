@@ -1,15 +1,15 @@
 use antigen::core::keyboard::Key;
 
 #[derive(Debug, Copy, Clone)]
-pub struct DestructionTestInput(pub Key);
+pub struct DestructionTestInputData(pub Key);
 
-impl From<Key> for DestructionTestInput {
+impl From<Key> for DestructionTestInputData {
     fn from(key: Key) -> Self {
-        DestructionTestInput(key)
+        DestructionTestInputData(key)
     }
 }
 
-impl Into<Key> for DestructionTestInput {
+impl Into<Key> for DestructionTestInputData {
     fn into(self) -> Key {
         self.0
     }

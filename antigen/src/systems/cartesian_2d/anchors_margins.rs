@@ -13,25 +13,24 @@ use crate::{
     components::{ParentEntity, Position},
     entity_component_system::ComponentStorage,
     entity_component_system::EntityComponentDirectory,
-    entity_component_system::SystemDebugTrait,
 };
 
 #[derive(Debug)]
-pub struct AnchorsMarginsSystem;
+pub struct AnchorsMargins;
 
-impl Default for AnchorsMarginsSystem {
+impl Default for AnchorsMargins {
     fn default() -> Self {
-        AnchorsMarginsSystem
+        AnchorsMargins
     }
 }
 
-impl AnchorsMarginsSystem {
+impl AnchorsMargins {
     pub fn new() -> Self {
-        AnchorsMarginsSystem::default()
+        AnchorsMargins::default()
     }
 }
 
-impl<CS, CD> SystemTrait<CS, CD> for AnchorsMarginsSystem
+impl<CS, CD> SystemTrait<CS, CD> for AnchorsMargins
 where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
@@ -130,11 +129,5 @@ where
         }
 
         Ok(())
-    }
-}
-
-impl SystemDebugTrait for AnchorsMarginsSystem {
-    fn get_name() -> &'static str {
-        "Anchors / Margins"
     }
 }

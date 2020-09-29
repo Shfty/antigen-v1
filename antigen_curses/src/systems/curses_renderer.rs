@@ -1,8 +1,6 @@
-use crate::CursesWindow;
 use antigen::{
     components::{Size, SoftwareFramebuffer, Window},
     core::palette::Palette,
-    entity_component_system::SystemDebugTrait,
     entity_component_system::{
         system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory, SystemError,
         SystemTrait,
@@ -12,6 +10,8 @@ use antigen::{
 };
 use pancurses::ToChtype;
 
+use crate::components::CursesWindowData;
+
 #[derive(Debug, Copy, Clone)]
 pub enum TextColorMode {
     BlackWhite,
@@ -20,7 +20,7 @@ pub enum TextColorMode {
 }
 
 #[derive(Debug)]
-pub struct CursesRendererSystem<T>
+pub struct CursesRenderer<T>
 where
     T: Palette<f32, f32>,
 {
@@ -28,19 +28,19 @@ where
     text_color_mode: TextColorMode,
 }
 
-impl<T> CursesRendererSystem<T>
+impl<T> CursesRenderer<T>
 where
     T: Palette<f32, f32>,
 {
     pub fn new(palette: T, text_color_mode: TextColorMode) -> Self {
-        CursesRendererSystem {
+        CursesRenderer {
             palette,
             text_color_mode,
         }
     }
 }
 
-impl<CS, CD, T> SystemTrait<CS, CD> for CursesRendererSystem<T>
+impl<CS, CD, T> SystemTrait<CS, CD> for CursesRenderer<T>
 where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
@@ -59,7 +59,7 @@ where
                     .entity_has_component::<Window>(entity_id)
                     && db
                         .entity_component_directory
-                        .entity_has_component::<CursesWindow>(entity_id)
+                        .entity_has_component::<CursesWindowData>(entity_id)
                     && db
                         .entity_component_directory
                         .entity_has_component::<Size>(entity_id)
@@ -69,7 +69,7 @@ where
         let window_width: i64;
         let window_height: i64;
         {
-            let window_component = db.get_entity_component::<CursesWindow>(window_entity)?;
+            let window_component = db.get_entity_component::<CursesWindowData>(window_entity)?;
 
             let window: &Option<pancurses::Window> = window_component.as_ref();
             if let Some(window) = window {
@@ -239,7 +239,7 @@ where
             }
         }
 
-        let window_component = db.get_entity_component::<CursesWindow>(window_entity)?;
+        let window_component = db.get_entity_component::<CursesWindowData>(window_entity)?;
         let window: &Option<pancurses::Window> = window_component.as_ref();
         if let Some(window) = window {
             window.erase();
@@ -255,14 +255,5 @@ where
         } else {
             Err("Error fetching window handle".into())
         }
-    }
-}
-
-impl<T> SystemDebugTrait for CursesRendererSystem<T>
-where
-    T: Palette<f32, f32>,
-{
-    fn get_name() -> &'static str {
-        "Curses Renderer"
     }
 }

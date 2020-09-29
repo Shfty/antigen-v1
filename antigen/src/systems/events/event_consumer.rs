@@ -4,39 +4,39 @@ use crate::entity_component_system::system_interface::SystemInterface;
 use crate::{
     components::EventQueue,
     entity_component_system::{
-        ComponentStorage, EntityComponentDirectory, SystemDebugTrait, SystemError, SystemTrait,
+        ComponentStorage, EntityComponentDirectory, SystemError, SystemTrait,
     },
 };
 
 #[derive(Debug)]
-pub struct EventConsumerSystem<T>
+pub struct EventConsumer<T>
 where
     T: Debug,
 {
     _phantom_data: PhantomData<T>,
 }
 
-impl<T> EventConsumerSystem<T>
+impl<T> EventConsumer<T>
 where
     T: Debug,
 {
     pub fn new() -> Self {
-        EventConsumerSystem {
+        EventConsumer {
             _phantom_data: PhantomData,
         }
     }
 }
 
-impl<T> Default for EventConsumerSystem<T>
+impl<T> Default for EventConsumer<T>
 where
     T: Debug,
 {
     fn default() -> Self {
-        EventConsumerSystem::<T>::new()
+        EventConsumer::<T>::new()
     }
 }
 
-impl<CS, CD, T> SystemTrait<CS, CD> for EventConsumerSystem<T>
+impl<CS, CD, T> SystemTrait<CS, CD> for EventConsumer<T>
 where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
@@ -63,14 +63,5 @@ where
         }
 
         Ok(())
-    }
-}
-
-impl<T> SystemDebugTrait for EventConsumerSystem<T>
-where
-    T: Debug + 'static,
-{
-    fn get_name() -> &'static str {
-        "Event Consumer"
     }
 }

@@ -28,25 +28,33 @@ impl From<&str> for SystemError {
 }
 
 #[derive(Debug, Copy, Clone, Hash, Ord, PartialOrd, Eq, PartialEq)]
-pub struct SystemID(pub UID);
-
-impl SystemID {
-    pub fn next() -> Self {
-        static COUNTER: AtomicUsize = AtomicUsize::new(0);
-        SystemID(COUNTER.fetch_add(1, Ordering::Relaxed))
-    }
+pub struct SystemID {
+    uid: UID,
+    type_name: &'static str,
 }
 
-impl Default for SystemID {
-    fn default() -> Self {
-        SystemID::next()
+impl SystemID {
+    pub fn next<T>() -> Self {
+        static COUNTER: AtomicUsize = AtomicUsize::new(0);
+        SystemID {
+            uid: COUNTER.fetch_add(1, Ordering::Relaxed),
+            type_name: std::any::type_name::<T>(),
+        }
+    }
+
+    pub fn get_name(&self) -> String {
+        crate::core::type_name::strip_crate_names(self.type_name)
     }
 }
 
 impl Display for SystemID {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let SystemID(entity_id) = self;
-        write!(f, "{}", entity_id)
+        write!(
+            f,
+            "{}:\t{}",
+            self.uid,
+            self.get_name()
+        )
     }
 }
 
@@ -57,9 +65,4 @@ where
     CD: EntityComponentDirectory,
 {
     fn run(&mut self, db: &mut SystemInterface<CS, CD>) -> Result<(), SystemError>;
-}
-
-/// Debug implementation for Systems
-pub trait SystemDebugTrait {
-    fn get_name() -> &'static str;
 }

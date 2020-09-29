@@ -1,45 +1,21 @@
 use std::{collections::HashMap, ops::Range};
 
 use antigen::{
-    components::CPUShader,
-    components::Control,
-    components::DebugSceneTree,
-    components::DebugSystemList,
-    components::EventQueue,
-    components::EventTargets,
-    components::List,
-    components::LocalMousePosition,
-    components::SoftwareFramebuffer,
-    components::{
-        Anchors, DebugComponentDataList, DebugComponentList, DebugEntityList, DebugExclude,
-        GlobalPosition, IntRange, Margins, ParentEntity, Position, Size, Velocity, Window, ZIndex,
-    },
+    components as antigen_components,
     core::events::AntigenInputEvent,
     core::palette::RGBArrangementPalette,
-    entity_component_system::ComponentStorage,
-    entity_component_system::EntityComponentDirectory,
-    entity_component_system::Scene,
     entity_component_system::{
         system_interface::SystemInterface, system_storage::SystemStorage, Assemblage,
-        EntityComponentSystem, EntityID, SystemRunner,
+        ComponentStorage, EntityComponentDirectory, EntityComponentSystem, EntityID, Scene,
+        SystemRunner,
     },
-    primitive_types::ColorRGB,
-    primitive_types::ColorRGBF,
-    primitive_types::Vector2I,
-    systems::{
-        AnchorsMarginsSystem, ChildEntitiesSystem, ComponentInspectorEvent, EntityInspectorEvent,
-        EventConsumerSystem, EventProcessorSystem, GlobalPositionSystem, ListEvent, ListSystem,
-        LocalMousePositionSystem, PositionIntegratorSystem, SoftwareRendererSystem,
-        StringRendererSystem, SystemInspectorEvent,
-    },
+    primitive_types::{ColorRGB, ColorRGBF, Vector2I},
+    systems as antigen_systems,
 };
-use antigen_curses::{
-    CursesEvent, CursesInputBufferSystem, CursesKeyboardSystem, CursesMouseSystem,
-    CursesRendererSystem, CursesWindow, CursesWindowSystem, TextColorMode,
-};
+use antigen_curses::{components as curses_components, systems as curses_systems};
 
-use crate::systems::{DestructionTestInputSystem, InputAxisSystem, InputVelocitySystem};
-use crate::{components::DestructionTestInput, systems::QuitKeySystem};
+use crate::components;
+use crate::systems;
 
 #[derive(Eq, PartialEq, Hash)]
 enum EntityAssemblage {
@@ -62,68 +38,73 @@ impl Scene for AntigenDebugScene {
         SS: SystemStorage<CS, CD> + 'static,
         SR: SystemRunner + 'static,
     {
-        ecs.push_system(EventConsumerSystem::<AntigenInputEvent>::new());
-        ecs.push_system(EventConsumerSystem::<CursesEvent>::new());
+        ecs.push_system(antigen_systems::EventConsumer::<AntigenInputEvent>::new());
+        ecs.push_system(antigen_systems::EventConsumer::<
+            curses_components::CursesEvent,
+        >::new());
 
-        ecs.push_system(CursesInputBufferSystem);
-        ecs.push_system(CursesKeyboardSystem);
-        ecs.push_system(CursesMouseSystem::new());
-        let pancurses_window_system = CursesWindowSystem::new(&mut ecs.component_storage);
+        ecs.push_system(curses_systems::CursesInputBuffer);
+        ecs.push_system(curses_systems::CursesKeyboard);
+        ecs.push_system(curses_systems::CursesMouse::new());
+        let pancurses_window_system = curses_systems::CursesWindow::new(&mut ecs.component_storage);
         ecs.push_system(pancurses_window_system);
 
-        ecs.push_system(QuitKeySystem::new(antigen::core::keyboard::Key::Escape));
-        ecs.push_system(InputAxisSystem);
-        ecs.push_system(DestructionTestInputSystem::new());
-        ecs.push_system(LocalMousePositionSystem::new());
+        ecs.push_system(systems::QuitKey::new(antigen::core::keyboard::Key::Escape));
+        ecs.push_system(systems::InputAxis);
+        ecs.push_system(systems::DestructionTestInput::new());
+        ecs.push_system(antigen_systems::LocalMousePosition::new());
 
-        ecs.push_system(ListSystem::new());
+        ecs.push_system(antigen_systems::List::new());
 
-        ecs.push_system(
-            EventProcessorSystem::<ListEvent, EntityInspectorEvent>::new(
-                |list_event: ListEvent| match list_event {
-                    ListEvent::Pressed(index) => {
-                        Some(EntityInspectorEvent::SetInspectedEntity(index))
-                    }
-                    _ => None,
-                },
-            ),
-        );
+        ecs.push_system(antigen_systems::EventProcessor::<
+            antigen_systems::ListEvent,
+            antigen_systems::EntityInspectorEvent,
+        >::new(
+            |list_event: antigen_systems::ListEvent| match list_event {
+                antigen_systems::ListEvent::Pressed(index) => Some(
+                    antigen_systems::EntityInspectorEvent::SetInspectedEntity(index),
+                ),
+                _ => None,
+            },
+        ));
 
-        ecs.push_system(
-            EventProcessorSystem::<ListEvent, ComponentInspectorEvent>::new(
-                |list_event: ListEvent| match list_event {
-                    ListEvent::Pressed(index) => {
-                        Some(ComponentInspectorEvent::SetInspectedComponent(index))
-                    }
-                    _ => None,
-                },
-            ),
-        );
+        ecs.push_system(antigen_systems::EventProcessor::<
+            antigen_systems::ListEvent,
+            antigen_systems::ComponentInspectorEvent,
+        >::new(
+            |list_event: antigen_systems::ListEvent| match list_event {
+                antigen_systems::ListEvent::Pressed(index) => {
+                    Some(antigen_systems::ComponentInspectorEvent::SetInspectedComponent(index))
+                }
+                _ => None,
+            },
+        ));
 
-        ecs.push_system(
-            EventProcessorSystem::<ListEvent, SystemInspectorEvent>::new(
-                |list_event: ListEvent| match list_event {
-                    ListEvent::Pressed(index) => {
-                        Some(SystemInspectorEvent::SetInspectedSystem(index))
-                    }
-                    _ => None,
-                },
-            ),
-        );
+        ecs.push_system(antigen_systems::EventProcessor::<
+            antigen_systems::ListEvent,
+            antigen_systems::SystemInspectorEvent,
+        >::new(
+            |list_event: antigen_systems::ListEvent| match list_event {
+                antigen_systems::ListEvent::Pressed(index) => Some(
+                    antigen_systems::SystemInspectorEvent::SetInspectedSystem(index),
+                ),
+                _ => None,
+            },
+        ));
 
-        ecs.push_system(EventConsumerSystem::<ListEvent>::new());
+        ecs.push_system(antigen_systems::EventConsumer::<antigen_systems::ListEvent>::new());
 
-        ecs.push_system(InputVelocitySystem::new());
+        ecs.push_system(systems::InputVelocity::new());
 
-        ecs.push_system(PositionIntegratorSystem::new());
-        ecs.push_system(AnchorsMarginsSystem::new());
-        ecs.push_system(GlobalPositionSystem::new());
-        ecs.push_system(ChildEntitiesSystem::new());
-        ecs.push_system(SoftwareRendererSystem);
-        ecs.push_system(StringRendererSystem);
-        ecs.push_system(CursesRendererSystem::new(
+        ecs.push_system(antigen_systems::PositionIntegrator::new());
+        ecs.push_system(antigen_systems::AnchorsMargins::new());
+        ecs.push_system(antigen_systems::GlobalPosition::new());
+        ecs.push_system(antigen_systems::ChildEntities::new());
+        ecs.push_system(antigen_systems::SoftwareRenderer);
+        ecs.push_system(antigen_systems::StringRenderer);
+        ecs.push_system(curses_systems::CursesRenderer::new(
             RGBArrangementPalette::new_884(),
-            TextColorMode::BlackWhite,
+            curses_systems::TextColorMode::BlackWhite,
         ));
 
         Ok(())
@@ -140,51 +121,63 @@ impl Scene for AntigenDebugScene {
         let global_event_queues_entity = db.create_entity("Global Event Queues".into())?;
         db.insert_entity_component(
             global_event_queues_entity,
-            EventQueue::<CursesEvent>::default(),
+            antigen_components::EventQueue::<curses_components::CursesEvent>::default(),
         )?;
         db.insert_entity_component(
             global_event_queues_entity,
-            EventQueue::<AntigenInputEvent>::default(),
+            antigen_components::EventQueue::<AntigenInputEvent>::default(),
         )?;
 
         // Create main window
         let cpu_framebuffer_entity = db.create_entity("CPU Framebuffer".into())?;
         db.insert_entity_component(
             cpu_framebuffer_entity,
-            SoftwareFramebuffer::new(ColorRGB(0.0f32, 0.0f32, 0.0f32)),
+            antigen_components::SoftwareFramebuffer::new(ColorRGB(0.0f32, 0.0f32, 0.0f32)),
         )?;
 
         let string_framebuffer_entity = db.create_entity("String Framebuffer".into())?;
-        db.insert_entity_component(string_framebuffer_entity, SoftwareFramebuffer::new(' '))?;
+        db.insert_entity_component(
+            string_framebuffer_entity,
+            antigen_components::SoftwareFramebuffer::new(' '),
+        )?;
 
         let main_window_entity = create_window_entity(
             db,
             Some("Main Window"),
-            Position::default(),
-            Size::from(Vector2I(256, 64)),
+            antigen_components::Position::default(),
+            antigen_components::Size::from(Vector2I(256, 64)),
             None,
         )?;
 
         let entity_inspector_entity = db.create_entity(Some("Entity Inspector"))?;
         db.insert_entity_component(
             entity_inspector_entity,
-            EventQueue::<EntityInspectorEvent>::default(),
+            antigen_components::EventQueue::<antigen_systems::EntityInspectorEvent>::default(),
         )?;
-        db.insert_entity_component(entity_inspector_entity, IntRange::new(-1..0))?;
+        db.insert_entity_component(
+            entity_inspector_entity,
+            antigen_components::IntRange::new(-1..0),
+        )?;
 
         let component_inspector_entity = db.create_entity(Some("Component Inspector"))?;
         db.insert_entity_component(
             component_inspector_entity,
-            EventQueue::<ComponentInspectorEvent>::default(),
+            antigen_components::EventQueue::<antigen_systems::ComponentInspectorEvent>::default(),
         )?;
-        db.insert_entity_component(component_inspector_entity, IntRange::new(-1..0))?;
+        db.insert_entity_component(
+            component_inspector_entity,
+            antigen_components::IntRange::new(-1..0),
+        )?;
 
         let system_inspector_entity = db.create_entity(Some("System Inspector"))?;
         db.insert_entity_component(
             system_inspector_entity,
-            EventQueue::<SystemInspectorEvent>::default(),
+            antigen_components::EventQueue::<antigen_systems::SystemInspectorEvent>::default(),
         )?;
-        db.insert_entity_component(system_inspector_entity, IntRange::new(-1..0))?;
+        db.insert_entity_component(
+            system_inspector_entity,
+            antigen_components::IntRange::new(-1..0),
+        )?;
 
         create_game_window(db, &mut assemblages, main_window_entity)?;
 
@@ -248,7 +241,8 @@ where
 
     *db.get_entity_component_mut::<String>(entity_id)? = text.into();
 
-    *db.get_entity_component_mut::<Position>(entity_id)? = Vector2I(x, y).into();
+    *db.get_entity_component_mut::<antigen_components::Position>(entity_id)? =
+        Vector2I(x, y).into();
 
     Ok(entity_id)
 }
@@ -256,8 +250,8 @@ where
 fn create_window_entity<S, D>(
     db: &mut SystemInterface<S, D>,
     debug_label: Option<&str>,
-    position: Position,
-    size: Size,
+    position: antigen_components::Position,
+    size: antigen_components::Size,
     parent_window_entity_id: Option<EntityID>,
 ) -> Result<EntityID, String>
 where
@@ -265,12 +259,15 @@ where
     D: EntityComponentDirectory,
 {
     let entity_id = db.create_entity(debug_label)?;
-    db.insert_entity_component(entity_id, Window)?;
-    db.insert_entity_component(entity_id, CursesWindow::default())?;
+    db.insert_entity_component(entity_id, antigen_components::Window)?;
+    db.insert_entity_component(entity_id, curses_components::CursesWindowData::default())?;
     db.insert_entity_component(entity_id, position)?;
     db.insert_entity_component(entity_id, size)?;
     if let Some(parent_window_entity_id) = parent_window_entity_id {
-        db.insert_entity_component(entity_id, ParentEntity(parent_window_entity_id))?;
+        db.insert_entity_component(
+            entity_id,
+            antigen_components::ParentEntity(parent_window_entity_id),
+        )?;
     }
     Ok(entity_id)
 }
@@ -288,29 +285,29 @@ where
             "Player Entity",
             "Controllable ASCII character with position and velocity",
         )
-        .add_component(Control)?
+        .add_component(antigen_components::Control)?
         .add_component(ColorRGB(1.0f32, 0.6f32, 1.0f32))?
         .add_component('@')?
-        .add_component(Position::from(Vector2I(1, 1)))?
-        .add_component(Velocity::default())?
+        .add_component(antigen_components::Position::from(Vector2I(1, 1)))?
+        .add_component(antigen_components::Velocity::default())?
         .finish(),
     );
 
     assemblages.insert(
         EntityAssemblage::StringControl,
         Assemblage::build("String Entity", "ASCII string control")
-            .add_component(Control)?
+            .add_component(antigen_components::Control)?
             .add_component(String::default())?
-            .add_component(Position::default())?
+            .add_component(antigen_components::Position::default())?
             .finish(),
     );
 
     assemblages.insert(
         EntityAssemblage::RectControl,
         Assemblage::build("Rect Entity", "ASCII Rectangle control")
-            .add_component(Control)?
-            .add_component(Position::default())?
-            .add_component(Size::default())?
+            .add_component(antigen_components::Control)?
+            .add_component(antigen_components::Position::default())?
+            .add_component(antigen_components::Size::default())?
             .add_component(char::default())?
             .add_component(ColorRGB(0.753f32, 0.753f32, 0.753f32))?
             .finish(),
@@ -319,11 +316,13 @@ where
     assemblages.insert(
         EntityAssemblage::BorderControl,
         Assemblage::build("Border Entity", "ASCII Border control")
-            .add_component(Control)?
-            .add_component(Position::default())?
-            .add_component(Size::default())?
+            .add_component(antigen_components::Control)?
+            .add_component(antigen_components::Position::default())?
+            .add_component(antigen_components::Size::default())?
             .add_component(char::default())?
-            .add_component(CPUShader(CPUShader::rect))?
+            .add_component(antigen_components::CPUShader(
+                antigen_components::CPUShader::rect,
+            ))?
             .add_component(ColorRGB(0.753f32, 0.753f32, 0.753f32))?
             .finish(),
     );
@@ -334,7 +333,9 @@ where
             "Destruction Test",
             "Assemblage for destroying entities when space is pressed",
         )
-        .add_component(DestructionTestInput(antigen::core::keyboard::Key::Space))?
+        .add_component(components::DestructionTestInputData(
+            antigen::core::keyboard::Key::Space,
+        ))?
         .finish(),
     );
 
@@ -352,11 +353,16 @@ where
 {
     // Create Game Window
     let game_window_entity = db.create_entity(Some("Game"))?;
-    db.insert_entity_component(game_window_entity, Position::default())?;
-    db.insert_entity_component(game_window_entity, Size::default())?;
-    db.insert_entity_component(game_window_entity, ParentEntity(parent_window_entity))?;
-
-    db.insert_entity_component(game_window_entity, Anchors::new(0.0..0.5, 0.0..1.0))?;
+    db.insert_entity_component(game_window_entity, antigen_components::Position::default())?;
+    db.insert_entity_component(game_window_entity, antigen_components::Size::default())?;
+    db.insert_entity_component(
+        game_window_entity,
+        antigen_components::ParentEntity(parent_window_entity),
+    )?;
+    db.insert_entity_component(
+        game_window_entity,
+        antigen_components::Anchors::new(0.0..0.25, 0.0..1.0),
+    )?;
 
     // Create Test Rects
     let test_rect_entity = assemblages
@@ -364,12 +370,22 @@ where
         .unwrap()
         .create_and_assemble_entity(db, Some("Test Rect Control"))?;
     {
-        *db.get_entity_component_mut::<Position>(test_rect_entity)? = Vector2I(0, 0).into();
-        *db.get_entity_component_mut::<Size>(test_rect_entity)? = Vector2I(64, 64).into();
-
-        db.insert_entity_component(test_rect_entity, ParentEntity(game_window_entity))?;
-        db.insert_entity_component(test_rect_entity, GlobalPosition::default())?;
-        db.insert_entity_component(test_rect_entity, CPUShader(CPUShader::hsv))?;
+        db.insert_entity_component(
+            test_rect_entity,
+            antigen_components::ParentEntity(game_window_entity),
+        )?;
+        db.insert_entity_component(
+            test_rect_entity,
+            antigen_components::GlobalPositionData::default(),
+        )?;
+        db.insert_entity_component(
+            test_rect_entity,
+            antigen_components::Anchors::new(0.0..1.0, 0.0..1.0),
+        )?;
+        db.insert_entity_component(
+            test_rect_entity,
+            antigen_components::CPUShader(antigen_components::CPUShader::hsv),
+        )?;
     }
 
     // Create Test Player
@@ -377,8 +393,14 @@ where
         .get_mut(&EntityAssemblage::Player)
         .unwrap()
         .create_and_assemble_entity(db, Some("Test Player"))?;
-    db.insert_entity_component(test_player_entity, ParentEntity(game_window_entity))?;
-    db.insert_entity_component(test_player_entity, GlobalPosition::default())?;
+    db.insert_entity_component(
+        test_player_entity,
+        antigen_components::ParentEntity(game_window_entity),
+    )?;
+    db.insert_entity_component(
+        test_player_entity,
+        antigen_components::GlobalPositionData::default(),
+    )?;
 
     // Create Test String
     let test_string_entity = assemblages
@@ -386,12 +408,19 @@ where
         .unwrap()
         .create_and_assemble_entity(db, Some("Test String Control"))?;
     {
-        *db.get_entity_component_mut::<Position>(test_string_entity)? = Vector2I(1, 1).into();
+        *db.get_entity_component_mut::<antigen_components::Position>(test_string_entity)? =
+            Vector2I(1, 1).into();
         *db.get_entity_component_mut::<String>(test_string_entity)? =
             "Testing One Two Three".into();
 
-        db.insert_entity_component(test_string_entity, ParentEntity(test_player_entity))?;
-        db.insert_entity_component(test_string_entity, GlobalPosition::default())?;
+        db.insert_entity_component(
+            test_string_entity,
+            antigen_components::ParentEntity(test_player_entity),
+        )?;
+        db.insert_entity_component(
+            test_string_entity,
+            antigen_components::GlobalPositionData::default(),
+        )?;
     }
 
     Ok(game_window_entity)
@@ -417,16 +446,22 @@ where
         *db.get_entity_component_mut::<ColorRGBF>(entity_list_window_entity)? =
             ColorRGB(0.0, 0.0, 0.0);
 
-        db.insert_entity_component(entity_list_window_entity, Position::default())?;
-        db.insert_entity_component(entity_list_window_entity, ZIndex(1))?;
-        db.insert_entity_component(entity_list_window_entity, Size::default())?;
         db.insert_entity_component(
             entity_list_window_entity,
-            ParentEntity(parent_window_entity),
+            antigen_components::Position::default(),
+        )?;
+        db.insert_entity_component(entity_list_window_entity, antigen_components::ZIndex(1))?;
+        db.insert_entity_component(
+            entity_list_window_entity,
+            antigen_components::Size::default(),
         )?;
         db.insert_entity_component(
             entity_list_window_entity,
-            Anchors::new(anchor_horizontal, anchor_vertical),
+            antigen_components::ParentEntity(parent_window_entity),
+        )?;
+        db.insert_entity_component(
+            entity_list_window_entity,
+            antigen_components::Anchors::new(anchor_horizontal, anchor_vertical),
         )?;
     }
 
@@ -437,9 +472,12 @@ where
     {
         db.insert_entity_component(
             entity_list_border_entity,
-            ParentEntity(entity_list_window_entity),
+            antigen_components::ParentEntity(entity_list_window_entity),
         )?;
-        db.insert_entity_component(entity_list_border_entity, Anchors::new(0.0..1.0, 0.0..1.0))?;
+        db.insert_entity_component(
+            entity_list_border_entity,
+            antigen_components::Anchors::new(0.0..1.0, 0.0..1.0),
+        )?;
     }
 
     // Create Debug Window Title
@@ -455,24 +493,39 @@ where
     {
         db.insert_entity_component(
             entity_list_title_entity,
-            ParentEntity(entity_list_border_entity),
+            antigen_components::ParentEntity(entity_list_border_entity),
         )?;
-        db.insert_entity_component(entity_list_title_entity, GlobalPosition::default())?;
+        db.insert_entity_component(
+            entity_list_title_entity,
+            antigen_components::GlobalPositionData::default(),
+        )?;
     }
 
     // Create Entity List
     let entity_list_entity = db.create_entity(Some(window_name))?;
     {
-        let list_component = List::new(Some(entity_list_entity));
+        let list_component = antigen_components::ListData::new(Some(entity_list_entity));
 
         db.insert_entity_component(entity_list_entity, list_component)?;
-        db.insert_entity_component(entity_list_entity, Position::default())?;
-        db.insert_entity_component(entity_list_entity, Size::default())?;
-        db.insert_entity_component(entity_list_entity, ParentEntity(entity_list_border_entity))?;
-        db.insert_entity_component(entity_list_entity, Anchors::new(0.0..1.0, 0.0..1.0))?;
-        db.insert_entity_component(entity_list_entity, Margins::new(2, 2, 3, 1))?;
+        db.insert_entity_component(entity_list_entity, antigen_components::Position::default())?;
+        db.insert_entity_component(entity_list_entity, antigen_components::Size::default())?;
+        db.insert_entity_component(
+            entity_list_entity,
+            antigen_components::ParentEntity(entity_list_border_entity),
+        )?;
+        db.insert_entity_component(
+            entity_list_entity,
+            antigen_components::Anchors::new(0.0..1.0, 0.0..1.0),
+        )?;
+        db.insert_entity_component(
+            entity_list_entity,
+            antigen_components::Margins::new(2, 2, 3, 1),
+        )?;
         db.insert_entity_component(entity_list_entity, Vec::<String>::new())?;
-        db.insert_entity_component(entity_list_entity, LocalMousePosition::default())?;
+        db.insert_entity_component(
+            entity_list_entity,
+            antigen_components::LocalMousePositionData::default(),
+        )?;
     }
 
     Ok(entity_list_entity)
@@ -497,11 +550,14 @@ where
         0.0..0.5,
     )?;
 
-    db.insert_entity_component(entity_list_entity, DebugEntityList)?;
-    db.insert_entity_component(entity_list_entity, EventQueue::<ListEvent>::default())?;
+    db.insert_entity_component(entity_list_entity, antigen_components::DebugEntityList)?;
     db.insert_entity_component(
         entity_list_entity,
-        EventTargets::new(vec![entity_inspector_entity]),
+        antigen_components::EventQueue::<antigen_systems::ListEvent>::default(),
+    )?;
+    db.insert_entity_component(
+        entity_list_entity,
+        antigen_components::EventTargets::new(vec![entity_inspector_entity]),
     )?;
 
     Ok(entity_list_entity)
@@ -525,7 +581,7 @@ where
         0.25..0.5,
         0.5..1.0,
     )?;
-    db.insert_entity_component(entity_list_entity, DebugSceneTree)?;
+    db.insert_entity_component(entity_list_entity, antigen_components::DebugSceneTree)?;
     Ok(entity_list_entity)
 }
 
@@ -547,12 +603,18 @@ where
         0.5..0.75,
         0.0..0.5,
     )?;
-    db.insert_entity_component(component_list_entity, DebugComponentList)?;
-    db.insert_entity_component(component_list_entity, DebugExclude)?;
-    db.insert_entity_component(component_list_entity, EventQueue::<ListEvent>::default())?;
     db.insert_entity_component(
         component_list_entity,
-        EventTargets::new(vec![component_inspector_entity]),
+        antigen_components::DebugComponentList,
+    )?;
+    db.insert_entity_component(component_list_entity, antigen_components::DebugExclude)?;
+    db.insert_entity_component(
+        component_list_entity,
+        antigen_components::EventQueue::<antigen_systems::ListEvent>::default(),
+    )?;
+    db.insert_entity_component(
+        component_list_entity,
+        antigen_components::EventTargets::new(vec![component_inspector_entity]),
     )?;
 
     Ok(component_list_entity)
@@ -575,7 +637,10 @@ where
         0.75..1.0,
         0.0..1.0,
     )?;
-    db.insert_entity_component(component_list_entity, DebugComponentDataList)?;
+    db.insert_entity_component(
+        component_list_entity,
+        antigen_components::DebugComponentDataList,
+    )?;
     Ok(component_list_entity)
 }
 
@@ -597,11 +662,14 @@ where
         0.5..0.75,
         0.5..1.0,
     )?;
-    db.insert_entity_component(system_list_entity, DebugSystemList)?;
-    db.insert_entity_component(system_list_entity, EventQueue::<ListEvent>::default())?;
+    db.insert_entity_component(system_list_entity, antigen_components::DebugSystemList)?;
     db.insert_entity_component(
         system_list_entity,
-        EventTargets::new(vec![system_inspector_entity]),
+        antigen_components::EventQueue::<antigen_systems::ListEvent>::default(),
+    )?;
+    db.insert_entity_component(
+        system_list_entity,
+        antigen_components::EventTargets::new(vec![system_inspector_entity]),
     )?;
     Ok(system_list_entity)
 }

@@ -1,5 +1,5 @@
-mod event_consumer_system;
-mod event_processor_system;
+mod event_consumer;
+mod event_processor;
 
-pub use event_consumer_system::*;
-pub use event_processor_system::*;
+pub use event_consumer::*;
+pub use event_processor::*;

@@ -1,15 +1,15 @@
 #[derive(Debug, Clone)]
-pub struct InputAxis {
+pub struct InputAxisData {
     negative_input: antigen::core::keyboard::Key,
     positive_input: antigen::core::keyboard::Key,
 }
 
-impl InputAxis {
+impl InputAxisData {
     pub fn new(
         negative_input: antigen::core::keyboard::Key,
         positive_input: antigen::core::keyboard::Key,
     ) -> Self {
-        InputAxis {
+        InputAxisData {
             negative_input,
             positive_input,
         }

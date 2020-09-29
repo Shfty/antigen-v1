@@ -1,31 +1,31 @@
 use crate::{
-    components::{GlobalPosition, ParentEntity, Position},
+    components::{GlobalPositionData, ParentEntity, Position},
     entity_component_system::system_interface::SystemInterface,
     entity_component_system::EntityID,
 };
 use crate::{
     entity_component_system::{
-        ComponentStorage, EntityComponentDirectory, SystemDebugTrait, SystemError, SystemTrait,
+        ComponentStorage, EntityComponentDirectory, SystemError, SystemTrait,
     },
     primitive_types::Vector2I,
 };
 
 #[derive(Debug)]
-pub struct GlobalPositionSystem;
+pub struct GlobalPosition;
 
-impl Default for GlobalPositionSystem {
+impl Default for GlobalPosition {
     fn default() -> Self {
-        GlobalPositionSystem
+        GlobalPosition
     }
 }
 
-impl GlobalPositionSystem {
+impl GlobalPosition {
     pub fn new() -> Self {
-        GlobalPositionSystem::default()
+        GlobalPosition::default()
     }
 }
 
-impl<CS, CD> SystemTrait<CS, CD> for GlobalPositionSystem
+impl<CS, CD> SystemTrait<CS, CD> for GlobalPosition
 where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
@@ -45,7 +45,7 @@ where
                         .entity_has_component::<ParentEntity>(entity_id)
                     && db
                         .entity_component_directory
-                        .entity_has_component::<GlobalPosition>(entity_id)
+                        .entity_has_component::<GlobalPositionData>(entity_id)
             });
 
         for entity_id in entities {
@@ -61,7 +61,7 @@ where
                 global_position += parent_position.into();
 
                 if db
-                    .get_entity_component::<GlobalPosition>(candidate_id)
+                    .get_entity_component::<GlobalPositionData>(candidate_id)
                     .is_err()
                 {
                     break;
@@ -73,15 +73,11 @@ where
                 }
             }
 
-            *db.get_entity_component_mut::<GlobalPosition>(entity_id)? = global_position.into();
+            *db.get_entity_component_mut::<GlobalPositionData>(entity_id)? =
+                global_position.into();
         }
 
         Ok(())
     }
 }
 
-impl SystemDebugTrait for GlobalPositionSystem {
-    fn get_name() -> &'static str {
-        "Global Position"
-    }
-}

@@ -1,7 +1,7 @@
-mod anchors_margins_system;
-mod global_position_system;
-mod position_integrator_system;
+mod anchors_margins;
+mod global_position;
+mod position_integrator;
 
-pub use anchors_margins_system::*;
-pub use global_position_system::*;
-pub use position_integrator_system::*;
+pub use anchors_margins::*;
+pub use global_position::*;
+pub use position_integrator::*;

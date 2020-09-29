@@ -1,4 +1,4 @@
-use crate::components::InputAxis;
+use crate::components::InputAxisData;
 use antigen::{
     components::EventQueue,
     components::IntRange,
@@ -6,14 +6,13 @@ use antigen::{
     entity_component_system::system_interface::SystemInterface,
     entity_component_system::ComponentStorage,
     entity_component_system::EntityComponentDirectory,
-    entity_component_system::SystemDebugTrait,
     entity_component_system::{SystemError, SystemTrait},
 };
 
 #[derive(Debug)]
-pub struct InputAxisSystem;
+pub struct InputAxis;
 
-impl<CS, CD> SystemTrait<CS, CD> for InputAxisSystem
+impl<CS, CD> SystemTrait<CS, CD> for InputAxis
 where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
@@ -35,14 +34,14 @@ where
                 .entity_component_directory
                 .get_entities_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<InputAxis>(entity_id)
+                        .entity_has_component::<InputAxisData>(entity_id)
                         && db
                             .entity_component_directory
                             .entity_has_component::<IntRange>(entity_id)
                 });
 
             for entity_id in entities {
-                let input_axis_component = db.get_entity_component::<InputAxis>(entity_id)?;
+                let input_axis_component = db.get_entity_component::<InputAxisData>(entity_id)?;
                 let (prev_input, next_input) = (
                     input_axis_component.get_negative_input(),
                     input_axis_component.get_positive_input(),
@@ -72,11 +71,5 @@ where
         }
 
         Ok(())
-    }
-}
-
-impl SystemDebugTrait for InputAxisSystem {
-    fn get_name() -> &'static str {
-        "Input Axis"
     }
 }

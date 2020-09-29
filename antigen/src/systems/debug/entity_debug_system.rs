@@ -65,12 +65,11 @@ where
             let int_range = db.get_entity_component_mut::<IntRange>(entity_inspector_entity)?;
             int_range.set_range(0..debug_entities.len() as i64);
             for event in events {
-                if let EntityInspectorEvent::SetInspectedEntity(index) = event {
-                    if let Some(index) = index {
-                        int_range.set_index(index as i64);
-                    } else {
-                        int_range.set_index(-1);
-                    }
+                let EntityInspectorEvent::SetInspectedEntity(index) = event;
+                if let Some(index) = index {
+                    int_range.set_index(index as i64);
+                } else {
+                    int_range.set_index(-1);
                 }
             }
         }

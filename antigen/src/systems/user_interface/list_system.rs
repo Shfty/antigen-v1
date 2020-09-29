@@ -77,7 +77,7 @@ where
             self.list_hover_entities
                 .entry(list_control_entity)
                 .or_insert_with(|| {
-                    let list_hover_entity = db.create_entity(Some("List Focus Entity")).unwrap();
+                    let list_hover_entity = db.create_entity(Some("List Hover Entity")).unwrap();
                     db.insert_entity_component(list_hover_entity, Control)
                         .unwrap();
                     db.insert_entity_component(list_hover_entity, Position::default())

@@ -48,13 +48,13 @@ impl CPUShader {
     pub fn hsv(input: CPUShaderInput) -> Option<ColorRGBF> {
         let (u, v) = Self::get_uv(input);
 
-        let h = v * 360.0;
+        let hue = v * 360.0;
 
-        let n = (u - 0.5) * -2.0;
-        let s = 1.0 - n.min(0.0).abs();
-        let v = 1.0 - n.max(0.0);
+        let norm = (u - 0.5) * -2.0;
+        let sat = 1.0 - norm.min(0.0).abs();
+        let val = 1.0 - norm.max(0.0);
 
-        Some(ColorRGB::from_hsv(h, s, v))
+        Some(ColorRGB::from_hsv(hue, sat, val))
     }
 
     pub fn rect(input: CPUShaderInput) -> Option<ColorRGBF> {

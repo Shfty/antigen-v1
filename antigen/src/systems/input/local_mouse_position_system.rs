@@ -10,7 +10,7 @@ use crate::{
     primitive_types::Vector2I,
 };
 
-use crate::components::LocalPosition;
+use crate::components::LocalMousePosition;
 
 #[derive(Debug)]
 pub struct LocalMousePositionSystem;
@@ -59,7 +59,7 @@ where
                     db.entity_component_directory
                         .get_entities_by_predicate(|entity_id| {
                             db.entity_component_directory
-                                .entity_has_component::<LocalPosition>(entity_id)
+                                .entity_has_component::<LocalMousePosition>(entity_id)
                                 && db
                                     .entity_component_directory
                                     .entity_has_component::<Position>(entity_id)
@@ -99,7 +99,7 @@ where
                             },
                         };
 
-                    *db.get_entity_component_mut::<LocalPosition>(entity_id)? =
+                    *db.get_entity_component_mut::<LocalMousePosition>(entity_id)? =
                         (mouse_position - (window_position + position)).into();
                 }
             }

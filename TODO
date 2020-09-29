@@ -1,8 +1,6 @@
 TODO: Entity / component / system debugger cleanup
       List index entities in debug scene should use the list itself (index should probably be stored in the list component)
 
-TODO: Refactor event processing such that LocalEventSystem removes events from output queues, but only when it can actually use them
-
 TODO: Refactor system IDs to store type name as per component IDs, refactor system debugger appropriately
 
 TODO: Anchor HSV rect to game entity

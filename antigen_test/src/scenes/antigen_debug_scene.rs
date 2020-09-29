@@ -8,7 +8,7 @@ use antigen::{
     components::EventQueue,
     components::EventTargets,
     components::List,
-    components::LocalPosition,
+    components::LocalMousePosition,
     components::SoftwareFramebuffer,
     components::{
         Anchors, DebugComponentDataList, DebugComponentList, DebugEntityList, DebugExclude,
@@ -64,7 +64,7 @@ impl Scene for AntigenDebugScene {
     {
         ecs.push_system(EventConsumerSystem::<AntigenInputEvent>::new());
         ecs.push_system(EventConsumerSystem::<CursesEvent>::new());
-        
+
         ecs.push_system(CursesInputBufferSystem);
         ecs.push_system(CursesKeyboardSystem);
         ecs.push_system(CursesMouseSystem::new());
@@ -82,10 +82,7 @@ impl Scene for AntigenDebugScene {
             EventProcessorSystem::<ListEvent, EntityInspectorEvent>::new(
                 |list_event: ListEvent| match list_event {
                     ListEvent::Pressed(index) => {
-                        Some(EntityInspectorEvent::SetInspectedEntity(match index {
-                            -1 => None,
-                            index => Some(index as usize),
-                        }))
+                        Some(EntityInspectorEvent::SetInspectedEntity(index))
                     }
                     _ => None,
                 },
@@ -95,12 +92,9 @@ impl Scene for AntigenDebugScene {
         ecs.push_system(
             EventProcessorSystem::<ListEvent, ComponentInspectorEvent>::new(
                 |list_event: ListEvent| match list_event {
-                    ListEvent::Pressed(index) => Some(
-                        ComponentInspectorEvent::SetInspectedComponent(match index {
-                            -1 => None,
-                            index => Some(index as usize),
-                        }),
-                    ),
+                    ListEvent::Pressed(index) => {
+                        Some(ComponentInspectorEvent::SetInspectedComponent(index))
+                    }
                     _ => None,
                 },
             ),
@@ -110,10 +104,7 @@ impl Scene for AntigenDebugScene {
             EventProcessorSystem::<ListEvent, SystemInspectorEvent>::new(
                 |list_event: ListEvent| match list_event {
                     ListEvent::Pressed(index) => {
-                        Some(SystemInspectorEvent::SetInspectedSystem(match index {
-                            -1 => None,
-                            index => Some(index as usize),
-                        }))
+                        Some(SystemInspectorEvent::SetInspectedSystem(index))
                     }
                     _ => None,
                 },
@@ -410,7 +401,6 @@ fn create_debug_window<CS, CD>(
     db: &mut SystemInterface<CS, CD>,
     assemblages: &mut HashMap<EntityAssemblage, Assemblage<CS, CD>>,
     parent_window_entity: EntityID,
-    list_index_entity: Option<EntityID>,
     window_name: &str,
     anchor_horizontal: Range<f32>,
     anchor_vertical: Range<f32>,
@@ -473,7 +463,7 @@ where
     // Create Entity List
     let entity_list_entity = db.create_entity(Some(window_name))?;
     {
-        let list_component = List::new(Some(entity_list_entity), list_index_entity);
+        let list_component = List::new(Some(entity_list_entity));
 
         db.insert_entity_component(entity_list_entity, list_component)?;
         db.insert_entity_component(entity_list_entity, Position::default())?;
@@ -482,8 +472,7 @@ where
         db.insert_entity_component(entity_list_entity, Anchors::new(0.0..1.0, 0.0..1.0))?;
         db.insert_entity_component(entity_list_entity, Margins::new(2, 2, 3, 1))?;
         db.insert_entity_component(entity_list_entity, Vec::<String>::new())?;
-        db.insert_entity_component(entity_list_entity, LocalPosition::default())?;
-        db.insert_entity_component(entity_list_entity, DebugExclude)?;
+        db.insert_entity_component(entity_list_entity, LocalMousePosition::default())?;
     }
 
     Ok(entity_list_entity)
@@ -499,14 +488,10 @@ where
     S: ComponentStorage,
     D: EntityComponentDirectory,
 {
-    let index_entity = db.create_entity(Some("Entity List Index"))?;
-    db.insert_entity_component(index_entity, IntRange::new(-1..0))?;
-
     let entity_list_entity = create_debug_window(
         db,
         assemblages,
         parent_window_entity,
-        Some(index_entity),
         "Entities",
         0.25..0.5,
         0.0..0.5,
@@ -536,7 +521,6 @@ where
         db,
         assemblages,
         parent_window_entity,
-        None,
         "Scene Tree",
         0.25..0.5,
         0.5..1.0,
@@ -555,14 +539,10 @@ where
     S: ComponentStorage,
     D: EntityComponentDirectory,
 {
-    let index_entity = db.create_entity(Some("Component List Index"))?;
-    db.insert_entity_component(index_entity, IntRange::new(-1..0))?;
-
     let component_list_entity = create_debug_window(
         db,
         assemblages,
         parent_window_entity,
-        Some(index_entity),
         "Components",
         0.5..0.75,
         0.0..0.5,
@@ -591,7 +571,6 @@ where
         db,
         assemblages,
         parent_window_entity,
-        None,
         "Component Data",
         0.75..1.0,
         0.0..1.0,
@@ -610,14 +589,10 @@ where
     S: ComponentStorage,
     D: EntityComponentDirectory,
 {
-    let index_entity = db.create_entity(Some("System List Index"))?;
-    db.insert_entity_component(index_entity, IntRange::new(-1..0))?;
-
     let system_list_entity = create_debug_window(
         db,
         assemblages,
         parent_window_entity,
-        Some(index_entity),
         "Systems",
         0.5..0.75,
         0.5..1.0,

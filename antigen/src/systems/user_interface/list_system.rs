@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use crate::{
     components::{
-        Control, DebugExclude, EventQueue, GlobalPosition, IntRange, List, LocalPosition,
-        ParentEntity, Position, Size,
+        Control, DebugExclude, EventQueue, GlobalPosition, List, LocalMousePosition, ParentEntity,
+        Position, Size,
     },
     core::events::AntigenInputEvent,
     entity_component_system::{
@@ -16,7 +16,7 @@ use crate::{
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub enum ListEvent {
     Hovered(i64),
-    Pressed(i64),
+    Pressed(Option<usize>),
 }
 
 #[derive(Debug)]
@@ -127,14 +127,12 @@ where
                 .ok_or("Error getting list focus entity")?;
 
             // Fetch entity references
-            let (string_list_entity, list_index_entity) =
-                match db.get_entity_component::<List>(list_control_entity) {
-                    Ok(pancurses_list_control_component) => (
-                        pancurses_list_control_component.get_string_list_entity(),
-                        pancurses_list_control_component.get_list_index_entity(),
-                    ),
-                    Err(err) => return Err(err.into()),
-                };
+            let string_list_entity = match db.get_entity_component::<List>(list_control_entity) {
+                Ok(pancurses_list_control_component) => {
+                    pancurses_list_control_component.get_string_list_entity()
+                }
+                Err(err) => return Err(err.into()),
+            };
 
             if let Some(string_list_entity) = string_list_entity {
                 // The list entity is valid
@@ -193,13 +191,7 @@ where
                     db.insert_entity_component(string_entity, ParentEntity(list_control_entity))?;
                     db.insert_entity_component(string_entity, String::default())?;
                     db.insert_entity_component(string_entity, ColorRGBF::default())?;
-
-                    if db
-                        .entity_component_directory
-                        .entity_has_component::<DebugExclude>(&list_control_entity)
-                    {
-                        db.insert_entity_component(string_entity, DebugExclude)?;
-                    }
+                    db.insert_entity_component(string_entity, DebugExclude)?;
 
                     string_entities.push(string_entity);
                 }
@@ -213,7 +205,7 @@ where
 
                 // Fetch local mouse position
                 let local_mouse_position: Option<Vector2I> =
-                    match db.get_entity_component::<LocalPosition>(list_control_entity) {
+                    match db.get_entity_component::<LocalMousePosition>(list_control_entity) {
                         Ok(local_position) => {
                             let local_position = *local_position;
                             let local_position: Vector2I = local_position.into();
@@ -247,15 +239,6 @@ where
                     None
                 };
 
-                // Update the list's IntRangeComponent to match the list size
-                if let Some(list_index_entity) = list_index_entity {
-                    if let Ok(int_range_component) =
-                        db.get_entity_component_mut::<IntRange>(list_index_entity)
-                    {
-                        int_range_component.set_range(-1..(string_list.len() as i64));
-                    }
-                }
-
                 // Clear local event queue
                 if let Ok(list_event_queue) =
                     db.get_entity_component_mut::<EventQueue<ListEvent>>(list_control_entity)
@@ -285,9 +268,9 @@ where
                         for event in event_queue.clone() {
                             if let AntigenInputEvent::MousePress { button_mask: 1 } = event {
                                 let index = if let Some(hovered_item) = hovered_item {
-                                    hovered_item as i64
+                                    Some(hovered_item)
                                 } else {
-                                    -1
+                                    None
                                 };
 
                                 // Push press event into queue
@@ -301,15 +284,10 @@ where
                                     list_event_queue.push(ListEvent::Pressed(index));
                                 }
 
-                                if let Some(list_index_entity) = list_index_entity {
-                                    if let Ok(int_range_component) =
-                                        db.get_entity_component_mut::<IntRange>(list_index_entity)
-                                    {
-                                        int_range_component
-                                            .set_range(-1..(string_list.len() as i64));
-
-                                        int_range_component.set_index(index);
-                                    }
+                                if let Ok(list) =
+                                    db.get_entity_component_mut::<List>(list_control_entity)
+                                {
+                                    list.set_selected_index(index);
                                 }
                             }
                         }
@@ -317,15 +295,9 @@ where
                 }
 
                 // Fetch the selected index from the list's IntRangeComponent
-                let focused_item = match list_index_entity {
-                    Some(list_index_entity) => {
-                        match db.get_entity_component_mut::<IntRange>(list_index_entity) {
-                            Ok(int_range_component) => Some(int_range_component.get_index()),
-                            Err(_) => None,
-                        }
-                    }
-                    None => None,
-                };
+                let focused_item = db
+                    .get_entity_component_mut::<List>(list_control_entity)?
+                    .get_selected_index();
 
                 *db.get_entity_component_mut::<Position>(*list_hover_entity)? = Vector2I(
                     0,
@@ -350,7 +322,7 @@ where
 
                 *db.get_entity_component_mut::<Size>(*list_focus_entity)? =
                     if let Some(focused_item) = focused_item {
-                        if focused_item >= 0 && focused_item < string_list.len() as i64 {
+                        if focused_item < string_list.len() {
                             Vector2I(width, string_list[focused_item as usize].len() as i64)
                         } else {
                             Vector2I(0, 0)
@@ -375,7 +347,7 @@ where
                         *db.get_entity_component_mut::<String>(string_entity)? = string.clone();
 
                         // Update color pair based on focused item
-                        let data = if Some(string_index as i64) == focused_item {
+                        let data = if Some(string_index) == focused_item {
                             ColorRGB(0.0, 0.0, 0.0)
                         } else {
                             ColorRGB(1.0, 1.0, 1.0)

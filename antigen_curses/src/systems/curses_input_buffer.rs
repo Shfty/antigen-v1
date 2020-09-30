@@ -1,12 +1,13 @@
 use antigen::{
+    components::EventQueue,
     components::Window,
     entity_component_system::{
-        system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory,
-        SystemError, SystemTrait,
+        system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory, SystemError,
+        SystemTrait,
     },
 };
 
-use crate::components::{CursesEvent, CursesEventQueue, CursesWindowData};
+use crate::components::{CursesEvent, CursesWindowData};
 
 /// Reads input from a pancurses window and pushes it into an event queue
 #[derive(Debug)]
@@ -27,7 +28,7 @@ where
             db.entity_component_directory
                 .get_entity_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<CursesEventQueue>(entity_id)
+                        .entity_has_component::<EventQueue<CursesEvent>>(entity_id)
                 });
 
         if let Some(event_queue_entity) = event_queue_entity {
@@ -43,11 +44,14 @@ where
                     });
 
             if let Some(entity_id) = window_entity {
-                if let Some(window) = db.get_entity_component::<CursesWindowData>(entity_id)?.as_ref() {
+                let window: &Option<pancurses::Window> = db.get_entity_component::<CursesWindowData>(entity_id)?;
+                if let Some(window) = window {
                     if let Some(input) = window.getch() {
                         // Fetch the entity queue component and push inputs into it
                         let event_queue: &mut Vec<CursesEvent> = db
-                            .get_entity_component_mut::<CursesEventQueue>(event_queue_entity)?
+                            .get_entity_component_mut::<EventQueue<CursesEvent>>(
+                                event_queue_entity,
+                            )?
                             .as_mut();
 
                         event_queue.push(input);

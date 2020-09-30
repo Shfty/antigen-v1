@@ -142,7 +142,7 @@ where
                 // Fetch width and height
                 let Vector2I(width, height) =
                     match db.get_entity_component::<Size>(list_control_entity) {
-                        Ok(size_component) => (*size_component).into(),
+                        Ok(size_component) => **size_component,
                         Err(err) => return Err(err.into()),
                     };
 
@@ -264,12 +264,11 @@ where
                             });
 
                     if let Some(event_queue_entity) = event_queue_entity {
-                        let event_queue_component = db
+                        let event_queue: &Vec<AntigenInputEvent> = db
                             .get_entity_component::<EventQueue<AntigenInputEvent>>(
                                 event_queue_entity,
                             )?;
 
-                        let event_queue: &Vec<AntigenInputEvent> = event_queue_component.as_ref();
                         for event in event_queue.clone() {
                             match event {
                                 AntigenInputEvent::MousePress { button_mask: 1 } => {
@@ -314,28 +313,26 @@ where
                     .get_entity_component_mut::<ListData>(list_control_entity)?
                     .get_selected_index();
 
-                *db.get_entity_component_mut::<Position>(*list_hover_entity)? = Vector2I(
+                **db.get_entity_component_mut::<Position>(*list_hover_entity)? = Vector2I(
                     0,
                     if let Some(hovered_item) = hovered_item {
                         hovered_item as i64
                     } else {
                         0
                     },
-                )
-                .into();
+                );
 
-                *db.get_entity_component_mut::<Size>(*list_hover_entity)? =
+                **db.get_entity_component_mut::<Size>(*list_hover_entity)? =
                     if let Some(hovered_item) = hovered_item {
                         Vector2I(width, string_list[hovered_item as usize].len() as i64)
                     } else {
                         Vector2I(0, 0)
-                    }
-                    .into();
+                    };
 
-                *db.get_entity_component_mut::<Position>(*list_focus_entity)? =
-                    Vector2I(0, selected_item.unwrap_or(0) as i64).into();
+                **db.get_entity_component_mut::<Position>(*list_focus_entity)? =
+                    Vector2I(0, selected_item.unwrap_or(0) as i64);
 
-                *db.get_entity_component_mut::<Size>(*list_focus_entity)? =
+                **db.get_entity_component_mut::<Size>(*list_focus_entity)? =
                     if let Some(focused_item) = selected_item {
                         if focused_item < string_list.len() {
                             Vector2I(width, string_list[focused_item as usize].len() as i64)
@@ -344,8 +341,7 @@ where
                         }
                     } else {
                         Vector2I(0, 0)
-                    }
-                    .into();
+                    };
 
                 // Iterate over the lists of strings and update their position, text and color
                 let mut y = 0i64;
@@ -361,8 +357,7 @@ where
                         let string_entity = string_entities[y as usize];
 
                         // Update each string entity's position
-                        *db.get_entity_component_mut::<Position>(string_entity)? =
-                            Vector2I(0, y).into();
+                        **db.get_entity_component_mut::<Position>(string_entity)? = Vector2I(0, y);
 
                         // Update each string entity's text
                         *db.get_entity_component_mut::<String>(string_entity)? = string.clone();

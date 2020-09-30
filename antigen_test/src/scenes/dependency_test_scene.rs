@@ -12,8 +12,8 @@ use antigen::{
     primitive_types::Vector2I,
     systems::PositionIntegrator,
 };
-use antigen_curses::systems as curses_systems;
 use antigen_curses::components as curses_components;
+use antigen_curses::systems as curses_systems;
 
 use crate::systems::InputVelocity;
 use crate::systems::QuitKey;
@@ -81,8 +81,11 @@ impl Scene for DependencyTestScene {
         let main_window_entity = db.create_entity(Some("Main Window"))?;
         {
             db.insert_entity_component(main_window_entity, Window)?;
-            db.insert_entity_component(main_window_entity, curses_components::CursesWindowData::default())?;
-            db.insert_entity_component(main_window_entity, Size::from(Vector2I(64, 32)))?;
+            db.insert_entity_component(
+                main_window_entity,
+                curses_components::CursesWindowData::default(),
+            )?;
+            db.insert_entity_component(main_window_entity, Size(Vector2I(64, 32)))?;
         }
 
         // Create Player
@@ -91,7 +94,7 @@ impl Scene for DependencyTestScene {
             "Controllable ASCII character with position and velocity",
         )
         .add_component(Control)?
-        .add_component(Position::from(Vector2I(1, 1)))?
+        .add_component(Position(Vector2I(1, 1)))?
         .add_component(Velocity::default())?
         .add_component('@')?
         .add_component(ColorRGB(1.0f32, 0.6f32, 1.0f32))?

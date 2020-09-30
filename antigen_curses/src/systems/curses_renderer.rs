@@ -69,9 +69,7 @@ where
         let window_width: i64;
         let window_height: i64;
         {
-            let window_component = db.get_entity_component::<CursesWindowData>(window_entity)?;
-
-            let window: &Option<pancurses::Window> = window_component.as_ref();
+            let window: &Option<pancurses::Window> = db.get_entity_component::<CursesWindowData>(window_entity)?;
             if let Some(window) = window {
                 let (height, width) = window.get_max_yx();
 
@@ -239,8 +237,8 @@ where
             }
         }
 
-        let window_component = db.get_entity_component::<CursesWindowData>(window_entity)?;
-        let window: &Option<pancurses::Window> = window_component.as_ref();
+        let window: &Option<pancurses::Window> =
+            db.get_entity_component::<CursesWindowData>(window_entity)?;
         if let Some(window) = window {
             window.erase();
             for (x, y, char, color_pair) in cells {

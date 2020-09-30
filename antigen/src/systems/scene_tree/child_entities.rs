@@ -1,4 +1,10 @@
-use crate::{components::ChildEntitiesData, entity_component_system::ComponentStorage, entity_component_system::EntityComponentDirectory, entity_component_system::EntityID, entity_component_system::{SystemError, SystemTrait}};
+use crate::{
+    components::ChildEntitiesData,
+    entity_component_system::ComponentStorage,
+    entity_component_system::EntityComponentDirectory,
+    entity_component_system::EntityID,
+    entity_component_system::{SystemError, SystemTrait},
+};
 use crate::{components::ParentEntity, entity_component_system::system_interface::SystemInterface};
 
 #[derive(Debug)]
@@ -35,7 +41,7 @@ where
                 });
 
         for entity_id in entities_with_parents {
-            let parent_id: EntityID = (*db.get_entity_component::<ParentEntity>(entity_id)?).into();
+            let parent_id: EntityID = **db.get_entity_component::<ParentEntity>(entity_id)?;
 
             let child_entities: &mut Vec<EntityID> =
                 match db.get_entity_component_mut::<ChildEntitiesData>(parent_id) {
@@ -59,11 +65,8 @@ where
                 });
 
         for entity_id in entities_with_children {
-            let valid_entities: &Vec<EntityID> = db
+            let valid_entities: Vec<EntityID> = db
                 .get_entity_component::<ChildEntitiesData>(entity_id)?
-                .as_ref();
-
-            let valid_entities: Vec<EntityID> = valid_entities
                 .iter()
                 .filter(|entity_id| db.entity_component_directory.is_valid_entity(entity_id))
                 .copied()

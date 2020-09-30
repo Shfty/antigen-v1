@@ -1,14 +1,18 @@
+use std::ops::{Deref, DerefMut};
+
 #[derive(Debug, Default, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub struct Name(pub String);
 
-impl From<String> for Name {
-    fn from(string: String) -> Self {
-        Name(string)
+impl Deref for Name {
+    type Target = String;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
-impl Into<String> for Name {
-    fn into(self) -> String {
-        self.0
+impl DerefMut for Name {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }

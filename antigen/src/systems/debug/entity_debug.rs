@@ -78,7 +78,7 @@ where
             .iter()
             .map(|entity_id| {
                 let label: String = match db.get_entity_component::<Name>(*entity_id) {
-                    Ok(name) => name.clone().into(),
+                    Ok(name) => (**name).clone(),
                     Err(_) => "Entity".into(),
                 };
                 format!("{}:\t{}", entity_id, label)

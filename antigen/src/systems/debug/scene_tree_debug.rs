@@ -68,7 +68,7 @@ where
             }
 
             let label: String = match db.get_entity_component::<Name>(*entity_id) {
-                Ok(name) => (*name).clone().into(),
+                Ok(name) => (**name).clone(),
                 Err(_) => "Entity".into(),
             };
 
@@ -76,8 +76,7 @@ where
             scene_tree_strings.push(label);
 
             if let Ok(child_entities) = db.get_entity_component::<ChildEntitiesData>(*entity_id) {
-                let child_ids: &Vec<EntityID> = child_entities.as_ref();
-                let child_ids: Vec<EntityID> = child_ids
+                let child_ids: Vec<EntityID> = child_entities
                     .iter()
                     .filter(|child_id| {
                         !db.entity_component_directory

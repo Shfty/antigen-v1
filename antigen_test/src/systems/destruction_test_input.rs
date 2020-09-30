@@ -45,11 +45,10 @@ where
 
             for entity_id in destruction_test_entities {
                 let input_key: antigen::core::keyboard::Key =
-                    (*db.get_entity_component::<DestructionTestInputData>(entity_id)?).into();
+                    **db.get_entity_component::<DestructionTestInputData>(entity_id)?;
 
-                let event_queue: &Vec<AntigenInputEvent> = db
-                    .get_entity_component::<EventQueue<AntigenInputEvent>>(event_queue_entity)?
-                    .as_ref();
+                let event_queue: &Vec<AntigenInputEvent> =
+                    db.get_entity_component::<EventQueue<AntigenInputEvent>>(event_queue_entity)?;
 
                 for event in event_queue.clone() {
                     if let AntigenInputEvent::KeyPress { key_code } = event {

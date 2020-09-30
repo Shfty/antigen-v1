@@ -57,8 +57,7 @@ where
         let mut tree_depth_entities: HashMap<i64, Vec<EntityID>> = HashMap::new();
 
         for entity_id in &anchor_entities {
-            let parent_id: EntityID =
-                (*db.get_entity_component::<ParentEntity>(*entity_id)?).into();
+            let parent_id: EntityID = **db.get_entity_component::<ParentEntity>(*entity_id)?;
 
             let mut candidate_id = parent_id;
             let mut depth = 0i64;
@@ -66,7 +65,7 @@ where
                 depth += 1;
                 match db.get_entity_component::<ParentEntity>(candidate_id) {
                     Ok(parent_entity_component) => {
-                        candidate_id = (*parent_entity_component).into();
+                        candidate_id = **parent_entity_component;
                     }
                     Err(_) => break,
                 }
@@ -94,14 +93,13 @@ where
 
         // Update position and size based on anchors
         for entity_id in anchor_entities {
-            let parent_id: EntityID = (*db.get_entity_component::<ParentEntity>(entity_id)?).into();
+            let parent_id: EntityID = **db.get_entity_component::<ParentEntity>(entity_id)?;
 
             let parent_position = db.get_entity_component::<Position>(parent_id)?;
-            let parent_position = *parent_position;
-            let Vector2I(parent_pos_x, parent_pos_y) = parent_position.into();
+            let Vector2I(parent_pos_x, parent_pos_y) = **parent_position;
 
             let Vector2I(parent_width, parent_height) =
-                (*db.get_entity_component::<Size>(parent_id)?).into();
+                **db.get_entity_component::<Size>(parent_id)?;
 
             let (anchor_left, anchor_right, anchor_top, anchor_bottom) =
                 db.get_entity_component::<Anchors>(entity_id)?.get_anchors();
@@ -115,7 +113,7 @@ where
             let x = margin_left + parent_pos_x + (parent_width as f32 * anchor_left).floor() as i64;
             let y = margin_top + parent_pos_y + (parent_height as f32 * anchor_top).floor() as i64;
 
-            *db.get_entity_component_mut::<Position>(entity_id)? = Vector2I(x, y).into();
+            **db.get_entity_component_mut::<Position>(entity_id)? = Vector2I(x, y);
 
             let width = (parent_width as f32 * (anchor_right - anchor_left)).ceil() as i64
                 - (margin_right + margin_left);
@@ -125,7 +123,7 @@ where
                 - (margin_bottom + margin_top);
             let height = std::cmp::max(height, 0);
 
-            *db.get_entity_component_mut::<Size>(entity_id)? = Vector2I(width, height).into();
+            **db.get_entity_component_mut::<Size>(entity_id)? = Vector2I(width, height);
         }
 
         Ok(())

@@ -1,3 +1,16 @@
+TODO: Refactor sweep for Deref
+
+TODO: Refactor sweep for associated types
+
+TODO: Refactor sweep for impl Trait
+      Arguments, return types
+      Can return a Fn type
+            ex. currying an internal closure
+            ex. Defining a trait method that returns Fn
+                  Applicable to Assemblage constructor storage?
+      Can return iterators with impl Iterator<Item=Foo>
+            Better than returning concrete collections where possible
+
 TODO: Can anchors/margins be refactored into separate systems?
       More specifically, can margins be generalized?
             Would need somewhere to store final position / size data
@@ -12,10 +25,17 @@ TODO: Lists should scroll line-by-line, not item-by-item
 TODO: Vertical scrolling for HSV shader
 
 TODO: Vertically-split 2x multisampling for each curses cell
+      Will need to make UV a first-class parameter derived from position/size in the software renderer
+      Parametrize at SoftwareRenderer construction as Option<Vec<(f32, f32)>> for a custom kernel, default to single-sample if None
+      Invoke multiple times with offsets from kernel, average result
+      Refer to this as AA, not MSAA - while accurate in the literal sense of multi-sampled AA, the GPU version only applies to edges
 
 TODO: Palettes as components - have renderer take an entity reference for runtime switching
 
+TODO: Type-level color/framebuffer/renderer support for HSV, palette index
+
 TODO: Text shaders for char buffer
+      Can CPUShader be generalized for this?
 
 TODO: Shader chaining - take an Option<fn(ShaderInput)> to allow for combination (ex. a rect that has a color effect)
 
@@ -34,7 +54,8 @@ TODO: Refactor software renderer / string renderer into a single generic system
 
 TODO: Debug excluding every list item entity is too specific
       List system shouldn't know about DebugExclude
-      How to solve? Assemblages would be idea, but they're generic over component storage / entity-component directory
+      How to solve? Assemblages would be ideal, but they're generic over component storage / entity-component directory
+            Don't want to make List generic - too messy
 
 TODO: Component data inspector
 

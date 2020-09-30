@@ -1,16 +1,20 @@
+use std::ops::{Deref, DerefMut};
+
 use pancurses::Window;
 
 #[derive(Debug, Default)]
 pub struct CursesWindowData(pub Option<Window>);
 
-impl AsRef<Option<Window>> for CursesWindowData {
-    fn as_ref(&self) -> &Option<Window> {
+impl Deref for CursesWindowData {
+    type Target = Option<Window>;
+
+    fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl AsMut<Option<Window>> for CursesWindowData {
-    fn as_mut(&mut self) -> &mut Option<Window> {
+impl DerefMut for CursesWindowData {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }

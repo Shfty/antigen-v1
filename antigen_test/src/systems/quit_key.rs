@@ -36,9 +36,8 @@ where
                 });
 
         if let Some(event_queue_entity) = event_queue_entity {
-            let event_queue: &Vec<AntigenInputEvent> = db
-                .get_entity_component::<EventQueue<AntigenInputEvent>>(event_queue_entity)?
-                .as_ref();
+            let event_queue: &Vec<AntigenInputEvent> =
+                db.get_entity_component::<EventQueue<AntigenInputEvent>>(event_queue_entity)?;
 
             for event in event_queue {
                 if let AntigenInputEvent::KeyPress { key_code } = event {

@@ -45,14 +45,10 @@ where
             });
 
         for entity_id in entities {
-            let velocity: Vector2I = (*db.get_entity_component::<Velocity>(entity_id)?).into();
+            let velocity: Vector2I = **db.get_entity_component::<Velocity>(entity_id)?;
 
             let position = db.get_entity_component_mut::<Position>(entity_id)?;
-            *position = (velocity + {
-                let position = *position;
-                position.into()
-            })
-            .into();
+            **position += velocity;
         }
 
         Ok(())

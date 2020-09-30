@@ -103,7 +103,10 @@ impl RGBArrangementPalette {
     }
 }
 
-impl Palette<f32, f32> for RGBArrangementPalette {
+impl Palette for RGBArrangementPalette {
+    type From = f32;
+    type To = f32;
+    
     fn get_colors(&self) -> Vec<ColorRGBF> {
         let colors: Vec<ColorRGBF> = self
             .colors

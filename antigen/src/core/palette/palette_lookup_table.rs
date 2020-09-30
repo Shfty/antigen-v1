@@ -10,7 +10,7 @@ pub struct PaletteLookupTable {
 }
 
 impl PaletteLookupTable {
-    pub fn new(palette: &impl Palette<f32, f32>) -> Self {
+    pub fn new(palette: &impl Palette<From = f32, To = f32>) -> Self {
         let mut indices: Vec<usize> = Vec::new();
         indices.resize(256 * 256 * 256, 0);
         for r in 0..256usize {
@@ -31,7 +31,10 @@ impl PaletteLookupTable {
     }
 }
 
-impl Palette<f32, f32> for PaletteLookupTable {
+impl Palette for PaletteLookupTable {
+    type From = f32;
+    type To = f32;
+    
     fn get_color_idx(&self, color: ColorRGBF) -> usize {
         let color: ColorRGB8 = color.into();
         let idx = (color.0 as usize) * 256 * 256 + (color.1 as usize) * 256 + (color.2 as usize);

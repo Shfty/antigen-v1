@@ -3,8 +3,8 @@ use std::{collections::HashMap, fmt::Debug, time::Duration};
 use crate::{
     components::{DebugSystemList, EventQueue, IntRange, SystemProfilingData},
     entity_component_system::{
-        system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory,
-        SystemError, SystemID, SystemTrait,
+        system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory, SystemError,
+        SystemID, SystemTrait,
     },
 };
 
@@ -62,8 +62,7 @@ where
                     let event_queue: &mut Vec<SystemInspectorEvent> = db
                         .get_entity_component_mut::<EventQueue<SystemInspectorEvent>>(
                             system_inspector_entity,
-                        )?
-                        .as_mut();
+                        )?;
 
                     events.append(event_queue);
                 }

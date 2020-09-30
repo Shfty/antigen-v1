@@ -55,9 +55,8 @@ where
                 });
 
         for entity_id in event_queue_entities {
-            let event_queue: &mut Vec<T> = db
-                .get_entity_component_mut::<EventQueue<T>>(entity_id)?
-                .as_mut();
+            let event_queue: &mut Vec<T> =
+                db.get_entity_component_mut::<EventQueue<T>>(entity_id)?;
 
             event_queue.clear();
         }

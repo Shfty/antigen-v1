@@ -44,9 +44,8 @@ where
                 });
 
         if let Some(event_queue_entity) = event_queue_entity {
-            let event_queue: &Vec<AntigenInputEvent> = db
-                .get_entity_component::<EventQueue<AntigenInputEvent>>(event_queue_entity)?
-                .as_ref();
+            let event_queue: &Vec<AntigenInputEvent> =
+                db.get_entity_component::<EventQueue<AntigenInputEvent>>(event_queue_entity)?;
 
             for event in event_queue.clone() {
                 let mouse_position = match event {
@@ -71,29 +70,23 @@ where
                         if let Ok(parent_entity) =
                             db.get_entity_component::<ParentEntity>(candidate_id)
                         {
-                            candidate_id = (*parent_entity).into();
+                            candidate_id = **parent_entity;
                         } else {
                             break;
                         }
 
                         if db.get_entity_component::<Window>(candidate_id).is_ok() {
-                            let position = *db.get_entity_component::<Position>(candidate_id)?;
-                            window_position = position.into();
+                            window_position =
+                                **db.get_entity_component::<Position>(candidate_id)?;
                             break;
                         }
                     }
 
                     let position: Vector2I =
                         match db.get_entity_component::<GlobalPositionData>(entity_id) {
-                            Ok(global_position) => {
-                                let global_position = *global_position;
-                                global_position.into()
-                            }
+                            Ok(global_position) => **global_position,
                             Err(_) => match db.get_entity_component::<Position>(entity_id) {
-                                Ok(position) => {
-                                    let position = *position;
-                                    position.into()
-                                }
+                                Ok(position) => **position,
                                 Err(err) => return Err(err.into()),
                             },
                         };

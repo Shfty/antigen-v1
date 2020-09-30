@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, ops::Deref, ops::DerefMut};
 
 use crate::entity_component_system::EntityID;
 
@@ -12,14 +12,16 @@ impl EventTargets {
     }
 }
 
-impl AsRef<Vec<EntityID>> for EventTargets {
-    fn as_ref(&self) -> &Vec<EntityID> {
+impl Deref for EventTargets {
+    type Target = Vec<EntityID>;
+
+    fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl AsMut<Vec<EntityID>> for EventTargets {
-    fn as_mut(&mut self) -> &mut Vec<EntityID> {
+impl DerefMut for EventTargets {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }

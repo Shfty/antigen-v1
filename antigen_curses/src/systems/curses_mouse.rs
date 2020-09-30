@@ -2,13 +2,13 @@ use antigen::{
     components::EventQueue,
     core::events::AntigenInputEvent,
     entity_component_system::{
-        system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory,
-        SystemError, SystemTrait,
+        system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory, SystemError,
+        SystemTrait,
     },
     primitive_types::Vector2I,
 };
 
-use crate::components::{CursesEvent, CursesEventQueue};
+use crate::components::CursesEvent;
 
 const WHEEL_UP: usize = 65536;
 const WHEEL_DOWN: usize = 2097152;
@@ -49,13 +49,12 @@ where
             db.entity_component_directory
                 .get_entity_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<CursesEventQueue>(entity_id)
+                        .entity_has_component::<EventQueue<CursesEvent>>(entity_id)
                 });
 
         if let Some(pancurses_event_queue_entity) = pancurses_event_queue_entity {
-            let pancurses_event_queue: &Vec<CursesEvent> = db
-                .get_entity_component::<CursesEventQueue>(pancurses_event_queue_entity)?
-                .as_ref();
+            let pancurses_event_queue: &Vec<CursesEvent> =
+                db.get_entity_component::<EventQueue<CursesEvent>>(pancurses_event_queue_entity)?;
 
             for pancurses_event in pancurses_event_queue.clone() {
                 if pancurses_event == CursesEvent::KeyMouse {

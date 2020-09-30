@@ -49,16 +49,12 @@ where
             });
 
         for entity_id in entities {
-            let parent_entity: EntityID =
-                (*db.get_entity_component::<ParentEntity>(entity_id)?).into();
-
-            let position = *db.get_entity_component::<Position>(entity_id)?;
-            let mut global_position: Vector2I = position.into();
+            let parent_entity: EntityID = **db.get_entity_component::<ParentEntity>(entity_id)?;
+            let mut global_position: Vector2I = **db.get_entity_component::<Position>(entity_id)?;
             let mut candidate_id = parent_entity;
 
             loop {
-                let parent_position = *db.get_entity_component::<Position>(candidate_id)?;
-                global_position += parent_position.into();
+                global_position += **db.get_entity_component::<Position>(candidate_id)?;
 
                 if db
                     .get_entity_component::<GlobalPositionData>(candidate_id)
@@ -68,16 +64,14 @@ where
                 }
 
                 match db.get_entity_component::<ParentEntity>(candidate_id) {
-                    Ok(parent_entity_component) => candidate_id = (*parent_entity_component).into(),
+                    Ok(parent_entity_component) => candidate_id = **parent_entity_component,
                     Err(_) => break,
                 }
             }
 
-            *db.get_entity_component_mut::<GlobalPositionData>(entity_id)? =
-                global_position.into();
+            **db.get_entity_component_mut::<GlobalPositionData>(entity_id)? = global_position;
         }
 
         Ok(())
     }
 }
-

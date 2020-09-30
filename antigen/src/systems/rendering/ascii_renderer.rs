@@ -32,7 +32,7 @@ where
 
         let mut positions: Vec<(Vector2I, char)> = Vec::new();
         for entity_id in entities {
-            let position: Vector2I = (*db.get_entity_component::<Position>(entity_id)?).into();
+            let position: Vector2I = **db.get_entity_component::<Position>(entity_id)?;
 
             let ascii = *db.get_entity_component::<char>(entity_id)?;
 

@@ -3,8 +3,7 @@ use std::fmt::Debug;
 use crate::{
     components::EventQueue,
     entity_component_system::{
-        ComponentStorage, EntityComponentDirectory, EntityID, SystemError,
-        SystemTrait,
+        ComponentStorage, EntityComponentDirectory, EntityID, SystemError, SystemTrait,
     },
 };
 use crate::{components::EventTargets, entity_component_system::system_interface::SystemInterface};
@@ -62,9 +61,8 @@ where
 
             let events: Vec<I> = events.into_iter().flat_map(self.convert).collect();
 
-            let event_targets: &Vec<EntityID> = db
-                .get_entity_component::<EventTargets>(output_entity)?
-                .as_ref();
+            let event_targets: &Vec<EntityID> =
+                db.get_entity_component::<EventTargets>(output_entity)?;
 
             let event_targets: Vec<EntityID> = event_targets
                 .iter()
@@ -76,8 +74,8 @@ where
                 .collect();
 
             for event_target in event_targets {
-                let event_queue = db.get_entity_component_mut::<EventQueue<I>>(event_target)?;
-                let event_queue: &mut Vec<I> = event_queue.as_mut();
+                let event_queue: &mut Vec<I> =
+                    db.get_entity_component_mut::<EventQueue<I>>(event_target)?;
                 event_queue.append(&mut events.clone());
             }
         }

@@ -1,7 +1,8 @@
 use crate::components::{Control, SoftwareFramebuffer};
 use crate::{
     components::{
-        CPUShader, CPUShaderInput, ChildEntitiesData, GlobalPositionData, Position, Size, Window, ZIndex,
+        CPUShader, CPUShaderInput, ChildEntitiesData, GlobalPositionData, Position, Size, Window,
+        ZIndex,
     },
     entity_component_system::{
         system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory, EntityID,
@@ -80,7 +81,7 @@ where
         {
             let size = db.get_entity_component::<Size>(window_entity)?;
 
-            let Vector2I(width, height) = (*size).into();
+            let Vector2I(width, height) = **size;
 
             window_width = width as i64;
             window_height = height as i64;
@@ -120,7 +121,7 @@ where
                     .entity_has_component::<Size>(&entity_id)
             {
                 z_index = match db.get_entity_component::<ZIndex>(entity_id) {
-                    Ok(z_index) => (*z_index).into(),
+                    Ok(z_index) => **z_index,
                     Err(_) => z_index,
                 };
 
@@ -128,8 +129,7 @@ where
             }
 
             if let Ok(child_entities) = db.get_entity_component::<ChildEntitiesData>(entity_id) {
-                let child_entities: &Vec<EntityID> = child_entities.as_ref();
-                for child_id in child_entities {
+                for child_id in child_entities.iter() {
                     populate_control_entities(db, *child_id, z_layers, z_index)?;
                 }
             }
@@ -146,19 +146,16 @@ where
 
         for (entity_id, z) in control_entities {
             // Get Position
-            let Vector2I(x, y) =
-                if let Ok(global_position) = db.get_entity_component::<GlobalPositionData>(entity_id) {
-                    let global_position = *global_position;
-                    global_position.into()
-                } else {
-                    match db.get_entity_component::<Position>(entity_id) {
-                        Ok(position) => {
-                            let position = *position;
-                            position.into()
-                        }
-                        Err(err) => return Err(err.into()),
-                    }
-                };
+            let Vector2I(x, y) = if let Ok(global_position) =
+                db.get_entity_component::<GlobalPositionData>(entity_id)
+            {
+                **global_position
+            } else {
+                match db.get_entity_component::<Position>(entity_id) {
+                    Ok(position) => **position,
+                    Err(err) => return Err(err.into()),
+                }
+            };
 
             // Get Color
             let color = match db.get_entity_component::<ColorRGBF>(entity_id) {
@@ -173,7 +170,7 @@ where
             };
 
             // Get size
-            let Vector2I(width, height) = (*db.get_entity_component::<Size>(entity_id)?).into();
+            let Vector2I(width, height) = **db.get_entity_component::<Size>(entity_id)?;
 
             Self::render_rect(
                 db.get_entity_component_mut::<SoftwareFramebuffer<ColorRGBF>>(

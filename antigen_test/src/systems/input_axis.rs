@@ -50,8 +50,7 @@ where
                 let mut offset: i64 = 0;
 
                 let event_queue: &Vec<AntigenInputEvent> = db
-                    .get_entity_component::<EventQueue<AntigenInputEvent>>(event_queue_entity)?
-                    .as_ref();
+                    .get_entity_component::<EventQueue<AntigenInputEvent>>(event_queue_entity)?;
 
                 for event in event_queue {
                     if let AntigenInputEvent::KeyPress { key_code } = event {

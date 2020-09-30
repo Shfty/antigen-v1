@@ -1,24 +1,26 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, ops::Deref, ops::DerefMut};
 
 #[derive(Debug, Clone)]
 pub struct EventQueue<T>(Vec<T>)
 where
     T: Debug;
 
-impl<T> AsRef<Vec<T>> for EventQueue<T>
+impl<T> Deref for EventQueue<T>
 where
     T: Debug,
 {
-    fn as_ref(&self) -> &Vec<T> {
+    type Target = Vec<T>;
+
+    fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<T> AsMut<Vec<T>> for EventQueue<T>
+impl<T> DerefMut for EventQueue<T>
 where
     T: Debug,
 {
-    fn as_mut(&mut self) -> &mut Vec<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }

@@ -39,8 +39,7 @@ where
             let mut move_input: Vector2I = Vector2I(0, 0);
 
             let event_queue: &Vec<AntigenInputEvent> = db
-                .get_entity_component::<EventQueue<AntigenInputEvent>>(antigen_event_queue_entity)?
-                .as_ref();
+                .get_entity_component::<EventQueue<AntigenInputEvent>>(antigen_event_queue_entity)?;
 
             for input in event_queue {
                 match input {
@@ -70,7 +69,7 @@ where
                 });
 
             for entity_id in entities {
-                *db.get_entity_component_mut::<Velocity>(entity_id)? = move_input.into();
+                **db.get_entity_component_mut::<Velocity>(entity_id)? = move_input;
             }
         }
 

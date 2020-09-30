@@ -1,16 +1,20 @@
+use std::ops::{Deref, DerefMut};
+
 use antigen::core::keyboard::Key;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct DestructionTestInputData(pub Key);
 
-impl From<Key> for DestructionTestInputData {
-    fn from(key: Key) -> Self {
-        DestructionTestInputData(key)
+impl Deref for DestructionTestInputData {
+    type Target = Key;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
-impl Into<Key> for DestructionTestInputData {
-    fn into(self) -> Key {
-        self.0
+impl DerefMut for DestructionTestInputData {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }

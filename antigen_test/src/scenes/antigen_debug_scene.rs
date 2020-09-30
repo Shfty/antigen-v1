@@ -145,7 +145,7 @@ impl Scene for AntigenDebugScene {
             db,
             Some("Main Window"),
             antigen_components::Position::default(),
-            antigen_components::Size::from(Vector2I(256, 64)),
+            antigen_components::Size(Vector2I(256, 64)),
             None,
         )?;
 
@@ -241,8 +241,7 @@ where
 
     *db.get_entity_component_mut::<String>(entity_id)? = text.into();
 
-    *db.get_entity_component_mut::<antigen_components::Position>(entity_id)? =
-        Vector2I(x, y).into();
+    **db.get_entity_component_mut::<antigen_components::Position>(entity_id)? = Vector2I(x, y);
 
     Ok(entity_id)
 }
@@ -288,7 +287,7 @@ where
         .add_component(antigen_components::Control)?
         .add_component(ColorRGB(1.0f32, 0.6f32, 1.0f32))?
         .add_component('@')?
-        .add_component(antigen_components::Position::from(Vector2I(1, 1)))?
+        .add_component(antigen_components::Position(Vector2I(1, 1)))?
         .add_component(antigen_components::Velocity::default())?
         .finish(),
     );
@@ -408,8 +407,8 @@ where
         .unwrap()
         .create_and_assemble_entity(db, Some("Test String Control"))?;
     {
-        *db.get_entity_component_mut::<antigen_components::Position>(test_string_entity)? =
-            Vector2I(1, 1).into();
+        **db.get_entity_component_mut::<antigen_components::Position>(test_string_entity)? =
+            Vector2I(1, 1);
         *db.get_entity_component_mut::<String>(test_string_entity)? =
             "Testing One Two Three".into();
 

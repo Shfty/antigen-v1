@@ -8,7 +8,7 @@ use antigen::{
     },
 };
 
-use crate::{CursesInput, components::CursesEvent, components::CursesEventQueue};
+use crate::{CursesInput, components::CursesEvent};
 
 /// Converts pancurses keyboard inputs into antigen keyboard inputs
 #[derive(Debug)]
@@ -28,15 +28,14 @@ where
             db.entity_component_directory
                 .get_entity_by_predicate(|entity_id| {
                     db.entity_component_directory
-                        .entity_has_component::<CursesEventQueue>(entity_id)
+                        .entity_has_component::<EventQueue<CursesEvent>>(entity_id)
                 });
 
         if let Some(pancurses_event_queue_entity) = pancurses_event_queue_entity {
             let mut antigen_keys: Vec<antigen::core::keyboard::Key> = Vec::new();
 
             let event_queue: &Vec<CursesEvent> = db
-                .get_entity_component::<CursesEventQueue>(pancurses_event_queue_entity)?
-                .as_ref();
+                .get_entity_component::<EventQueue<CursesEvent>>(pancurses_event_queue_entity)?;
 
             for event in event_queue {
                 let event = *event;

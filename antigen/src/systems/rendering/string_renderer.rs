@@ -51,7 +51,7 @@ impl StringRenderer {
             if x >= window_width || y >= window_height {
                 break;
             }
-            
+
             match char {
                 '\0' => continue,
                 '\n' => {
@@ -96,7 +96,7 @@ where
         let window_height: i64;
         {
             let size_component = db.get_entity_component::<Size>(window_entity)?;
-            let Vector2I(width, height) = (*size_component).into();
+            let Vector2I(width, height) = **size_component;
 
             window_width = width;
             window_height = height;
@@ -139,18 +139,17 @@ where
                         .entity_has_component::<char>(&entity_id))
             {
                 z_index = match db.get_entity_component::<ZIndex>(entity_id) {
-                    Ok(z_index) => (*z_index).into(),
+                    Ok(z_index) => **z_index,
                     Err(_) => z_index,
                 };
 
                 z_layers.push((entity_id, z_index));
             }
 
-            if let Ok(child_entities_component) =
+            if let Ok(child_entities) =
                 db.get_entity_component::<ChildEntitiesData>(entity_id)
             {
-                let child_entities: &Vec<EntityID> = child_entities_component.as_ref();
-                for child_id in child_entities {
+                for child_id in child_entities.iter() {
                     populate_control_entities(db, *child_id, z_layers, z_index)?;
                 }
             }
@@ -167,19 +166,16 @@ where
 
         for (entity_id, z) in control_entities {
             // Get Position
-            let Vector2I(x, y) =
-                if let Ok(global_position) = db.get_entity_component::<GlobalPositionData>(entity_id) {
-                    let global_position = *global_position;
-                    global_position.into()
-                } else {
-                    match db.get_entity_component::<Position>(entity_id) {
-                        Ok(position) => {
-                            let position = *position;
-                            position.into()
-                        }
-                        Err(err) => return Err(err.into()),
-                    }
-                };
+            let Vector2I(x, y) = if let Ok(global_position) =
+                db.get_entity_component::<GlobalPositionData>(entity_id)
+            {
+                **global_position
+            } else {
+                match db.get_entity_component::<Position>(entity_id) {
+                    Ok(position) => **position,
+                    Err(err) => return Err(err.into()),
+                }
+            };
 
             // Get String
             let string = if let Ok(string) = db.get_entity_component::<String>(entity_id) {

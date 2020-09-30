@@ -22,7 +22,7 @@ pub enum TextColorMode {
 #[derive(Debug)]
 pub struct CursesRenderer<T>
 where
-    T: Palette<f32, f32>,
+    T: Palette,
 {
     palette: T,
     text_color_mode: TextColorMode,
@@ -30,7 +30,7 @@ where
 
 impl<T> CursesRenderer<T>
 where
-    T: Palette<f32, f32>,
+    T: Palette<From = f32, To = f32>,
 {
     pub fn new(palette: T, text_color_mode: TextColorMode) -> Self {
         CursesRenderer {
@@ -44,7 +44,7 @@ impl<CS, CD, T> SystemTrait<CS, CD> for CursesRenderer<T>
 where
     CS: ComponentStorage,
     CD: EntityComponentDirectory,
-    T: Palette<f32, f32>,
+    T: Palette<From = f32, To = f32>,
 {
     fn run(&mut self, db: &mut SystemInterface<CS, CD>) -> Result<(), SystemError>
     where
@@ -69,7 +69,8 @@ where
         let window_width: i64;
         let window_height: i64;
         {
-            let window: &Option<pancurses::Window> = db.get_entity_component::<CursesWindowData>(window_entity)?;
+            let window: &Option<pancurses::Window> =
+                db.get_entity_component::<CursesWindowData>(window_entity)?;
             if let Some(window) = window {
                 let (height, width) = window.get_max_yx();
 
@@ -118,7 +119,7 @@ where
         let indices = [
             (
                 pancurses::COLOR_BLACK,
-                self.palette.get_color_idx(ColorRGB(0.0, 0.0, 0.0)),
+                self.palette.get_color_idx(ColorRGB(0.0f32, 0.0f32, 0.0f32)),
             ),
             (
                 pancurses::COLOR_BLUE,

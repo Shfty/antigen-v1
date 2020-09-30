@@ -7,7 +7,7 @@ pub struct AdaptivePalette {
 }
 
 impl AdaptivePalette {
-    pub fn new(source_palette: impl Palette<f32, f32>) -> Self {
+    pub fn new(source_palette: impl Palette<From = f32, To = f32>) -> Self {
         let mut colors: Vec<ColorRGBF> = source_palette.get_colors().iter().copied().collect();
         let colors = Self::median_cut(colors.len(), 256, &mut colors);
         AdaptivePalette { colors }
@@ -104,7 +104,9 @@ impl AdaptivePalette {
     }
 }
 
-impl Palette<f32, f32> for AdaptivePalette {
+impl Palette for AdaptivePalette {
+    type From = f32;
+    type To = f32;
     fn get_colors(&self) -> Vec<ColorRGBF> {
         self.colors.clone()
     }

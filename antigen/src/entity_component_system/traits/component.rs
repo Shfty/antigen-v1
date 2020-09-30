@@ -57,15 +57,19 @@ where
 }
 
 /// Trait for downcasting an Any reference to a concrete component type
-pub trait DowncastComponentTrait<T: UpcastComponentTrait> {
-    fn as_data(component: &dyn ComponentTrait) -> &T;
-    fn as_mut_data(component: &mut dyn ComponentTrait) -> &mut T;
+pub trait DowncastComponentTrait {
+    type Target: UpcastComponentTrait;
+
+    fn as_data(component: &dyn ComponentTrait) -> &Self::Target;
+    fn as_mut_data(component: &mut dyn ComponentTrait) -> &mut Self::Target;
 }
 
-impl<T> DowncastComponentTrait<T> for T
+impl<T> DowncastComponentTrait for T
 where
     T: UpcastComponentTrait,
 {
+    type Target = T;
+
     fn as_data(component: &dyn ComponentTrait) -> &T {
         component.as_any().downcast_ref::<T>().unwrap_or_else(|| {
             panic!(

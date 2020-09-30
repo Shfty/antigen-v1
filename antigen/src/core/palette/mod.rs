@@ -8,17 +8,19 @@ pub use rgb_arrangement_palette::RGBArrangementPalette;
 
 use crate::primitive_types::{ColorRGB, ColorRGBF};
 
-pub trait Palette<F, T>
-where
-    F: Copy + Clone + PartialOrd + PartialEq,
-    T: Copy + Clone + PartialOrd + PartialEq,
-{
-    fn get_color_idx(&self, color: ColorRGB<F>) -> usize;
-    fn get_color(&self, idx: usize) -> ColorRGB<T>;
-    fn get_colors(&self) -> Vec<ColorRGB<T>>;
+pub trait Palette {
+    type From: Copy + Clone + PartialOrd + PartialEq;
+    type To: Copy + Clone + PartialOrd + PartialEq;
+
+    fn get_color_idx(&self, color: ColorRGB<Self::From>) -> usize;
+    fn get_color(&self, idx: usize) -> ColorRGB<Self::To>;
+    fn get_colors(&self) -> Vec<ColorRGB<Self::To>>;
 }
 
-impl Palette<f32, f32> for Vec<ColorRGBF> {
+impl Palette for Vec<ColorRGBF> {
+    type From = f32;
+    type To = f32;
+
     fn get_colors(&self) -> Vec<ColorRGB<f32>> {
         self.clone()
     }
@@ -56,7 +58,6 @@ mod tests {
         .iter()
         {
             test_palette(palette);
-            test_lut(palette);
         }
         panic!();
     }
@@ -65,23 +66,13 @@ mod tests {
         for r in 0..10 {
             for g in 0..10 {
                 for b in 0..10 {
-                    let color = ColorRGB(r as f32, g as f32, b as f32) / ColorRGB(9.0f32, 9.0f32, 9.0f32);
+                    let color =
+                        ColorRGB(r as f32, g as f32, b as f32) / ColorRGB(9.0f32, 9.0f32, 9.0f32);
                     let idx = palette.get_color_idx(color);
                     let color = palette.get_color(idx);
                     println!("Color: {:?}", color);
                 }
             }
         }
-    }
-
-    fn test_lut(palette: &RGBArrangementPalette) {
-        let lut = PaletteLookupTable::new(palette);
-        println!(
-            "LUT: {:?}",
-            lut.indices[16777015..]
-                .iter()
-                .copied()
-                .collect::<Vec<usize>>()
-        );
     }
 }

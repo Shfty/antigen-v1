@@ -8,7 +8,7 @@ pub struct HeapComponentStorage {
     component_drop_callbacks: HashMap<ComponentID, Vec<ComponentDropCallback>>,
 }
 
-impl<'a> HeapComponentStorage {
+impl HeapComponentStorage {
     pub fn new() -> Self {
         HeapComponentStorage {
             component_data: HashMap::new(),

@@ -11,7 +11,8 @@
             "program": "${workspaceRoot}/target/debug/antigen_test.exe",
             "stopAtEntry": false,
             "cwd": "${workspaceRoot}",
-            "environment": []
+            "environment": [],
+            "preLaunchTask": "Rust: Build Debug"
         },
         {
             "name": "(Windows) Launch Release",
@@ -20,7 +21,8 @@
             "program": "${workspaceRoot}/target/release/antigen_test.exe",
             "stopAtEntry": false,
             "cwd": "${workspaceRoot}",
-            "environment": []
+            "environment": [],
+            "preLaunchTask": "Rust: Build Release"
         },
         {
             "name": "(Windows) Attach",

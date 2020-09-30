@@ -55,8 +55,7 @@ where
             let event_queue: &mut Vec<EntityInspectorEvent> = db
                 .get_entity_component_mut::<EventQueue<EntityInspectorEvent>>(
                     entity_inspector_entity,
-                )?
-                .as_mut();
+                )?;
 
             let mut events: Vec<EntityInspectorEvent> = Vec::new();
             events.append(event_queue);

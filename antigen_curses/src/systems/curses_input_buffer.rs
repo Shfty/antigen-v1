@@ -44,15 +44,15 @@ where
                     });
 
             if let Some(entity_id) = window_entity {
-                let window: &Option<pancurses::Window> = db.get_entity_component::<CursesWindowData>(entity_id)?;
+                let window: &Option<pancurses::Window> =
+                    db.get_entity_component::<CursesWindowData>(entity_id)?;
                 if let Some(window) = window {
                     if let Some(input) = window.getch() {
                         // Fetch the entity queue component and push inputs into it
                         let event_queue: &mut Vec<CursesEvent> = db
                             .get_entity_component_mut::<EventQueue<CursesEvent>>(
                                 event_queue_entity,
-                            )?
-                            .as_mut();
+                            )?;
 
                         event_queue.push(input);
                     }

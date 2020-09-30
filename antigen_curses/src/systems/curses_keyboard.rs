@@ -3,12 +3,12 @@ use antigen::{
     core::events::AntigenInputEvent,
     core::keyboard::IntoKey,
     entity_component_system::{
-        system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory,
-        SystemError, SystemTrait,
+        system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory, SystemError,
+        SystemTrait,
     },
 };
 
-use crate::{CursesInput, components::CursesEvent};
+use crate::{components::CursesEvent, CursesInput};
 
 /// Converts pancurses keyboard inputs into antigen keyboard inputs
 #[derive(Debug)]
@@ -34,8 +34,8 @@ where
         if let Some(pancurses_event_queue_entity) = pancurses_event_queue_entity {
             let mut antigen_keys: Vec<antigen::core::keyboard::Key> = Vec::new();
 
-            let event_queue: &Vec<CursesEvent> = db
-                .get_entity_component::<EventQueue<CursesEvent>>(pancurses_event_queue_entity)?;
+            let event_queue: &Vec<CursesEvent> =
+                db.get_entity_component::<EventQueue<CursesEvent>>(pancurses_event_queue_entity)?;
 
             for event in event_queue {
                 let event = *event;
@@ -59,9 +59,10 @@ where
                     });
 
             if let Some(event_queue_entity) = antigen_event_queue_entity {
-                let antigen_event_queue: &mut Vec<AntigenInputEvent> = db
-                    .get_entity_component_mut::<EventQueue<AntigenInputEvent>>(event_queue_entity)?
-                    .as_mut();
+                let antigen_event_queue = db
+                    .get_entity_component_mut::<EventQueue<AntigenInputEvent>>(
+                        event_queue_entity,
+                    )?;
 
                 for antigen_input in antigen_keys {
                     antigen_event_queue.push(AntigenInputEvent::KeyPress {

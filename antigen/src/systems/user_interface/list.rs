@@ -147,24 +147,24 @@ where
                     };
 
                 // Fetch strings
-                let string_list: Vec<Vec<String>> = (*db
-                    .get_entity_component::<Vec<String>>(string_list_entity)?)
-                .iter()
-                .skip(scroll_offset)
-                .take(height as usize)
-                .map(|string| {
-                    let substrings: Vec<String> = string
-                        .split('\n')
-                        .map(|string| {
-                            string
-                                .chars()
-                                .take(std::cmp::min(width as usize, string.len() as usize))
-                                .collect::<String>()
-                        })
-                        .collect();
-                    substrings
-                })
-                .collect();
+                let string_list: Vec<Vec<String>> = db
+                    .get_entity_component::<Vec<String>>(string_list_entity)?
+                    .iter()
+                    .skip(scroll_offset)
+                    .take(height as usize)
+                    .map(|string| {
+                        let substrings: Vec<String> = string
+                            .split('\n')
+                            .map(|string| {
+                                string
+                                    .chars()
+                                    .take(std::cmp::min(width as usize, string.len() as usize))
+                                    .collect::<String>()
+                            })
+                            .collect();
+                        substrings
+                    })
+                    .collect();
 
                 // If this list doesn't have a vector of item entity references, create one
                 if self
@@ -248,7 +248,6 @@ where
                 if let Ok(list_event_queue) =
                     db.get_entity_component_mut::<EventQueue<ListEvent>>(list_control_entity)
                 {
-                    let list_event_queue: &mut Vec<ListEvent> = list_event_queue.as_mut();
                     list_event_queue.clear();
                 }
 
@@ -284,8 +283,6 @@ where
                                             list_control_entity,
                                         )
                                     {
-                                        let list_event_queue: &mut Vec<ListEvent> =
-                                            list_event_queue.as_mut();
                                         list_event_queue.push(ListEvent::Pressed(index));
                                     }
 

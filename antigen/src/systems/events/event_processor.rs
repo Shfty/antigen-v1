@@ -52,9 +52,8 @@ where
         for output_entity in output_entities {
             let events: Vec<O>;
             {
-                let event_queue: &mut Vec<O> = db
-                    .get_entity_component_mut::<EventQueue<O>>(output_entity)?
-                    .as_mut();
+                let event_queue: &mut Vec<O> =
+                    db.get_entity_component_mut::<EventQueue<O>>(output_entity)?;
 
                 events = event_queue.clone();
             }

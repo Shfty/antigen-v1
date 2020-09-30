@@ -95,11 +95,10 @@ where
                             });
 
                     if let Some(event_queue_entity) = event_queue_entity {
-                        let antigen_event_queue: &mut Vec<AntigenInputEvent> = db
+                        let antigen_event_queue = db
                             .get_entity_component_mut::<EventQueue<AntigenInputEvent>>(
                                 event_queue_entity,
-                            )?
-                            .as_mut();
+                            )?;
 
                         if delta != Vector2I(0, 0) {
                             antigen_event_queue.push(AntigenInputEvent::MouseMove {

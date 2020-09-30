@@ -43,13 +43,12 @@ where
         for entity_id in entities_with_parents {
             let parent_id: EntityID = **db.get_entity_component::<ParentEntity>(entity_id)?;
 
-            let child_entities: &mut Vec<EntityID> =
-                match db.get_entity_component_mut::<ChildEntitiesData>(parent_id) {
-                    Ok(child_entities) => child_entities.as_mut(),
-                    Err(_) => db
-                        .insert_entity_component(parent_id, ChildEntitiesData::default())?
-                        .as_mut(),
-                };
+            let child_entities: &mut Vec<EntityID> = match db
+                .get_entity_component_mut::<ChildEntitiesData>(parent_id)
+            {
+                Ok(child_entities) => child_entities,
+                Err(_) => db.insert_entity_component(parent_id, ChildEntitiesData::default())?,
+            };
 
             if !child_entities.contains(&entity_id) {
                 child_entities.push(entity_id);
@@ -76,10 +75,7 @@ where
                 println!("No valid children, removing component");
                 db.remove_component_from_entity::<ChildEntitiesData>(entity_id)?;
             } else {
-                let child_entities: &mut Vec<EntityID> = db
-                    .get_entity_component_mut::<ChildEntitiesData>(entity_id)?
-                    .as_mut();
-                *child_entities = valid_entities;
+                **db.get_entity_component_mut::<ChildEntitiesData>(entity_id)? = valid_entities;
             }
         }
 

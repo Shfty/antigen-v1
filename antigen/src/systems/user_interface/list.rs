@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap};
 
 use crate::{
     components::{
@@ -7,8 +7,8 @@ use crate::{
     },
     core::events::AntigenInputEvent,
     entity_component_system::{
-        system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory, EntityID,
-        SystemError, SystemTrait,
+        system_interface::SystemInterface, EntityComponentDirectory, EntityID, SystemError,
+        SystemTrait,
     },
     primitive_types::{ColorRGB, ColorRGBF, Vector2I},
 };
@@ -47,30 +47,21 @@ impl Default for List {
     }
 }
 
-impl<CS, CD> SystemTrait<CS, CD> for List
+impl<CD> SystemTrait<CD> for List
 where
-    CS: ComponentStorage,
     CD: EntityComponentDirectory,
 {
-    fn run<'a>(&mut self, db: &'a mut SystemInterface<CS, CD>) -> Result<(), SystemError>
+    fn run<'a>(&mut self, db: &'a mut SystemInterface<CD>) -> Result<(), SystemError>
     where
-        CS: ComponentStorage,
         CD: EntityComponentDirectory,
     {
         let list_control_entities =
             db.entity_component_directory
                 .get_entities_by_predicate(|entity_id| {
-                    db.entity_component_directory
-                        .entity_has_component::<ListData>(entity_id)
-                        && db
-                            .entity_component_directory
-                            .entity_has_component::<Position>(entity_id)
-                        && db
-                            .entity_component_directory
-                            .entity_has_component::<Size>(entity_id)
-                        && db
-                            .entity_component_directory
-                            .entity_has_component::<ParentEntity>(entity_id)
+                    db.entity_has_component::<ListData>(entity_id)
+                        && db.entity_has_component::<Position>(entity_id)
+                        && db.entity_has_component::<Size>(entity_id)
+                        && db.entity_has_component::<ParentEntity>(entity_id)
                 });
 
         for list_control_entity in list_control_entities {
@@ -245,7 +236,7 @@ where
                 };
 
                 // Clear local event queue
-                if let Ok(list_event_queue) =
+                if let Ok(mut list_event_queue) =
                     db.get_entity_component_mut::<EventQueue<ListEvent>>(list_control_entity)
                 {
                     list_event_queue.clear();
@@ -256,19 +247,20 @@ where
                     let event_queue_entity =
                         db.entity_component_directory
                             .get_entity_by_predicate(|entity_id| {
-                                db.entity_component_directory
-                                    .entity_has_component::<EventQueue<AntigenInputEvent>>(
-                                        entity_id,
-                                    )
+                                db.entity_has_component::<EventQueue<AntigenInputEvent>>(entity_id)
                             });
 
                     if let Some(event_queue_entity) = event_queue_entity {
-                        let event_queue: &Vec<AntigenInputEvent> = db
-                            .get_entity_component::<EventQueue<AntigenInputEvent>>(
-                                event_queue_entity,
-                            )?;
+                        let event_queue: Vec<AntigenInputEvent>;
+                        {
+                            event_queue = (**db
+                                .get_entity_component::<EventQueue<AntigenInputEvent>>(
+                                    event_queue_entity,
+                                )?)
+                            .clone();
+                        }
 
-                        for event in event_queue.clone() {
+                        for event in event_queue {
                             match event {
                                 AntigenInputEvent::MousePress { button_mask: 1 } => {
                                     let index = if let Some(hovered_item) = hovered_item {
@@ -278,7 +270,7 @@ where
                                     };
 
                                     // Push press event into queue
-                                    if let Ok(list_event_queue) = db
+                                    if let Ok(mut list_event_queue) = db
                                         .get_entity_component_mut::<EventQueue<ListEvent>>(
                                             list_control_entity,
                                         )
@@ -286,14 +278,14 @@ where
                                         list_event_queue.push(ListEvent::Pressed(index));
                                     }
 
-                                    if let Ok(list) =
+                                    if let Ok(mut list) =
                                         db.get_entity_component_mut::<ListData>(list_control_entity)
                                     {
                                         list.set_selected_index(index);
                                     }
                                 }
                                 AntigenInputEvent::MouseScroll { delta } => {
-                                    if let Ok(list) =
+                                    if let Ok(mut list) =
                                         db.get_entity_component_mut::<ListData>(list_control_entity)
                                     {
                                         list.add_scroll_offset(delta as i64);

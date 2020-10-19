@@ -1,34 +1,29 @@
 use std::collections::HashMap;
 
-use crate::entity_component_system::{
-    ComponentStorage, EntityComponentDirectory, SystemID, SystemTrait,
-};
+use crate::entity_component_system::{EntityComponentDirectory, SystemID, SystemTrait};
 
 use super::SystemStorage;
 
-pub struct HeapSystemStorage<S, D>
+pub struct HeapSystemStorage<D>
 where
-    S: ComponentStorage,
     D: EntityComponentDirectory,
 {
-    systems: HashMap<SystemID, Box<dyn SystemTrait<S, D>>>,
+    systems: HashMap<SystemID, Box<dyn SystemTrait<D>>>,
 }
 
-impl<'a, S, D> HeapSystemStorage<S, D>
+impl<'a, D> HeapSystemStorage<D>
 where
-    S: ComponentStorage,
     D: EntityComponentDirectory,
 {
-    pub fn new() -> HeapSystemStorage<S, D> {
+    pub fn new() -> HeapSystemStorage<D> {
         HeapSystemStorage {
             systems: HashMap::new(),
         }
     }
 }
 
-impl<'a, S, D> Default for HeapSystemStorage<S, D>
+impl<'a, D> Default for HeapSystemStorage<D>
 where
-    S: ComponentStorage,
     D: EntityComponentDirectory,
 {
     fn default() -> Self {
@@ -36,21 +31,20 @@ where
     }
 }
 
-impl<'a, CS, CD> SystemStorage<CS, CD> for HeapSystemStorage<CS, CD>
+impl<'a, CD> SystemStorage<CD> for HeapSystemStorage<CD>
 where
-    CS: ComponentStorage + 'static,
     CD: EntityComponentDirectory + 'static,
 {
     fn insert_system<T>(&mut self, system: T) -> SystemID
     where
-        T: SystemTrait<CS, CD> + 'static,
+        T: SystemTrait<CD> + 'static,
     {
         let id = SystemID::next::<T>();
         self.systems.insert(id, Box::new(system));
         id
     }
 
-    fn get_systems(&mut self) -> HashMap<SystemID, &mut (dyn SystemTrait<CS, CD> + 'static)> {
+    fn get_systems(&mut self) -> HashMap<SystemID, &mut (dyn SystemTrait<CD> + 'static)> {
         self.systems
             .iter_mut()
             .map(|(system_id, system)| (*system_id, system.as_mut()))

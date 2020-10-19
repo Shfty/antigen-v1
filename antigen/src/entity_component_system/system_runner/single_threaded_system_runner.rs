@@ -1,9 +1,9 @@
 use crate::{
     components::SystemProfilingData, core::profiler::Profiler,
     entity_component_system::system_storage::SystemStorage,
-    entity_component_system::ComponentStorage, entity_component_system::EntityComponentDirectory,
-    entity_component_system::SystemError, entity_component_system::SystemID,
-    entity_component_system::SystemInterface, entity_component_system::SystemTrait,
+    entity_component_system::EntityComponentDirectory, entity_component_system::SystemError,
+    entity_component_system::SystemID, entity_component_system::SystemInterface,
+    entity_component_system::SystemTrait,
 };
 
 use super::SystemRunner;
@@ -12,28 +12,26 @@ use super::SystemRunner;
 pub struct SingleThreadedSystemRunner;
 
 impl SystemRunner for SingleThreadedSystemRunner {
-    fn run<'a, SS, CS, CD>(
+    fn run<'a, SS, CD>(
         &mut self,
         system_storage: &'a mut SS,
-        entity_component_database: &'a mut SystemInterface<'a, CS, CD>,
+        system_interface: &'a mut SystemInterface<'a, CD>,
     ) -> Result<(), SystemError>
     where
-        SS: SystemStorage<CS, CD>,
-        CS: ComponentStorage,
+        SS: SystemStorage<CD>,
+
         CD: EntityComponentDirectory,
     {
         superluminal_perf::begin_event("System Runner");
 
-        if let Some(system_debug_entity) = entity_component_database
+        if let Some(system_debug_entity) = system_interface
             .entity_component_directory
             .get_entity_by_predicate(|entity_id| {
-                entity_component_database
-                    .entity_component_directory
-                    .entity_has_component::<SystemProfilingData>(entity_id)
+                system_interface.entity_has_component::<SystemProfilingData>(entity_id)
             })
         {
             let systems = system_storage.get_systems();
-            let mut systems: Vec<(SystemID, &mut dyn SystemTrait<CS, CD>)> =
+            let mut systems: Vec<(SystemID, &mut dyn SystemTrait<CD>)> =
                 systems.into_iter().collect();
             systems.sort_by(|(lhs_id, _), (rhs_id, _)| lhs_id.cmp(rhs_id));
 
@@ -41,11 +39,11 @@ impl SystemRunner for SingleThreadedSystemRunner {
                 let label = system_id.get_name();
                 let profiler = Profiler::start();
                 superluminal_perf::begin_event_with_data("Run System", &label, 0);
-                system.run(entity_component_database)?;
+                system.run(system_interface)?;
                 superluminal_perf::end_event();
                 let duration = profiler.finish();
 
-                entity_component_database
+                system_interface
                     .get_entity_component_mut::<SystemProfilingData>(system_debug_entity)?
                     .set_duration(system_id, duration);
             }

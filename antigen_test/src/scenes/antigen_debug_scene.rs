@@ -1,12 +1,12 @@
 use std::{collections::HashMap, ops::Range};
 
 use antigen::{
-    components as antigen_components,
+    components::{self as antigen_components, ChildEntitiesData},
     core::events::AntigenInputEvent,
     core::palette::RGBArrangementPalette,
     entity_component_system::{
         system_interface::SystemInterface, system_storage::SystemStorage, Assemblage,
-        ComponentStorage, EntityComponentDirectory, EntityComponentSystem, EntityID, Scene,
+        ComponentData, EntityComponentDirectory, EntityComponentSystem, EntityID, Scene,
         SystemRunner,
     },
     primitive_types::{ColorRGB, ColorRGBF, Vector2I},
@@ -14,7 +14,7 @@ use antigen::{
 };
 use antigen_curses::{components as curses_components, systems as curses_systems};
 
-use crate::components;
+use crate::components::{self, DestructionTestInputData, InputAxisData};
 use crate::systems;
 
 #[derive(Eq, PartialEq, Hash)]
@@ -29,13 +29,12 @@ enum EntityAssemblage {
 pub struct AntigenDebugScene;
 
 impl Scene for AntigenDebugScene {
-    fn register_systems<CS, CD, SS, SR>(
-        ecs: &mut EntityComponentSystem<CS, CD, SS, SR>,
+    fn register_systems<CD, SS, SR>(
+        ecs: &mut EntityComponentSystem<CD, SS, SR>,
     ) -> Result<(), String>
     where
-        CS: ComponentStorage,
         CD: EntityComponentDirectory + 'static,
-        SS: SystemStorage<CS, CD> + 'static,
+        SS: SystemStorage<CD> + 'static,
         SR: SystemRunner + 'static,
     {
         ecs.push_system(antigen_systems::EventConsumer::<AntigenInputEvent>::new());
@@ -46,7 +45,7 @@ impl Scene for AntigenDebugScene {
         ecs.push_system(curses_systems::CursesInputBuffer);
         ecs.push_system(curses_systems::CursesKeyboard);
         ecs.push_system(curses_systems::CursesMouse::new());
-        let pancurses_window_system = curses_systems::CursesWindow::new(&mut ecs.component_storage);
+        let pancurses_window_system = curses_systems::CursesWindow;
         ecs.push_system(pancurses_window_system);
 
         ecs.push_system(systems::QuitKey::new(antigen::core::keyboard::Key::Escape));
@@ -96,9 +95,9 @@ impl Scene for AntigenDebugScene {
 
         ecs.push_system(systems::InputVelocity::new());
 
-        ecs.push_system(antigen_systems::PositionIntegrator::new());
+        ecs.push_system(antigen_systems::PositionIntegrator);
         ecs.push_system(antigen_systems::AnchorsMargins::new());
-        ecs.push_system(antigen_systems::GlobalPosition::new());
+        ecs.push_system(antigen_systems::GlobalPosition);
         ecs.push_system(antigen_systems::ChildEntities::new());
         ecs.push_system(antigen_systems::SoftwareRenderer);
         ecs.push_system(antigen_systems::StringRenderer);
@@ -110,11 +109,22 @@ impl Scene for AntigenDebugScene {
         Ok(())
     }
 
-    fn create_entities<CS, CD>(db: &mut SystemInterface<CS, CD>) -> Result<(), String>
+    fn create_entities<CD>(db: &mut SystemInterface<CD>) -> Result<(), String>
     where
-        CS: ComponentStorage,
         CD: EntityComponentDirectory,
     {
+        // FIXME: Automatic storage population
+        {
+            db.component_store
+                .add_storage_for::<ComponentData<ChildEntitiesData>>();
+
+            db.component_store
+                .add_storage_for::<ComponentData<InputAxisData>>();
+
+            db.component_store
+                .add_storage_for::<ComponentData<DestructionTestInputData>>();
+        }
+
         let mut assemblages = create_assemblages()?;
 
         // Create global event queues
@@ -210,31 +220,27 @@ impl Scene for AntigenDebugScene {
         Ok(())
     }
 
-    fn load<'a, CS, CD, SS, SR>(
-        ecs: &'a mut EntityComponentSystem<CS, CD, SS, SR>,
-    ) -> Result<(), String>
+    fn load<'a, CD, SS, SR>(ecs: &'a mut EntityComponentSystem<CD, SS, SR>) -> Result<(), String>
     where
-        CS: ComponentStorage,
         CD: EntityComponentDirectory + 'static,
-        SS: SystemStorage<CS, CD> + 'static,
+        SS: SystemStorage<CD> + 'static,
         SR: SystemRunner + 'static,
     {
         Self::register_systems(ecs)?;
-        let mut entity_component_database = ecs.get_system_interface();
-        Self::create_entities(&mut entity_component_database)?;
+        let mut system_interface = ecs.get_system_interface();
+        Self::create_entities(&mut system_interface)?;
         Ok(())
     }
 }
 
-fn create_string_control<CS, CD>(
-    db: &mut SystemInterface<CS, CD>,
-    string_assemblage: &mut Assemblage<CS, CD>,
+fn create_string_control<CD>(
+    db: &mut SystemInterface<CD>,
+    string_assemblage: &mut Assemblage<CD>,
     debug_label: Option<&str>,
     text: &str,
     (x, y): (i64, i64),
 ) -> Result<EntityID, String>
 where
-    CS: ComponentStorage,
     CD: EntityComponentDirectory,
 {
     let entity_id = string_assemblage.create_and_assemble_entity(db, debug_label)?;
@@ -246,15 +252,14 @@ where
     Ok(entity_id)
 }
 
-fn create_window_entity<S, D>(
-    db: &mut SystemInterface<S, D>,
+fn create_window_entity<D>(
+    db: &mut SystemInterface<D>,
     debug_label: Option<&str>,
     position: antigen_components::Position,
     size: antigen_components::Size,
     parent_window_entity_id: Option<EntityID>,
 ) -> Result<EntityID, String>
 where
-    S: ComponentStorage,
     D: EntityComponentDirectory,
 {
     let entity_id = db.create_entity(debug_label)?;
@@ -271,12 +276,11 @@ where
     Ok(entity_id)
 }
 
-fn create_assemblages<S, D>() -> Result<HashMap<EntityAssemblage, Assemblage<S, D>>, String>
+fn create_assemblages<D>() -> Result<HashMap<EntityAssemblage, Assemblage<D>>, String>
 where
-    S: ComponentStorage,
     D: EntityComponentDirectory,
 {
-    let mut assemblages: HashMap<EntityAssemblage, Assemblage<S, D>> = HashMap::new();
+    let mut assemblages: HashMap<EntityAssemblage, Assemblage<D>> = HashMap::new();
 
     assemblages.insert(
         EntityAssemblage::Player,
@@ -341,13 +345,12 @@ where
     Ok(assemblages)
 }
 
-fn create_game_window<CS, CD>(
-    db: &mut SystemInterface<CS, CD>,
-    assemblages: &mut HashMap<EntityAssemblage, Assemblage<CS, CD>>,
+fn create_game_window<CD>(
+    db: &mut SystemInterface<CD>,
+    assemblages: &mut HashMap<EntityAssemblage, Assemblage<CD>>,
     parent_window_entity: EntityID,
 ) -> Result<EntityID, String>
 where
-    CS: ComponentStorage,
     CD: EntityComponentDirectory,
 {
     // Create Game Window
@@ -425,16 +428,15 @@ where
     Ok(game_window_entity)
 }
 
-fn create_debug_window<CS, CD>(
-    db: &mut SystemInterface<CS, CD>,
-    assemblages: &mut HashMap<EntityAssemblage, Assemblage<CS, CD>>,
+fn create_debug_window<CD>(
+    db: &mut SystemInterface<CD>,
+    assemblages: &mut HashMap<EntityAssemblage, Assemblage<CD>>,
     parent_window_entity: EntityID,
     window_name: &str,
     anchor_horizontal: Range<f32>,
     anchor_vertical: Range<f32>,
 ) -> Result<EntityID, String>
 where
-    CS: ComponentStorage,
     CD: EntityComponentDirectory,
 {
     let entity_list_window_entity = assemblages
@@ -530,14 +532,13 @@ where
     Ok(entity_list_entity)
 }
 
-fn create_entity_list_window<S, D>(
-    db: &mut SystemInterface<S, D>,
-    assemblages: &mut HashMap<EntityAssemblage, Assemblage<S, D>>,
+fn create_entity_list_window<D>(
+    db: &mut SystemInterface<D>,
+    assemblages: &mut HashMap<EntityAssemblage, Assemblage<D>>,
     parent_window_entity: EntityID,
     entity_inspector_entity: EntityID,
 ) -> Result<EntityID, String>
 where
-    S: ComponentStorage,
     D: EntityComponentDirectory,
 {
     let entity_list_entity = create_debug_window(
@@ -562,14 +563,13 @@ where
     Ok(entity_list_entity)
 }
 
-fn create_scene_tree_window<S, D>(
-    db: &mut SystemInterface<S, D>,
-    assemblages: &mut HashMap<EntityAssemblage, Assemblage<S, D>>,
+fn create_scene_tree_window<D>(
+    db: &mut SystemInterface<D>,
+    assemblages: &mut HashMap<EntityAssemblage, Assemblage<D>>,
     parent_window_entity: EntityID,
     entity_inspector_entity: EntityID,
 ) -> Result<EntityID, String>
 where
-    S: ComponentStorage,
     D: EntityComponentDirectory,
 {
     let entity_list_entity = create_debug_window(
@@ -584,14 +584,13 @@ where
     Ok(entity_list_entity)
 }
 
-fn create_component_list_window<S, D>(
-    db: &mut SystemInterface<S, D>,
-    assemblages: &mut HashMap<EntityAssemblage, Assemblage<S, D>>,
+fn create_component_list_window<D>(
+    db: &mut SystemInterface<D>,
+    assemblages: &mut HashMap<EntityAssemblage, Assemblage<D>>,
     parent_window_entity: EntityID,
     component_inspector_entity: EntityID,
 ) -> Result<EntityID, String>
 where
-    S: ComponentStorage,
     D: EntityComponentDirectory,
 {
     let component_list_entity = create_debug_window(
@@ -619,13 +618,12 @@ where
     Ok(component_list_entity)
 }
 
-fn create_component_data_list_window<S, D>(
-    db: &mut SystemInterface<S, D>,
-    assemblages: &mut HashMap<EntityAssemblage, Assemblage<S, D>>,
+fn create_component_data_list_window<D>(
+    db: &mut SystemInterface<D>,
+    assemblages: &mut HashMap<EntityAssemblage, Assemblage<D>>,
     parent_window_entity: EntityID,
 ) -> Result<EntityID, String>
 where
-    S: ComponentStorage,
     D: EntityComponentDirectory,
 {
     let component_list_entity = create_debug_window(
@@ -643,14 +641,13 @@ where
     Ok(component_list_entity)
 }
 
-fn create_system_list_window<S, D>(
-    db: &mut SystemInterface<S, D>,
-    assemblages: &mut HashMap<EntityAssemblage, Assemblage<S, D>>,
+fn create_system_list_window<D>(
+    db: &mut SystemInterface<D>,
+    assemblages: &mut HashMap<EntityAssemblage, Assemblage<D>>,
     parent_window_entity: EntityID,
     system_inspector_entity: EntityID,
 ) -> Result<EntityID, String>
 where
-    S: ComponentStorage,
     D: EntityComponentDirectory,
 {
     let system_list_entity = create_debug_window(

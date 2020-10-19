@@ -1,33 +1,38 @@
+use std::cell::{Ref, RefMut};
+
+use store::Store;
+
 use crate::components::Name;
 
-use super::{ComponentID, ComponentStorage, ComponentTrait, EntityComponentDirectory, EntityID};
+use super::{
+    traits::ComponentData, ComponentID, ComponentTrait, EntityComponentDirectory, EntityID,
+};
 
 /// Ties together component data storage, entity-component lookup, and callback handling
-pub struct SystemInterface<'a, CS, CD>
+pub struct SystemInterface<'a, CD>
 where
-    CS: ComponentStorage + 'static,
     CD: EntityComponentDirectory + 'static,
 {
-    pub component_storage: &'a mut CS,
     pub entity_component_directory: &'a mut CD,
+
+    pub component_store: &'a mut Store,
 }
 
-impl<'a, CS, CD> SystemInterface<'a, CS, CD>
+impl<'a, CD> SystemInterface<'a, CD>
 where
-    CS: ComponentStorage,
     CD: EntityComponentDirectory,
 {
-    pub fn new(component_storage: &'a mut CS, entity_component_directory: &'a mut CD) -> Self {
+    pub fn new(entity_component_directory: &'a mut CD, component_store: &'a mut Store) -> Self {
         SystemInterface {
-            component_storage,
             entity_component_directory,
+
+            component_store,
         }
     }
 }
 
-impl<'a, CS, CD> SystemInterface<'a, CS, CD>
+impl<'a, CD> SystemInterface<'a, CD>
 where
-    CS: ComponentStorage,
     CD: EntityComponentDirectory,
 {
     // CREATE
@@ -42,122 +47,137 @@ where
     }
 
     // INSERT
-    pub fn insert_component<T>(&mut self) -> Result<ComponentID, String>
-    where
-        T: ComponentTrait + 'static,
-    {
-        self.entity_component_directory.insert_component::<T>()
-    }
-
     pub fn insert_entity_component<T>(
         &mut self,
         entity_id: EntityID,
         component_data: T,
-    ) -> Result<&mut T, String>
+    ) -> Result<(), String>
     where
         T: ComponentTrait + 'static,
     {
-        if !self.entity_component_directory.is_valid_component::<T>() {
-            self.insert_component::<T>()?;
+        if !self.component_store.has_storage_for::<ComponentData<T>>() {
+            self.component_store.add_storage_for::<ComponentData<T>>();
         }
 
-        let component_data_id = self.component_storage.insert_component(component_data)?;
-        self.entity_component_directory
-            .insert_entity_component::<T>(&entity_id, component_data_id)?;
+        self.component_store
+            .get_storage::<ComponentData<T>>()
+            .borrow_mut()
+            .insert(entity_id, ComponentData(component_data));
 
-        self.component_storage
-            .get_component_data_mut::<T>(&component_data_id)
+        Ok(())
     }
 
     // GET
-    pub fn get_entity_component<T>(&self, entity_id: EntityID) -> Result<&T, String>
-    where
-        CS: ComponentStorage,
-        CD: EntityComponentDirectory,
-        T: ComponentTrait + 'static,
-    {
-        let component_data_id = self
-            .entity_component_directory
-            .get_entity_component_data_id(&entity_id, &ComponentID::get::<T>())?;
-
-        self.component_storage
-            .get_component_data(&component_data_id)
+    pub fn is_valid_entity(&self, entity_id: &EntityID) -> bool {
+        self.entity_component_directory.is_valid_entity(entity_id)
     }
 
-    pub fn get_entity_component_mut<T>(&mut self, entity_id: EntityID) -> Result<&mut T, String>
+    pub fn entity_has_component<T: ComponentTrait + 'static>(&self, entity_id: &EntityID) -> bool {
+        self.component_store
+            .get_storage::<ComponentData<T>>()
+            .borrow()
+            .contains_key(entity_id)
+    }
+
+    pub fn get_entity_component<T>(&self, entity_id: EntityID) -> Result<Ref<T>, String>
     where
-        CS: ComponentStorage,
         CD: EntityComponentDirectory,
         T: ComponentTrait + 'static,
     {
-        let component_data_id = self
-            .entity_component_directory
-            .get_entity_component_data_id(&entity_id, &ComponentID::get::<T>())?;
+        let storage_ref = self
+            .component_store
+            .get_storage::<ComponentData<T>>()
+            .borrow();
 
-        self.component_storage
-            .get_component_data_mut::<T>(&component_data_id)
+        if !storage_ref.contains_key(&entity_id) {
+            return Err(format!(
+                "No such component {} for entity {}",
+                std::any::type_name::<T>(),
+                entity_id
+            ));
+        }
+
+        Ok(Ref::map(storage_ref, |storage| {
+            storage.get(&entity_id).unwrap().as_ref()
+        }))
+    }
+
+    pub fn get_entity_component_mut<T>(&mut self, entity_id: EntityID) -> Result<RefMut<T>, String>
+    where
+        CD: EntityComponentDirectory,
+        T: ComponentTrait + 'static,
+    {
+        let storage_ref = self
+            .component_store
+            .get_storage::<ComponentData<T>>()
+            .borrow_mut();
+
+        if !storage_ref.contains_key(&entity_id) {
+            return Err(format!(
+                "No such component {} for entity {}",
+                std::any::type_name::<T>(),
+                entity_id
+            ));
+        }
+
+        Ok(RefMut::map(storage_ref, |storage| {
+            storage.get_mut(&entity_id).unwrap().as_mut()
+        }))
     }
 
     // DESTROY
     pub fn remove_component_from_entity<T>(&mut self, entity_id: EntityID) -> Result<(), String>
     where
-        CS: ComponentStorage,
         CD: EntityComponentDirectory,
         T: ComponentTrait + 'static,
     {
-        let component_id = ComponentID::get::<T>();
-
-        let component_data_id = self
-            .entity_component_directory
-            .get_entity_component_data_id(&entity_id, &component_id)?;
-
-        self.component_storage
-            .remove_component_data(&component_id, &component_data_id)?;
-
-        self.entity_component_directory
-            .destroy_entity_component(&entity_id, &component_id)?;
+        self.component_store
+            .get_storage::<ComponentData<T>>()
+            .borrow_mut()
+            .remove(&entity_id);
 
         Ok(())
     }
 
     pub fn destroy_entity(&mut self, entity_id: EntityID) -> Result<(), String>
     where
-        CS: ComponentStorage,
         CD: EntityComponentDirectory,
     {
         let component_data_ids = self
             .entity_component_directory
             .get_entity_component_data(&entity_id)?;
 
+        // FIXME: Type-independent removal functionality for store
+        /*
         for (component_id, component_data_id) in component_data_ids {
             self.component_storage
                 .remove_component_data(&component_id, &component_data_id)?;
         }
+        */
 
         self.entity_component_directory.destroy_entity(entity_id)
     }
 
     pub fn destroy_component<T>(&mut self) -> Result<(), String>
     where
-        CS: ComponentStorage,
         CD: EntityComponentDirectory,
         T: ComponentTrait + 'static,
     {
         let component_id = ComponentID::get::<T>();
-        let entities: Vec<EntityID> =
-            self.entity_component_directory
-                .get_entities_by_predicate(|entity_id| {
-                    self.entity_component_directory
-                        .entity_has_component::<T>(entity_id)
-                });
+        let entities: Vec<EntityID> = self
+            .entity_component_directory
+            .get_entities_by_predicate(|entity_id| self.entity_has_component::<T>(entity_id));
 
         for entity_id in entities {
             let component_data_id = self
                 .entity_component_directory
                 .get_entity_component_data_id(&entity_id, &component_id)?;
 
+            // FIXME: Type-independent removal functionality for store
+            /*
             self.component_storage
                 .remove_component_data(&component_id, &component_data_id)?;
+            */
         }
 
         self.entity_component_directory.destroy_component::<T>()

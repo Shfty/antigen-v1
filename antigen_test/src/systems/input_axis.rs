@@ -1,72 +1,62 @@
+use std::cell::{Ref, RefMut};
+
 use crate::components::InputAxisData;
 use antigen::{
     components::EventQueue,
     components::IntRange,
     core::events::AntigenInputEvent,
     entity_component_system::system_interface::SystemInterface,
-    entity_component_system::ComponentStorage,
+    entity_component_system::ComponentData,
     entity_component_system::EntityComponentDirectory,
+    entity_component_system::EntityID,
     entity_component_system::{SystemError, SystemTrait},
 };
+use store::StoreQuery;
 
 #[derive(Debug)]
 pub struct InputAxis;
 
-impl<CS, CD> SystemTrait<CS, CD> for InputAxis
+impl<CD> SystemTrait<CD> for InputAxis
 where
-    CS: ComponentStorage,
     CD: EntityComponentDirectory,
 {
-    fn run(&mut self, db: &mut SystemInterface<CS, CD>) -> Result<(), SystemError>
+    fn run(&mut self, db: &mut SystemInterface<CD>) -> Result<(), SystemError>
     where
-        CS: ComponentStorage,
         CD: EntityComponentDirectory,
     {
-        let event_queue_entity =
-            db.entity_component_directory
-                .get_entity_by_predicate(|entity_id| {
-                    db.entity_component_directory
-                        .entity_has_component::<EventQueue<AntigenInputEvent>>(entity_id)
-                });
+        let (_key, (event_queue,)) = StoreQuery::<
+            EntityID,
+            (Ref<ComponentData<EventQueue<AntigenInputEvent>>>,),
+        >::iter(db.component_store)
+        .next()
+        .expect("No antigen input event queue");
 
-        if let Some(event_queue_entity) = event_queue_entity {
-            let entities = db
-                .entity_component_directory
-                .get_entities_by_predicate(|entity_id| {
-                    db.entity_component_directory
-                        .entity_has_component::<InputAxisData>(entity_id)
-                        && db
-                            .entity_component_directory
-                            .entity_has_component::<IntRange>(entity_id)
-                });
+        for (_key, (input_axis_data, mut int_range)) in StoreQuery::<
+            EntityID,
+            (
+                Ref<ComponentData<InputAxisData>>,
+                RefMut<ComponentData<IntRange>>,
+            ),
+        >::iter(db.component_store)
+        {
+            let prev_input = input_axis_data.get_negative_input();
+            let next_input = input_axis_data.get_positive_input();
 
-            for entity_id in entities {
-                let input_axis_component = db.get_entity_component::<InputAxisData>(entity_id)?;
-                let (prev_input, next_input) = (
-                    input_axis_component.get_negative_input(),
-                    input_axis_component.get_positive_input(),
-                );
+            let mut offset: i64 = 0;
 
-                let mut offset: i64 = 0;
-
-                let event_queue: &Vec<AntigenInputEvent> = db
-                    .get_entity_component::<EventQueue<AntigenInputEvent>>(event_queue_entity)?;
-
-                for event in event_queue {
-                    if let AntigenInputEvent::KeyPress { key_code } = event {
-                        let key_code = *key_code;
-                        if key_code == prev_input {
-                            offset -= 1;
-                        } else if key_code == next_input {
-                            offset += 1;
-                        }
+            for event in event_queue.iter() {
+                if let AntigenInputEvent::KeyPress { key_code } = event {
+                    let key_code = *key_code;
+                    if key_code == prev_input {
+                        offset -= 1;
+                    } else if key_code == next_input {
+                        offset += 1;
                     }
                 }
-
-                let ui_tab_input_component = db.get_entity_component_mut::<IntRange>(entity_id)?;
-
-                ui_tab_input_component.set_index(ui_tab_input_component.get_index() + offset);
             }
+
+            let index = int_range.get_index();
+            int_range.set_index(index + offset);
         }
 
         Ok(())

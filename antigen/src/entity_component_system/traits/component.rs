@@ -1,8 +1,15 @@
 use std::{
     any::Any,
     any::TypeId,
+    collections::HashMap,
     fmt::{Debug, Display},
+    ops::Deref,
+    ops::DerefMut,
 };
+
+use store::Storable;
+
+use super::EntityID;
 
 /// Type-based unique component ID
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
@@ -89,5 +96,38 @@ where
                     crate::core::type_name::type_name::<T>()
                 )
             })
+    }
+}
+
+#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
+pub struct ComponentData<T>(pub T);
+
+impl<T> Storable for ComponentData<T> {
+    type Storage = HashMap<EntityID, ComponentData<T>>;
+}
+
+impl<T> Deref for ComponentData<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T> DerefMut for ComponentData<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<T> AsRef<T> for ComponentData<T> {
+    fn as_ref(&self) -> &T {
+        &self.0
+    }
+}
+
+impl<T> AsMut<T> for ComponentData<T> {
+    fn as_mut(&mut self) -> &mut T {
+        &mut self.0
     }
 }

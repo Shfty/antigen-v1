@@ -1,53 +1,40 @@
+use std::cell::{Ref, RefMut};
+
 use antigen::{
     components::{EventQueue, Size, Window},
     entity_component_system::{
-        system_interface::SystemInterface, ComponentStorage, ComponentTrait,
-        EntityComponentDirectory, EntityID, SystemError, SystemTrait,
+        system_interface::SystemInterface, ComponentData, EntityComponentDirectory, EntityID,
+        SystemError, SystemTrait,
     },
     primitive_types::Vector2I,
 };
+use store::StoreQuery;
 
 use crate::components::{CursesEvent, CursesWindowData};
-
-// TODO: Properly delete windows when their component is removed
 
 #[derive(Debug)]
 pub struct CursesWindow;
 
 impl CursesWindow {
-    pub fn new<CS>(component_storage: &mut CS) -> Self
-    where
-        CS: ComponentStorage,
-    {
-        fn drop_callback(_: &mut dyn ComponentTrait) {
-            pancurses::endwin();
-        }
-
-        component_storage.register_component_drop_callback::<CursesWindowData>(drop_callback);
-
-        CursesWindow
-    }
-
-    fn try_create_window<CS, CD>(
+    fn try_create_window<CD>(
         &mut self,
-        db: &mut SystemInterface<CS, CD>,
-        entity_id: EntityID,
+        curses_window: &mut RefMut<ComponentData<CursesWindowData>>,
+        size: &RefMut<ComponentData<Size>>,
+        string: Option<Ref<ComponentData<String>>>,
     ) -> Result<(), String>
     where
-        CS: ComponentStorage,
         CD: EntityComponentDirectory,
     {
-        let curses_window: &Option<pancurses::Window> =
-            db.get_entity_component::<CursesWindowData>(entity_id)?;
         if curses_window.is_some() {
             return Ok(());
         }
 
-        let Vector2I(width, height) = **db.get_entity_component::<Size>(entity_id)?;
+        let Vector2I(width, height) = ****size;
 
-        let title = match db.get_entity_component::<String>(entity_id) {
-            Ok(string_component) => string_component,
-            Err(_) => "Antigen",
+        let title = if let Some(string) = string {
+            (**string).clone()
+        } else {
+            "Antigen".into()
         };
 
         let window = pancurses::initscr();
@@ -66,93 +53,57 @@ impl CursesWindow {
         window.keypad(true);
         window.timeout(0);
 
-        let curses_window: &mut Option<pancurses::Window> =
-            db.get_entity_component_mut::<CursesWindowData>(entity_id)?;
-
-        *curses_window = Some(window);
+        ****curses_window = Some(window);
 
         Ok(())
     }
 }
 
-impl<CS, CD> SystemTrait<CS, CD> for CursesWindow
+impl<CD> SystemTrait<CD> for CursesWindow
 where
-    CS: ComponentStorage,
     CD: EntityComponentDirectory,
 {
-    fn run(&mut self, db: &mut SystemInterface<CS, CD>) -> Result<(), SystemError>
+    fn run(&mut self, db: &mut SystemInterface<CD>) -> Result<(), SystemError>
     where
-        CS: ComponentStorage,
         CD: EntityComponentDirectory,
     {
-        let pancurses_event_queue_entity =
-            db.entity_component_directory
-                .get_entity_by_predicate(|entity_id| {
-                    db.entity_component_directory
-                        .entity_has_component::<EventQueue<CursesEvent>>(entity_id)
-                });
+        let (_, (curses_event_queue,)) = StoreQuery::<
+            EntityID,
+            (Ref<ComponentData<EventQueue<CursesEvent>>>,),
+        >::iter(db.component_store)
+        .next()
+        .expect("No curses event queue entity");
 
-        if let Some(pancurses_event_queue_entity) = pancurses_event_queue_entity {
-            let pancurses_event_queue: &Vec<CursesEvent> =
-                db.get_entity_component::<EventQueue<CursesEvent>>(pancurses_event_queue_entity)?;
+        // Get window entity, update internal window state
+        let (_, (_window, mut size, mut curses_window, string)) =
+            StoreQuery::<
+                EntityID,
+                (
+                    Ref<ComponentData<Window>>,
+                    RefMut<ComponentData<Size>>,
+                    RefMut<ComponentData<CursesWindowData>>,
+                    Option<Ref<ComponentData<String>>>,
+                ),
+            >::iter(db.component_store)
+            .next()
+            .expect("No curses window entity");
 
-            for event in pancurses_event_queue {
-                if let CursesEvent::KeyResize = event {
-                    pancurses::resize_term(0, 0);
-                }
-            }
+        // Make sure the window exists
+        self.try_create_window::<CD>(&mut curses_window, &size, string)?;
+
+        // Process any pending resize inputs
+        if curses_event_queue
+            .iter()
+            .any(|input| *input == CursesEvent::KeyResize)
+        {
+            pancurses::resize_term(0, 0);
         }
 
-        // Get window entities, update internal window state
-        let window_entity = db
-            .entity_component_directory
-            .get_entity_by_predicate(|entity_id| {
-                db.entity_component_directory
-                    .entity_has_component::<Window>(entity_id)
-                    && db
-                        .entity_component_directory
-                        .entity_has_component::<CursesWindowData>(entity_id)
-                    && db
-                        .entity_component_directory
-                        .entity_has_component::<Size>(entity_id)
-            });
-
-        if let Some(window_entity) = window_entity {
-            // Make sure the window exists
-            self.try_create_window(db, window_entity)?;
-
-            // Process any pending resize inputs
-            let pancurses_event_queue_entity = db
-                .entity_component_directory
-                .get_entity_by_predicate(|entity_id| {
-                    db.entity_component_directory
-                        .entity_has_component::<EventQueue<CursesEvent>>(entity_id)
-                });
-
-            if let Some(pancurses_event_queue_entity) = pancurses_event_queue_entity {
-                let pancurses_event_queue: &Vec<CursesEvent> = db
-                    .get_entity_component::<EventQueue<CursesEvent>>(
-                        pancurses_event_queue_entity,
-                    )?;
-
-                if pancurses_event_queue
-                    .iter()
-                    .any(|input| *input == CursesEvent::KeyResize)
-                {
-                    pancurses::resize_term(0, 0);
-                }
-            }
-
-            // Update window component size
-            let curses_window: &Option<pancurses::Window> =
-                db.get_entity_component::<CursesWindowData>(window_entity)?;
-
-            if let Some(window) = curses_window {
-                let (window_height, window_width) = window.get_max_yx();
-
-                **db.get_entity_component_mut::<Size>(window_entity)? =
-                    Vector2I(window_width as i64, window_height as i64);
-            }
+        // Update window component size
+        let curses_window = (***curses_window).as_ref();
+        if let Some(curses_window) = curses_window {
+            let (height, width) = curses_window.get_max_yx();
+            ***size = Vector2I(width as i64, height as i64);
         }
 
         Ok(())

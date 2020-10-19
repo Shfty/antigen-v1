@@ -14,6 +14,7 @@ version = "0.1.0"
 dependencies = [
  "antigen",
  "pancurses",
+ "store",
 ]
 
 [[package]]
@@ -22,6 +23,7 @@ version = "0.1.0"
 dependencies = [
  "antigen",
  "antigen_curses",
+ "store",
 ]
 
 [[package]]

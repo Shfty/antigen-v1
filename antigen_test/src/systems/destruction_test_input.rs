@@ -1,11 +1,15 @@
+use std::cell::Ref;
+
 use antigen::{
     components::EventQueue,
     core::events::AntigenInputEvent,
-    entity_component_system::ComponentStorage,
+    entity_component_system::ComponentData,
     entity_component_system::EntityComponentDirectory,
+    entity_component_system::EntityID,
     entity_component_system::SystemError,
     entity_component_system::{system_interface::SystemInterface, SystemTrait},
 };
+use store::StoreQuery;
 
 use crate::components::DestructionTestInputData;
 
@@ -18,46 +22,43 @@ impl DestructionTestInput {
     }
 }
 
-impl<CS, CD> SystemTrait<CS, CD> for DestructionTestInput
+impl<CD> SystemTrait<CD> for DestructionTestInput
 where
-    CS: ComponentStorage,
     CD: EntityComponentDirectory,
 {
-    fn run(&mut self, db: &mut SystemInterface<CS, CD>) -> Result<(), SystemError>
+    fn run(&mut self, db: &mut SystemInterface<CD>) -> Result<(), SystemError>
     where
-        CS: ComponentStorage,
         CD: EntityComponentDirectory,
     {
-        let event_queue_entity =
-            db.entity_component_directory
-                .get_entity_by_predicate(|entity_id| {
-                    db.entity_component_directory
-                        .entity_has_component::<EventQueue<AntigenInputEvent>>(entity_id)
-                });
+        let entities_to_destroy: Vec<EntityID>;
+        {
+            let (_key, (event_queue,)) = StoreQuery::<
+                EntityID,
+                (Ref<ComponentData<EventQueue<AntigenInputEvent>>>,),
+            >::iter(db.component_store)
+            .next()
+            .expect("No antigen input event queue");
 
-        if let Some(event_queue_entity) = event_queue_entity {
-            let destruction_test_entities = db
-                .entity_component_directory
-                .get_entities_by_predicate(|entity_id| {
-                    db.entity_component_directory
-                        .entity_has_component::<DestructionTestInputData>(entity_id)
-                });
-
-            for entity_id in destruction_test_entities {
-                let input_key: antigen::core::keyboard::Key =
-                    **db.get_entity_component::<DestructionTestInputData>(entity_id)?;
-
-                let event_queue: &Vec<AntigenInputEvent> =
-                    db.get_entity_component::<EventQueue<AntigenInputEvent>>(event_queue_entity)?;
-
-                for event in event_queue.clone() {
+            entities_to_destroy = StoreQuery::<
+                EntityID,
+                (Ref<ComponentData<DestructionTestInputData>>,),
+            >::iter(db.component_store)
+            .flat_map(|(entity_id, (destruction_test,))| {
+                event_queue.iter().flat_map(move |event| {
                     if let AntigenInputEvent::KeyPress { key_code } = event {
-                        if key_code == input_key {
-                            db.destroy_entity(entity_id)?;
+                        if *key_code == ***destruction_test {
+                            return Some(entity_id);
                         }
                     }
-                }
-            }
+
+                    None
+                })
+            })
+            .collect();
+        }
+
+        for entity_id in entities_to_destroy {
+            db.destroy_entity(entity_id)?;
         }
 
         Ok(())

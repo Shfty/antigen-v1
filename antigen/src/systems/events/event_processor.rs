@@ -1,9 +1,11 @@
-use std::fmt::Debug;
+use std::{cell::Ref, cell::RefMut, fmt::Debug};
+
+use store::StoreQuery;
 
 use crate::{
     components::EventQueue,
     entity_component_system::{
-        ComponentStorage, EntityComponentDirectory, EntityID, SystemError, SystemTrait,
+        ComponentData, EntityComponentDirectory, EntityID, SystemError, SystemTrait,
     },
 };
 use crate::{components::EventTargets, entity_component_system::system_interface::SystemInterface};
@@ -27,55 +29,42 @@ where
     }
 }
 
-impl<CS, CD, O, I> SystemTrait<CS, CD> for EventProcessor<O, I>
+impl<CD, O, I> SystemTrait<CD> for EventProcessor<O, I>
 where
-    CS: ComponentStorage,
     CD: EntityComponentDirectory,
     O: Debug + Copy + 'static,
     I: Debug + Copy + 'static,
 {
-    fn run(&mut self, db: &mut SystemInterface<CS, CD>) -> Result<(), SystemError>
+    fn run(&mut self, db: &mut SystemInterface<CD>) -> Result<(), SystemError>
     where
-        CS: ComponentStorage,
         CD: EntityComponentDirectory,
     {
-        let output_entities =
-            db.entity_component_directory
-                .get_entities_by_predicate(|entity_id| {
-                    db.entity_component_directory
-                        .entity_has_component::<EventQueue<O>>(entity_id)
-                        && db
-                            .entity_component_directory
-                            .entity_has_component::<EventTargets>(entity_id)
-                });
-
-        for output_entity in output_entities {
-            let events: Vec<O>;
-            {
-                let event_queue: &mut Vec<O> =
-                    db.get_entity_component_mut::<EventQueue<O>>(output_entity)?;
-
-                events = event_queue.clone();
-            }
-
-            let events: Vec<I> = events.into_iter().flat_map(self.convert).collect();
-
-            let event_targets: &Vec<EntityID> =
-                db.get_entity_component::<EventTargets>(output_entity)?;
-
-            let event_targets: Vec<EntityID> = event_targets
+        for (_, (out_event_queue, event_targets)) in StoreQuery::<
+            EntityID,
+            (
+                Ref<ComponentData<EventQueue<O>>>,
+                Ref<ComponentData<EventTargets>>,
+            ),
+        >::iter(db.component_store)
+        {
+            let mut events: Vec<I> = out_event_queue
                 .iter()
-                .filter(|entity_id| {
-                    db.entity_component_directory
-                        .entity_has_component::<EventQueue<I>>(entity_id)
-                })
                 .copied()
+                .flat_map(self.convert)
                 .collect();
 
-            for event_target in event_targets {
-                let event_queue: &mut Vec<I> =
-                    db.get_entity_component_mut::<EventQueue<I>>(event_target)?;
-                event_queue.append(&mut events.clone());
+            let keys = (***event_targets)
+                .iter()
+                .copied()
+                .filter(|entity_id| db.entity_has_component::<EventQueue<I>>(entity_id))
+                .collect();
+
+            for (_, (mut in_event_queue,)) in StoreQuery::<
+                EntityID,
+                (RefMut<ComponentData<EventQueue<I>>>,),
+            >::iter_keys(db.component_store, keys)
+            {
+                in_event_queue.append(&mut events);
             }
         }
 

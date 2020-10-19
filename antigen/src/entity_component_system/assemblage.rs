@@ -8,7 +8,7 @@ use crate::{
     entity_component_system::EntityID,
 };
 
-use super::{ComponentStorage, EntityComponentDirectory, SystemInterface};
+use super::{EntityComponentDirectory, SystemInterface};
 
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub struct AssemblageID(pub UID);
@@ -29,21 +29,19 @@ impl AddAssign<UID> for AssemblageID {
     }
 }
 
-pub struct AssemblageBuilder<CS, CD>
+pub struct AssemblageBuilder<CD>
 where
-    CS: ComponentStorage + 'static,
     CD: EntityComponentDirectory + 'static,
 {
-    assemblage: Assemblage<CS, CD>,
-    component_data: HashMap<ComponentID, ComponentConstructor<CS, CD>>,
+    assemblage: Assemblage<CD>,
+    component_data: HashMap<ComponentID, ComponentConstructor<CD>>,
 }
 
-impl<CS, CD> AssemblageBuilder<CS, CD>
+impl<CD> AssemblageBuilder<CD>
 where
-    CS: ComponentStorage,
     CD: EntityComponentDirectory,
 {
-    pub fn new(assemblage: Assemblage<CS, CD>) -> Self {
+    pub fn new(assemblage: Assemblage<CD>) -> Self {
         AssemblageBuilder {
             assemblage,
             component_data: HashMap::new(),
@@ -57,7 +55,7 @@ where
         self.component_data.insert(
             ComponentID::get::<C>(),
             Box::new(
-                move |db: &mut SystemInterface<CS, CD>, entity_id| -> Result<(), String> {
+                move |db: &mut SystemInterface<CD>, entity_id| -> Result<(), String> {
                     match db.insert_entity_component(entity_id, component_data.clone()) {
                         Ok(_) => Ok(()),
                         Err(err) => Err(err),
@@ -68,29 +66,27 @@ where
         Ok(self)
     }
 
-    pub fn finish(mut self) -> Assemblage<CS, CD> {
+    pub fn finish(mut self) -> Assemblage<CD> {
         self.assemblage.component_constructors = self.component_data;
         self.assemblage
     }
 }
 
-type ComponentConstructor<CS, CD> =
-    Box<dyn FnMut(&mut SystemInterface<CS, CD>, EntityID) -> Result<(), String>>;
+type ComponentConstructor<CD> =
+    Box<dyn FnMut(&mut SystemInterface<CD>, EntityID) -> Result<(), String>>;
 
 /// An object template as defined by a set of components with given default values
-pub struct Assemblage<S, D>
+pub struct Assemblage<D>
 where
-    S: ComponentStorage + 'static,
     D: EntityComponentDirectory + 'static,
 {
     pub name: String,
     pub description: String,
-    component_constructors: HashMap<ComponentID, ComponentConstructor<S, D>>,
+    component_constructors: HashMap<ComponentID, ComponentConstructor<D>>,
 }
 
-impl<CS, CD> Assemblage<CS, CD>
+impl<CD> Assemblage<CD>
 where
-    CS: ComponentStorage,
     CD: EntityComponentDirectory,
 {
     pub fn new(name: &str, description: &str) -> Self {
@@ -101,9 +97,8 @@ where
         }
     }
 
-    pub fn build(name: &str, description: &str) -> AssemblageBuilder<CS, CD>
+    pub fn build(name: &str, description: &str) -> AssemblageBuilder<CD>
     where
-        CS: ComponentStorage,
         CD: EntityComponentDirectory,
     {
         AssemblageBuilder::new(Assemblage::new(name, description))
@@ -111,11 +106,10 @@ where
 
     pub fn create_and_assemble_entity<'a>(
         &mut self,
-        db: &'a mut SystemInterface<CS, CD>,
+        db: &'a mut SystemInterface<CD>,
         debug_label: Option<&str>,
     ) -> Result<EntityID, String>
     where
-        CS: ComponentStorage,
         CD: EntityComponentDirectory,
     {
         let entity_id = db.create_entity(debug_label)?;
@@ -124,11 +118,10 @@ where
 
     pub fn assemble_entity<'a>(
         &mut self,
-        db: &'a mut SystemInterface<CS, CD>,
+        db: &'a mut SystemInterface<CD>,
         entity_id: EntityID,
     ) -> Result<EntityID, String>
     where
-        CS: ComponentStorage,
         CD: EntityComponentDirectory,
     {
         for component_constructor in &mut self.component_constructors.values_mut() {

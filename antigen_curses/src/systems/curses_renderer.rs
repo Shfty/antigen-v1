@@ -1,14 +1,17 @@
+use std::cell::Ref;
+
 use antigen::{
     components::{Size, SoftwareFramebuffer, Window},
     core::palette::Palette,
     entity_component_system::{
-        system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory, SystemError,
-        SystemTrait,
+        system_interface::SystemInterface, ComponentData, EntityComponentDirectory, EntityID,
+        SystemError, SystemTrait,
     },
     primitive_types::ColorRGB,
     primitive_types::ColorRGBF,
 };
 use pancurses::ToChtype;
+use store::StoreQuery;
 
 use crate::components::CursesWindowData;
 
@@ -40,80 +43,59 @@ where
     }
 }
 
-impl<CS, CD, T> SystemTrait<CS, CD> for CursesRenderer<T>
+impl<CD, T> SystemTrait<CD> for CursesRenderer<T>
 where
-    CS: ComponentStorage,
     CD: EntityComponentDirectory,
     T: Palette<From = f32, To = f32>,
 {
-    fn run(&mut self, db: &mut SystemInterface<CS, CD>) -> Result<(), SystemError>
+    fn run(&mut self, db: &mut SystemInterface<CD>) -> Result<(), SystemError>
     where
-        CS: ComponentStorage,
         CD: EntityComponentDirectory,
     {
         // Fetch window entity
-        let window_entity = db
-            .entity_component_directory
-            .get_entity_by_predicate(|entity_id| {
-                db.entity_component_directory
-                    .entity_has_component::<Window>(entity_id)
-                    && db
-                        .entity_component_directory
-                        .entity_has_component::<CursesWindowData>(entity_id)
-                    && db
-                        .entity_component_directory
-                        .entity_has_component::<Size>(entity_id)
-            })
-            .ok_or("No window entity")?;
+        let (_, (_window, curses_window, _size)) =
+            StoreQuery::<
+                EntityID,
+                (
+                    Ref<ComponentData<Window>>,
+                    Ref<ComponentData<CursesWindowData>>,
+                    Ref<ComponentData<Size>>,
+                ),
+            >::iter(db.component_store)
+            .next()
+            .expect("No curses window entity");
 
         let window_width: i64;
         let window_height: i64;
-        {
-            let window: &Option<pancurses::Window> =
-                db.get_entity_component::<CursesWindowData>(window_entity)?;
-            if let Some(window) = window {
-                let (height, width) = window.get_max_yx();
+        let curses_window = (***curses_window)
+            .as_ref()
+            .expect("Failed to get curses window handle");
 
-                window_width = width as i64;
-                window_height = height as i64;
-            } else {
-                panic!("Error fetching window handle");
-            }
-        }
+        let (height, width) = curses_window.get_max_yx();
+        window_width = width as i64;
+        window_height = height as i64;
 
-        // Fetch CPU framebuffer entity
-        let cpu_framebuffer_entity = db
-            .entity_component_directory
-            .get_entity_by_predicate(|entity_id| {
-                db.entity_component_directory
-                    .entity_has_component::<SoftwareFramebuffer<ColorRGBF>>(entity_id)
-            })
-            .expect("CPU framebuffer entity does not exist");
+        // Fetch software framebuffer entity
+        let (_, (software_framebuffer,)) = StoreQuery::<
+            EntityID,
+            (Ref<ComponentData<SoftwareFramebuffer<ColorRGBF>>>,),
+        >::iter(db.component_store)
+        .next()
+        .expect("No software framebuffer entity");
 
-        let color_buffer = db
-            .get_entity_component::<SoftwareFramebuffer<ColorRGBF>>(cpu_framebuffer_entity)?
-            .get_color_buffer();
-
-        let color_z_buffer = db
-            .get_entity_component::<SoftwareFramebuffer<ColorRGBF>>(cpu_framebuffer_entity)?
-            .get_z_buffer();
+        let color_buffer = software_framebuffer.get_color_buffer();
+        let color_z_buffer = software_framebuffer.get_z_buffer();
 
         // Fetch string framebuffer entity
-        let string_framebuffer_enity = db
-            .entity_component_directory
-            .get_entity_by_predicate(|entity_id| {
-                db.entity_component_directory
-                    .entity_has_component::<SoftwareFramebuffer<char>>(entity_id)
-            })
-            .expect("String framebuffer entity does not exist");
+        let (_, (string_framebuffer,)) = StoreQuery::<
+            EntityID,
+            (Ref<ComponentData<SoftwareFramebuffer<char>>>,),
+        >::iter(db.component_store)
+        .next()
+        .expect("No string framebuffer entity");
 
-        let char_buffer = db
-            .get_entity_component::<SoftwareFramebuffer<char>>(string_framebuffer_enity)?
-            .get_color_buffer();
-
-        let char_z_buffer = db
-            .get_entity_component::<SoftwareFramebuffer<char>>(string_framebuffer_enity)?
-            .get_z_buffer();
+        let char_buffer = string_framebuffer.get_color_buffer();
+        let char_z_buffer = string_framebuffer.get_z_buffer();
 
         // Create pancurses > palette map to make sure built-in pancurses colors are respected
         let indices = [
@@ -238,21 +220,15 @@ where
             }
         }
 
-        let window: &Option<pancurses::Window> =
-            db.get_entity_component::<CursesWindowData>(window_entity)?;
-        if let Some(window) = window {
-            window.erase();
-            for (x, y, char, color_pair) in cells {
-                window.mvaddch(
-                    y as i32,
-                    x as i32,
-                    char.to_chtype() | pancurses::COLOR_PAIR(color_pair as u64),
-                );
-            }
-
-            Ok(())
-        } else {
-            Err("Error fetching window handle".into())
+        curses_window.erase();
+        for (x, y, char, color_pair) in cells {
+            curses_window.mvaddch(
+                y as i32,
+                x as i32,
+                char.to_chtype() | pancurses::COLOR_PAIR(color_pair as u64),
+            );
         }
+
+        Ok(())
     }
 }

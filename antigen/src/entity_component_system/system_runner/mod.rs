@@ -3,19 +3,18 @@ mod single_threaded_system_runner;
 pub use single_threaded_system_runner::SingleThreadedSystemRunner;
 
 use super::{
-    system_storage::SystemStorage,
-    SystemInterface, SystemError,
-ComponentStorage, EntityComponentDirectory};
+    system_storage::SystemStorage, EntityComponentDirectory, SystemError, SystemInterface,
+};
 
 /// Trait for handling systems execution for a given EntityComponentSystem
 pub trait SystemRunner {
-    fn run<'a, SS, CS, CD>(
+    fn run<'a, SS, CD>(
         &mut self,
         system_storage: &'a mut SS,
-        entity_component_database: &'a mut SystemInterface<'a, CS, CD>,
+        system_interface: &'a mut SystemInterface<'a, CD>,
     ) -> Result<(), SystemError>
     where
-        SS: SystemStorage<CS, CD>,
-        CS: ComponentStorage,
+        SS: SystemStorage<CD>,
+
         CD: EntityComponentDirectory;
 }

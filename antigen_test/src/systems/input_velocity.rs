@@ -1,13 +1,16 @@
+use std::cell::{Ref, RefMut};
+
 use antigen::{
     components::EventQueue,
     components::Velocity,
     core::events::AntigenInputEvent,
     entity_component_system::system_interface::SystemInterface,
-    entity_component_system::ComponentStorage,
+    entity_component_system::ComponentData,
     entity_component_system::EntityComponentDirectory,
-    entity_component_system::{SystemError, SystemTrait},
+    entity_component_system::{EntityID, SystemError, SystemTrait},
     primitive_types::Vector2I,
 };
+use store::StoreQuery;
 
 #[derive(Debug)]
 pub struct InputVelocity;
@@ -18,59 +21,50 @@ impl InputVelocity {
     }
 }
 
-impl<CS, CD> SystemTrait<CS, CD> for InputVelocity
+impl<CD> SystemTrait<CD> for InputVelocity
 where
-    CS: ComponentStorage,
     CD: EntityComponentDirectory,
 {
-    fn run(&mut self, db: &mut SystemInterface<CS, CD>) -> Result<(), SystemError>
+    fn run(&mut self, db: &mut SystemInterface<CD>) -> Result<(), SystemError>
     where
-        CS: ComponentStorage,
         CD: EntityComponentDirectory,
     {
-        let antigen_event_queue_entity =
-            db.entity_component_directory
-                .get_entity_by_predicate(|entity_id| {
-                    db.entity_component_directory
-                        .entity_has_component::<EventQueue<AntigenInputEvent>>(entity_id)
-                });
+        let (_key, (event_queue,)) = StoreQuery::<
+            EntityID,
+            (Ref<ComponentData<EventQueue<AntigenInputEvent>>>,),
+        >::iter(db.component_store)
+        .next()
+        .expect("No antigen input event queue");
 
-        if let Some(antigen_event_queue_entity) = antigen_event_queue_entity {
-            let mut move_input: Vector2I = Vector2I(0, 0);
+        let mut move_input: Vector2I = Vector2I(0, 0);
 
-            let event_queue: &Vec<AntigenInputEvent> = db
-                .get_entity_component::<EventQueue<AntigenInputEvent>>(antigen_event_queue_entity)?;
-
-            for input in event_queue {
-                match input {
-                    AntigenInputEvent::KeyPress {
-                        key_code: antigen::core::keyboard::Key::Left,
-                    } => move_input.0 -= 1,
-                    AntigenInputEvent::KeyPress {
-                        key_code: antigen::core::keyboard::Key::Right,
-                    } => move_input.0 += 1,
-                    AntigenInputEvent::KeyPress {
-                        key_code: antigen::core::keyboard::Key::Up,
-                    } => move_input.1 -= 1,
-                    AntigenInputEvent::KeyPress {
-                        key_code: antigen::core::keyboard::Key::Down,
-                    } => move_input.1 += 1,
-                    _ => (),
-                }
+        for input in event_queue.iter() {
+            match input {
+                AntigenInputEvent::KeyPress {
+                    key_code: antigen::core::keyboard::Key::Left,
+                } => move_input.0 -= 1,
+                AntigenInputEvent::KeyPress {
+                    key_code: antigen::core::keyboard::Key::Right,
+                } => move_input.0 += 1,
+                AntigenInputEvent::KeyPress {
+                    key_code: antigen::core::keyboard::Key::Up,
+                } => move_input.1 -= 1,
+                AntigenInputEvent::KeyPress {
+                    key_code: antigen::core::keyboard::Key::Down,
+                } => move_input.1 += 1,
+                _ => (),
             }
-            move_input.0 = std::cmp::min(std::cmp::max(move_input.0, -1), 1);
-            move_input.1 = std::cmp::min(std::cmp::max(move_input.1, -1), 1);
+        }
 
-            let entities = db
-                .entity_component_directory
-                .get_entities_by_predicate(|entity_id| {
-                    db.entity_component_directory
-                        .entity_has_component::<Velocity>(entity_id)
-                });
+        move_input.0 = std::cmp::min(std::cmp::max(move_input.0, -1), 1);
+        move_input.1 = std::cmp::min(std::cmp::max(move_input.1, -1), 1);
 
-            for entity_id in entities {
-                **db.get_entity_component_mut::<Velocity>(entity_id)? = move_input;
-            }
+        for (_key, (mut velocity,)) in StoreQuery::<
+            EntityID,
+            (RefMut<ComponentData<Velocity>>,),
+        >::iter(db.component_store)
+        {
+            ***velocity = move_input;
         }
 
         Ok(())

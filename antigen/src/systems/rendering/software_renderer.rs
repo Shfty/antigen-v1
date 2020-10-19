@@ -1,16 +1,23 @@
-use crate::components::{Control, SoftwareFramebuffer};
+use std::cell::{Ref, RefMut};
+
+use store::StoreQuery;
+
 use crate::{
     components::{
         CPUShader, CPUShaderInput, ChildEntitiesData, GlobalPositionData, Position, Size, Window,
         ZIndex,
     },
     entity_component_system::{
-        system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory, EntityID,
-        SystemError, SystemTrait,
+        system_interface::SystemInterface, EntityComponentDirectory, EntityID, SystemError,
+        SystemTrait,
     },
     primitive_types::ColorRGB,
     primitive_types::ColorRGBF,
     primitive_types::Vector2I,
+};
+use crate::{
+    components::{Control, SoftwareFramebuffer},
+    entity_component_system::ComponentData,
 };
 
 #[derive(Debug)]
@@ -54,131 +61,128 @@ impl SoftwareRenderer {
     }
 }
 
-impl<CS, CD> SystemTrait<CS, CD> for SoftwareRenderer
+impl<CD> SystemTrait<CD> for SoftwareRenderer
 where
-    CS: ComponentStorage,
     CD: EntityComponentDirectory,
 {
-    fn run(&mut self, db: &mut SystemInterface<CS, CD>) -> Result<(), SystemError>
+    fn run(&mut self, db: &mut SystemInterface<CD>) -> Result<(), SystemError>
     where
-        CS: ComponentStorage,
         CD: EntityComponentDirectory,
     {
-        // Fetch window entity
-        let window_entity = db
-            .entity_component_directory
-            .get_entity_by_predicate(|entity_id| {
-                db.entity_component_directory
-                    .entity_has_component::<Window>(entity_id)
-                    && db
-                        .entity_component_directory
-                        .entity_has_component::<Size>(entity_id)
-            })
-            .ok_or("No window entity")?;
+        let (window_entity_id, (_window, size)) = StoreQuery::<
+            EntityID,
+            (Ref<ComponentData<Window>>, Ref<ComponentData<Size>>),
+        >::iter(db.component_store)
+        .next()
+        .expect("No window entity");
 
-        let window_width: i64;
-        let window_height: i64;
-        {
-            let size = db.get_entity_component::<Size>(window_entity)?;
+        let window_width: i64 = (***size).0;
+        let window_height: i64 = (***size).1;
 
-            let Vector2I(width, height) = **size;
-
-            window_width = width as i64;
-            window_height = height as i64;
-        }
+        let (_, (mut software_framebuffer,)) = StoreQuery::<
+            EntityID,
+            (RefMut<ComponentData<SoftwareFramebuffer<ColorRGBF>>>,),
+        >::iter(db.component_store)
+        .next()
+        .expect("No CPU framebuffer entity");
 
         // Fetch color buffer entity
-        let cpu_framebuffer_entity = db
-            .entity_component_directory
-            .get_entity_by_predicate(|entity_id| {
-                db.entity_component_directory
-                    .entity_has_component::<SoftwareFramebuffer<ColorRGBF>>(entity_id)
-            })
-            .unwrap_or_else(|| panic!("No CPU framebuffer component"));
-
         let cell_count = (window_width * window_height) as usize;
-        db.get_entity_component_mut::<SoftwareFramebuffer<ColorRGBF>>(cpu_framebuffer_entity)?
-            .resize(cell_count);
+        software_framebuffer.resize(cell_count);
 
         // Recursively traverse parent-child tree and populate Z-ordered list of controls
         let mut control_entities: Vec<(EntityID, i64)> = Vec::new();
 
-        fn populate_control_entities<CS, CD>(
-            db: &SystemInterface<CS, CD>,
+        fn populate_control_entities<CD>(
+            db: &SystemInterface<CD>,
             entity_id: EntityID,
             z_layers: &mut Vec<(EntityID, i64)>,
-            mut z_index: i64,
+            mut entity_z: i64,
         ) -> Result<(), String>
         where
-            CS: ComponentStorage,
             CD: EntityComponentDirectory,
         {
-            if db
-                .entity_component_directory
-                .entity_has_component::<Control>(&entity_id)
-                && db
-                    .entity_component_directory
-                    .entity_has_component::<Size>(&entity_id)
-            {
-                z_index = match db.get_entity_component::<ZIndex>(entity_id) {
-                    Ok(z_index) => **z_index,
-                    Err(_) => z_index,
+            let (control, size, z_index) = StoreQuery::<
+                EntityID,
+                (
+                    Option<Ref<ComponentData<Control>>>,
+                    Option<Ref<ComponentData<Size>>>,
+                    Option<Ref<ComponentData<ZIndex>>>,
+                ),
+            >::get(db.component_store, entity_id);
+
+            if let (Some(_), Some(_)) = (control, size) {
+                entity_z = if let Some(z_index) = z_index {
+                    ***z_index
+                } else {
+                    entity_z
                 };
 
-                z_layers.push((entity_id, z_index));
+                z_layers.push((entity_id, entity_z));
             }
 
-            if let Ok(child_entities) = db.get_entity_component::<ChildEntitiesData>(entity_id) {
+            let (child_entities,) = StoreQuery::<
+                EntityID,
+                (Option<Ref<ComponentData<ChildEntitiesData>>>,),
+            >::get(db.component_store, entity_id);
+
+            if let Some(child_entities) = child_entities {
                 for child_id in child_entities.iter() {
-                    populate_control_entities(db, *child_id, z_layers, z_index)?;
+                    populate_control_entities(db, *child_id, z_layers, entity_z)?;
                 }
             }
 
             Ok(())
         };
 
-        populate_control_entities(db, window_entity, &mut control_entities, 0)?;
+        populate_control_entities(db, window_entity_id, &mut control_entities, 0)?;
         control_entities.sort();
 
         // Render Entities
-        db.get_entity_component_mut::<SoftwareFramebuffer<ColorRGBF>>(cpu_framebuffer_entity)?
-            .clear();
+        software_framebuffer.clear();
 
         for (entity_id, z) in control_entities {
+            let (position, size, global_position, color, shader) =
+                StoreQuery::<
+                    EntityID,
+                    (
+                        Ref<ComponentData<Position>>,
+                        Ref<ComponentData<Size>>,
+                        Option<Ref<ComponentData<GlobalPositionData>>>,
+                        Option<Ref<ComponentData<ColorRGBF>>>,
+                        Option<Ref<ComponentData<CPUShader>>>,
+                    ),
+                >::get(db.component_store, entity_id);
+
             // Get Position
-            let Vector2I(x, y) = if let Ok(global_position) =
-                db.get_entity_component::<GlobalPositionData>(entity_id)
-            {
-                **global_position
+            let position = if let Some(global_position) = global_position {
+                ***global_position
             } else {
-                match db.get_entity_component::<Position>(entity_id) {
-                    Ok(position) => **position,
-                    Err(err) => return Err(err.into()),
-                }
+                ***position
             };
 
+            // Get Size
+            let size = ***size;
+
             // Get Color
-            let color = match db.get_entity_component::<ColorRGBF>(entity_id) {
-                Ok(color_component) => *color_component,
-                Err(_) => ColorRGB(1.0, 1.0, 1.0),
+            let color: ColorRGB<f32> = if let Some(color) = color {
+                **color
+            } else {
+                ColorRGB(1.0, 1.0, 1.0)
             };
 
             // Get shader
-            let shader = match db.get_entity_component::<CPUShader>(entity_id) {
-                Ok(cpu_shader_component) => *cpu_shader_component,
-                Err(_) => CPUShader(CPUShader::color_passthrough),
+            let shader = if let Some(shader) = shader {
+                **shader
+            } else {
+                CPUShader(CPUShader::color_passthrough)
             };
 
-            // Get size
-            let Vector2I(width, height) = **db.get_entity_component::<Size>(entity_id)?;
-
             Self::render_rect(
-                db.get_entity_component_mut::<SoftwareFramebuffer<ColorRGBF>>(
-                    cpu_framebuffer_entity,
-                )?,
+                &mut **software_framebuffer,
                 Vector2I(window_width, window_height),
-                Vector2I(x, y),
-                Vector2I(width, height),
+                position,
+                size,
                 color,
                 shader,
                 z,

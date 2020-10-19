@@ -18,3 +18,11 @@ impl DerefMut for CursesWindowData {
         &mut self.0
     }
 }
+
+impl Drop for CursesWindowData {
+    fn drop(&mut self) {
+        if self.0.is_some() {
+            pancurses::endwin();
+        }
+    }
+}

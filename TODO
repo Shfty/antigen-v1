@@ -1,4 +1,23 @@
-TODO: Refactor sweep for associated types
+TODO: Remove ComponentData wrapper type
+      How to manage this?
+      Blanket implementation would be preferable, as manually implementing component trait is cumbersome
+      Wrapper trait doesn't seem feasible, since that would need a macro-blanket impl like StoreQuery
+
+TODO: Type-independent workflow for Store
+      How to manage this?
+      Store can't downcast to a concrete type without knowing what that type is
+      Can a set of downcast closures be stored in a map by type ID and looked up when needed?
+      Alternately, switching to a HashMap<Key, dyn Any> architecture would allow for type-independent data management
+            This would preclude the system from using different types of storage per component
+            Could make Store a trait, implement over different types of backing store
+                  HashMapStore, BTreeMapStore, VecStore, etc
+
+TODO: Reimplement component removal
+
+TODO: Prevent panic when systems query for components that haven't been registered via creation
+      Predicate system execution on components being present? Would need static query registration for this
+
+TODO: Reimplement debugging around new Store-based component setup
 
 TODO: Refactor sweep for impl Trait
       Arguments, return types
@@ -16,6 +35,7 @@ TODO: Can anchors/margins be refactored into separate systems?
             Preferable to keep things unified if possible - too much overlap between GlobalPosition and MarginPosition
             Could handle in renderer?
 
+TODO: Account for list scroll when positioning hover/selection overlays
 TODO: Max limit for list scroll offset
 TODO: Scrollbar for lists
 TODO: Lists should scroll line-by-line, not item-by-item
@@ -35,7 +55,7 @@ TODO: Type-level color/framebuffer/renderer support for HSV, palette index
 TODO: Text shaders for char buffer
       Can CPUShader be generalized for this?
 
-TODO: Shader chaining - take an Option<fn(ShaderInput)> to allow for combination (ex. a rect that has a color effect)
+TODO: Shader chaining - take an Option<fn(ShaderInput)> to allow for combination (ex. a wire rect that has a color effect)
 
 TODO: Custom mode for pancurses text color registration - pass fn(Color) -> Color as part of enum
 

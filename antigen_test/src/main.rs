@@ -6,7 +6,6 @@ use std::time::Duration;
 
 use antigen::{
     core::profiler::Profiler,
-    entity_component_system::HeapComponentStorage,
     entity_component_system::Scene,
     entity_component_system::SingleThreadedDirectory,
     entity_component_system::{
@@ -29,9 +28,8 @@ fn main() {
 
 fn main_internal() -> Result<(), SystemError> {
     let mut ecs = EntityComponentSystem::<
-        HeapComponentStorage,
         SingleThreadedDirectory,
-        HeapSystemStorage<HeapComponentStorage, SingleThreadedDirectory>,
+        HeapSystemStorage<SingleThreadedDirectory>,
         SingleThreadedSystemRunner,
     >::default();
 

@@ -5,8 +5,8 @@ use std::{
 };
 
 use crate::{
-    core::uid::UID, entity_component_system::ComponentStorage,
-    entity_component_system::EntityComponentDirectory, entity_component_system::SystemInterface,
+    core::uid::UID, entity_component_system::EntityComponentDirectory,
+    entity_component_system::SystemInterface,
 };
 
 #[derive(Debug, Clone)]
@@ -49,20 +49,14 @@ impl SystemID {
 
 impl Display for SystemID {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}:\t{}",
-            self.uid,
-            self.get_name()
-        )
+        write!(f, "{}:\t{}", self.uid, self.get_name())
     }
 }
 
 /// A monolithic set of logic that runs on sets of entities with specific component layouts
-pub trait SystemTrait<CS, CD>
+pub trait SystemTrait<CD>
 where
-    CS: ComponentStorage,
     CD: EntityComponentDirectory,
 {
-    fn run(&mut self, db: &mut SystemInterface<CS, CD>) -> Result<(), SystemError>;
+    fn run(&mut self, db: &mut SystemInterface<CD>) -> Result<(), SystemError>;
 }

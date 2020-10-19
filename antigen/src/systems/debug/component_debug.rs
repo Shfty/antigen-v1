@@ -1,8 +1,10 @@
+use std::cell::RefMut;
+
 use crate::{
     components::DebugComponentList, components::DebugExclude, components::IntRange,
     entity_component_system::system_interface::SystemInterface,
-    entity_component_system::ComponentID, entity_component_system::ComponentStorage,
-    entity_component_system::EntityComponentDirectory, entity_component_system::EntityID,
+    entity_component_system::ComponentID, entity_component_system::EntityComponentDirectory,
+    entity_component_system::EntityID,
 };
 use crate::{
     components::EventQueue,
@@ -19,22 +21,19 @@ pub enum ComponentInspectorEvent {
 #[derive(Debug)]
 pub struct ComponentDebug;
 
-impl<CS, CD> SystemTrait<CS, CD> for ComponentDebug
+impl<CD> SystemTrait<CD> for ComponentDebug
 where
-    CS: ComponentStorage,
     CD: EntityComponentDirectory,
 {
-    fn run(&mut self, db: &mut SystemInterface<CS, CD>) -> Result<(), SystemError>
+    fn run(&mut self, db: &mut SystemInterface<CD>) -> Result<(), SystemError>
     where
-        CS: ComponentStorage,
         CD: EntityComponentDirectory,
     {
         // Fetch debugged entities
         let mut debug_entities: Vec<EntityID> = db
             .entity_component_directory
             .get_entities_by_predicate(|entity_id| {
-                !db.entity_component_directory
-                    .entity_has_component::<DebugExclude>(entity_id)
+                !db.entity_has_component::<DebugExclude>(entity_id)
             });
         debug_entities.sort();
 
@@ -42,23 +41,25 @@ where
         let component_inspector_entity =
             db.entity_component_directory
                 .get_entity_by_predicate(|entity_id| {
-                    db.entity_component_directory
-                        .entity_has_component::<EventQueue<ComponentInspectorEvent>>(entity_id)
-                        && db
-                            .entity_component_directory
-                            .entity_has_component::<IntRange>(entity_id)
+                    db.entity_has_component::<EventQueue<ComponentInspectorEvent>>(entity_id)
+                        && db.entity_has_component::<IntRange>(entity_id)
                 });
 
         if let Some(component_inspector_entity) = component_inspector_entity {
-            let event_queue: &mut Vec<ComponentInspectorEvent> = db
-                .get_entity_component_mut::<EventQueue<ComponentInspectorEvent>>(
-                    component_inspector_entity,
-                )?;
-
             let mut events: Vec<ComponentInspectorEvent> = Vec::new();
-            events.append(event_queue);
+            {
+                let mut event_queue: RefMut<Vec<ComponentInspectorEvent>> = RefMut::map(
+                    db.get_entity_component_mut::<EventQueue<ComponentInspectorEvent>>(
+                        component_inspector_entity,
+                    )?,
+                    |event_queue| &mut **event_queue,
+                );
 
-            let int_range = db.get_entity_component_mut::<IntRange>(component_inspector_entity)?;
+                events.append(event_queue.as_mut());
+            }
+
+            let mut int_range =
+                db.get_entity_component_mut::<IntRange>(component_inspector_entity)?;
             int_range.set_range(0..debug_entities.len() as i64);
             for event in events {
                 let ComponentInspectorEvent::SetInspectedComponent(index) = event;
@@ -74,31 +75,24 @@ where
         let entity_inspector_entity =
             db.entity_component_directory
                 .get_entity_by_predicate(|entity_id| {
-                    db.entity_component_directory
-                        .entity_has_component::<EventQueue<EntityInspectorEvent>>(entity_id)
-                        && db
-                            .entity_component_directory
-                            .entity_has_component::<IntRange>(entity_id)
+                    db.entity_has_component::<EventQueue<EntityInspectorEvent>>(entity_id)
+                        && db.entity_has_component::<IntRange>(entity_id)
                 });
 
         // Populate strings for debug component list entities
         let debug_component_list_entities = db
             .entity_component_directory
             .get_entities_by_predicate(|entity_id| {
-                db.entity_component_directory
-                    .entity_has_component::<DebugComponentList>(entity_id)
-                    && db
-                        .entity_component_directory
-                        .entity_has_component::<Vec<String>>(entity_id)
+                db.entity_has_component::<DebugComponentList>(entity_id)
+                    && db.entity_has_component::<Vec<String>>(entity_id)
             });
 
         if let Some(entity_inspector_entity) = entity_inspector_entity {
-            let int_range_component =
-                db.get_entity_component::<IntRange>(entity_inspector_entity)?;
+            let int_range_index = db
+                .get_entity_component::<IntRange>(entity_inspector_entity)?
+                .get_index();
 
-            if let Some(inspected_entity) =
-                debug_entities.get(int_range_component.get_index() as usize)
-            {
+            if let Some(inspected_entity) = debug_entities.get(int_range_index as usize) {
                 let mut components =
                     db.entity_component_directory
                         .get_components_by_predicate(|component_id| {

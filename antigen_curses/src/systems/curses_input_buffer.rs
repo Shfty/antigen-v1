@@ -1,11 +1,14 @@
+use std::cell::{Ref, RefMut};
+
 use antigen::{
     components::EventQueue,
     components::Window,
     entity_component_system::{
-        system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory, SystemError,
-        SystemTrait,
+        system_interface::SystemInterface, ComponentData, EntityComponentDirectory, EntityID,
+        SystemError, SystemTrait,
     },
 };
+use store::StoreQuery;
 
 use crate::components::{CursesEvent, CursesWindowData};
 
@@ -13,51 +16,36 @@ use crate::components::{CursesEvent, CursesWindowData};
 #[derive(Debug)]
 pub struct CursesInputBuffer;
 
-impl<CS, CD> SystemTrait<CS, CD> for CursesInputBuffer
+impl<CD> SystemTrait<CD> for CursesInputBuffer
 where
-    CS: ComponentStorage,
     CD: EntityComponentDirectory,
 {
-    fn run(&mut self, db: &mut SystemInterface<CS, CD>) -> Result<(), SystemError>
+    fn run(&mut self, db: &mut SystemInterface<CD>) -> Result<(), SystemError>
     where
-        CS: ComponentStorage,
         CD: EntityComponentDirectory,
     {
-        // Fetch event queue entity
-        let event_queue_entity =
-            db.entity_component_directory
-                .get_entity_by_predicate(|entity_id| {
-                    db.entity_component_directory
-                        .entity_has_component::<EventQueue<CursesEvent>>(entity_id)
-                });
+        let (_, (mut event_queue,)) = StoreQuery::<
+            EntityID,
+            (RefMut<ComponentData<EventQueue<CursesEvent>>>,),
+        >::iter(db.component_store)
+        .next()
+        .expect("No curses event queue");
 
-        if let Some(event_queue_entity) = event_queue_entity {
-            // If event queue exists, fetch the window entry we'll be reading input from
-            let window_entity =
-                db.entity_component_directory
-                    .get_entity_by_predicate(|entity_id| {
-                        db.entity_component_directory
-                            .entity_has_component::<Window>(entity_id)
-                            && db
-                                .entity_component_directory
-                                .entity_has_component::<CursesWindowData>(entity_id)
-                    });
+        let (_, (_window, curses_window)) = StoreQuery::<
+            EntityID,
+            (
+                Ref<ComponentData<Window>>,
+                Ref<ComponentData<CursesWindowData>>,
+            ),
+        >::iter(db.component_store)
+        .next()
+        .expect("No curses window");
 
-            if let Some(entity_id) = window_entity {
-                let window: &Option<pancurses::Window> =
-                    db.get_entity_component::<CursesWindowData>(entity_id)?;
-                if let Some(window) = window {
-                    if let Some(input) = window.getch() {
-                        // Fetch the entity queue component and push inputs into it
-                        let event_queue: &mut Vec<CursesEvent> = db
-                            .get_entity_component_mut::<EventQueue<CursesEvent>>(
-                                event_queue_entity,
-                            )?;
+        let window: Option<&pancurses::Window> = curses_window.as_ref().as_ref();
+        let input: Option<Option<pancurses::Input>> = window.map(|window| window.getch());
 
-                        event_queue.push(input);
-                    }
-                }
-            }
+        if let Some(Some(input)) = input {
+            event_queue.push(input);
         }
 
         Ok(())

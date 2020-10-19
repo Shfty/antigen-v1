@@ -11,7 +11,6 @@ use crate::{
 };
 use crate::{
     components::{ParentEntity, Position},
-    entity_component_system::ComponentStorage,
     entity_component_system::EntityComponentDirectory,
 };
 
@@ -30,12 +29,11 @@ impl AnchorsMargins {
     }
 }
 
-impl<CS, CD> SystemTrait<CS, CD> for AnchorsMargins
+impl<CD> SystemTrait<CD> for AnchorsMargins
 where
-    CS: ComponentStorage,
     CD: EntityComponentDirectory,
 {
-    fn run(&mut self, db: &mut SystemInterface<CS, CD>) -> Result<(), SystemError>
+    fn run(&mut self, db: &mut SystemInterface<CD>) -> Result<(), SystemError>
     where
         CD: EntityComponentDirectory,
     {
@@ -43,14 +41,9 @@ where
         let anchor_entities =
             db.entity_component_directory
                 .get_entities_by_predicate(|entity_id| {
-                    db.entity_component_directory
-                        .entity_has_component::<Anchors>(entity_id)
-                        && db
-                            .entity_component_directory
-                            .entity_has_component::<Position>(entity_id)
-                        && db
-                            .entity_component_directory
-                            .entity_has_component::<ParentEntity>(entity_id)
+                    db.entity_has_component::<Anchors>(entity_id)
+                        && db.entity_has_component::<Position>(entity_id)
+                        && db.entity_has_component::<ParentEntity>(entity_id)
                 });
 
         // Sort into a HashMap based on tree depth
@@ -95,8 +88,8 @@ where
         for entity_id in anchor_entities {
             let parent_id: EntityID = **db.get_entity_component::<ParentEntity>(entity_id)?;
 
-            let parent_position = db.get_entity_component::<Position>(parent_id)?;
-            let Vector2I(parent_pos_x, parent_pos_y) = **parent_position;
+            let parent_position = *db.get_entity_component::<Position>(parent_id)?;
+            let Vector2I(parent_pos_x, parent_pos_y) = *parent_position;
 
             let Vector2I(parent_width, parent_height) =
                 **db.get_entity_component::<Size>(parent_id)?;

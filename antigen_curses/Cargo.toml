@@ -8,4 +8,5 @@ edition = "2018"
 
 [dependencies]
 antigen = { path = "../antigen" }
+store = { path = "../../store/store" }
 pancurses = "0.16"

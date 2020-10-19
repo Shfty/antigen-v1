@@ -1,10 +1,10 @@
-use std::{collections::HashMap, fmt::Debug, time::Duration};
+use std::{cell::RefMut, collections::HashMap, fmt::Debug, time::Duration};
 
 use crate::{
     components::{DebugSystemList, EventQueue, IntRange, SystemProfilingData},
     entity_component_system::{
-        system_interface::SystemInterface, ComponentStorage, EntityComponentDirectory, SystemError,
-        SystemID, SystemTrait,
+        system_interface::SystemInterface, EntityComponentDirectory, SystemError, SystemID,
+        SystemTrait,
     },
 };
 
@@ -16,21 +16,18 @@ pub enum SystemInspectorEvent {
     SetInspectedSystem(Option<usize>),
 }
 
-impl<CS, CD> SystemTrait<CS, CD> for SystemDebug
+impl<CD> SystemTrait<CD> for SystemDebug
 where
-    CS: ComponentStorage,
     CD: EntityComponentDirectory,
 {
-    fn run(&mut self, db: &mut SystemInterface<CS, CD>) -> Result<(), SystemError>
+    fn run(&mut self, db: &mut SystemInterface<CD>) -> Result<(), SystemError>
     where
-        CS: ComponentStorage,
         CD: EntityComponentDirectory,
     {
         if let Some(system_debug_entity) =
             db.entity_component_directory
                 .get_entity_by_predicate(|entity_id| {
-                    db.entity_component_directory
-                        .entity_has_component::<SystemProfilingData>(entity_id)
+                    db.entity_has_component::<SystemProfilingData>(entity_id)
                 })
         {
             // Populate strings for debug system list entities
@@ -49,25 +46,25 @@ where
             let system_inspector_entity =
                 db.entity_component_directory
                     .get_entity_by_predicate(|entity_id| {
-                        db.entity_component_directory
-                            .entity_has_component::<EventQueue<SystemInspectorEvent>>(entity_id)
-                            && db
-                                .entity_component_directory
-                                .entity_has_component::<IntRange>(entity_id)
+                        db.entity_has_component::<EventQueue<SystemInspectorEvent>>(entity_id)
+                            && db.entity_has_component::<IntRange>(entity_id)
                     });
 
             if let Some(system_inspector_entity) = system_inspector_entity {
                 let mut events: Vec<SystemInspectorEvent> = Vec::new();
                 {
-                    let event_queue: &mut Vec<SystemInspectorEvent> = db
-                        .get_entity_component_mut::<EventQueue<SystemInspectorEvent>>(
+                    let mut event_queue: RefMut<Vec<SystemInspectorEvent>> = RefMut::map(
+                        db.get_entity_component_mut::<EventQueue<SystemInspectorEvent>>(
                             system_inspector_entity,
-                        )?;
+                        )?,
+                        |event_queue| &mut **event_queue,
+                    );
 
-                    events.append(event_queue);
+                    events.append(event_queue.as_mut());
                 }
 
-                let int_range = db.get_entity_component_mut::<IntRange>(system_inspector_entity)?;
+                let mut int_range =
+                    db.get_entity_component_mut::<IntRange>(system_inspector_entity)?;
                 int_range.set_range(0..system_durations.len() as i64);
                 for event in events {
                     let SystemInspectorEvent::SetInspectedSystem(index) = event;
@@ -109,11 +106,8 @@ where
             let debug_system_list_entities = db
                 .entity_component_directory
                 .get_entities_by_predicate(|entity_id| {
-                    db.entity_component_directory
-                        .entity_has_component::<DebugSystemList>(entity_id)
-                        && db
-                            .entity_component_directory
-                            .entity_has_component::<Vec<String>>(entity_id)
+                    db.entity_has_component::<DebugSystemList>(entity_id)
+                        && db.entity_has_component::<Vec<String>>(entity_id)
                 });
 
             for entity_id in debug_system_list_entities {

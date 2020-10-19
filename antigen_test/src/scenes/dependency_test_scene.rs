@@ -1,7 +1,6 @@
 use antigen::{
     components::{Control, ParentEntity, Position, Size, Velocity, Window},
     core::palette::RGBArrangementPalette,
-    entity_component_system::ComponentStorage,
     entity_component_system::EntityComponentDirectory,
     entity_component_system::Scene,
     entity_component_system::SystemInterface,
@@ -21,13 +20,12 @@ use crate::systems::QuitKey;
 pub struct DependencyTestScene;
 
 impl Scene for DependencyTestScene {
-    fn register_systems<CS, CD, SS, SR>(
-        ecs: &mut EntityComponentSystem<CS, CD, SS, SR>,
+    fn register_systems<CD, SS, SR>(
+        ecs: &mut EntityComponentSystem<CD, SS, SR>,
     ) -> Result<(), String>
     where
-        CS: ComponentStorage,
         CD: EntityComponentDirectory + 'static,
-        SS: SystemStorage<CS, CD> + 'static,
+        SS: SystemStorage<CD> + 'static,
         SR: SystemRunner + 'static,
     {
         // Resolution Strategy
@@ -40,7 +38,7 @@ impl Scene for DependencyTestScene {
         // pred: (WindowComponent, CursesWindowComponent, SizeComponent)
         // ref: CursesWindowComponent, SizeComponent, CharComponent, CursesColorPairComponent, StringComponent
         // mut: SizeComponent, CursesColorSetComponent, CursesWindowComponent
-        let pancurses_window_system = curses_systems::CursesWindow::new(&mut ecs.component_storage);
+        let pancurses_window_system = curses_systems::CursesWindow;
         ecs.push_system(pancurses_window_system);
 
         // pred: (WindowComponent, CursesWindowComponent)
@@ -58,7 +56,7 @@ impl Scene for DependencyTestScene {
         // pred: (PositionComponent, VelocityComponent)
         // ref: VelocityComponent
         // mut: PositionComponent
-        ecs.push_system(PositionIntegrator::new());
+        ecs.push_system(PositionIntegrator);
 
         // pred: CursesColorSetComponent, (ControlComponent, ParentEntityComponent, PositionComponent), (WindowComponent, CursesWindowComponent, SizeComponent)
         // ref: ParentEntityComponent, ZIndexComponent, ChildEntitiesComponent, CursesWindowComponent, ParentEntityComponent, CursesWindowComponent,
@@ -72,9 +70,8 @@ impl Scene for DependencyTestScene {
         Ok(())
     }
 
-    fn create_entities<CS, CD>(db: &mut SystemInterface<CS, CD>) -> Result<(), String>
+    fn create_entities<CD>(db: &mut SystemInterface<CD>) -> Result<(), String>
     where
-        CS: ComponentStorage,
         CD: EntityComponentDirectory,
     {
         // Create Main Window

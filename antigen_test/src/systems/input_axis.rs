@@ -6,7 +6,6 @@ use antigen::{
     components::IntRange,
     core::events::AntigenInputEvent,
     entity_component_system::system_interface::SystemInterface,
-    entity_component_system::ComponentData,
     entity_component_system::EntityComponentDirectory,
     entity_component_system::EntityID,
     entity_component_system::{SystemError, SystemTrait},
@@ -24,20 +23,13 @@ where
     where
         CD: EntityComponentDirectory,
     {
-        let (_key, (event_queue,)) = StoreQuery::<
-            EntityID,
-            (Ref<ComponentData<EventQueue<AntigenInputEvent>>>,),
-        >::iter(db.component_store)
-        .next()
-        .expect("No antigen input event queue");
+        let (_key, event_queue) =
+            StoreQuery::<(EntityID, Ref<EventQueue<AntigenInputEvent>>)>::iter(db.component_store)
+                .next()
+                .expect("No antigen input event queue");
 
-        for (_key, (input_axis_data, mut int_range)) in StoreQuery::<
-            EntityID,
-            (
-                Ref<ComponentData<InputAxisData>>,
-                RefMut<ComponentData<IntRange>>,
-            ),
-        >::iter(db.component_store)
+        for (_key, input_axis_data, mut int_range) in
+            StoreQuery::<(EntityID, Ref<InputAxisData>, RefMut<IntRange>)>::iter(db.component_store)
         {
             let prev_input = input_axis_data.get_negative_input();
             let next_input = input_axis_data.get_positive_input();

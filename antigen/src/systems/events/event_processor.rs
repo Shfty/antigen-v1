@@ -4,9 +4,7 @@ use store::StoreQuery;
 
 use crate::{
     components::EventQueue,
-    entity_component_system::{
-        ComponentData, EntityComponentDirectory, EntityID, SystemError, SystemTrait,
-    },
+    entity_component_system::{EntityComponentDirectory, EntityID, SystemError, SystemTrait},
 };
 use crate::{components::EventTargets, entity_component_system::system_interface::SystemInterface};
 
@@ -39,13 +37,10 @@ where
     where
         CD: EntityComponentDirectory,
     {
-        for (_, (out_event_queue, event_targets)) in StoreQuery::<
-            EntityID,
-            (
-                Ref<ComponentData<EventQueue<O>>>,
-                Ref<ComponentData<EventTargets>>,
-            ),
-        >::iter(db.component_store)
+        for (_, out_event_queue, event_targets) in
+            StoreQuery::<(EntityID, Ref<EventQueue<O>>, Ref<EventTargets>)>::iter(
+                db.component_store,
+            )
         {
             let mut events: Vec<I> = out_event_queue
                 .iter()
@@ -53,16 +48,14 @@ where
                 .flat_map(self.convert)
                 .collect();
 
-            let keys = (***event_targets)
+            let keys: Vec<EntityID> = (**event_targets)
                 .iter()
                 .copied()
                 .filter(|entity_id| db.entity_has_component::<EventQueue<I>>(entity_id))
                 .collect();
 
-            for (_, (mut in_event_queue,)) in StoreQuery::<
-                EntityID,
-                (RefMut<ComponentData<EventQueue<I>>>,),
-            >::iter_keys(db.component_store, keys)
+            for (_, mut in_event_queue) in
+                StoreQuery::<(EntityID, RefMut<EventQueue<I>>)>::iter_keys(db.component_store, &keys)
             {
                 in_event_queue.append(&mut events);
             }

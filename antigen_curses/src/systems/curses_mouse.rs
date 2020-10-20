@@ -4,8 +4,8 @@ use antigen::{
     components::EventQueue,
     core::events::AntigenInputEvent,
     entity_component_system::{
-        system_interface::SystemInterface, ComponentData, EntityComponentDirectory, EntityID,
-        SystemError, SystemTrait,
+        system_interface::SystemInterface, EntityComponentDirectory, EntityID, SystemError,
+        SystemTrait,
     },
     primitive_types::Vector2I,
 };
@@ -46,17 +46,15 @@ where
     where
         CD: EntityComponentDirectory,
     {
-        let (_, (curses_event_queue,)) = StoreQuery::<
-            EntityID,
-            (Ref<ComponentData<EventQueue<CursesEvent>>>,),
-        >::iter(db.component_store)
-        .next()
-        .expect("No curses event queue entity");
+        let (_, curses_event_queue) =
+            StoreQuery::<(EntityID, Ref<EventQueue<CursesEvent>>)>::iter(db.component_store)
+                .next()
+                .expect("No curses event queue entity");
 
-        let (_, (mut antigen_event_queue,)) = StoreQuery::<
+        let (_, mut antigen_event_queue) = StoreQuery::<(
             EntityID,
-            (RefMut<ComponentData<EventQueue<AntigenInputEvent>>>,),
-        >::iter(db.component_store)
+            RefMut<EventQueue<AntigenInputEvent>>,
+        )>::iter(db.component_store)
         .next()
         .expect("No antigen event queue entity");
 

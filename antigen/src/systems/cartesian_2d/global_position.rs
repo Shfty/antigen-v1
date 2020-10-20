@@ -9,7 +9,6 @@ use crate::entity_component_system::{EntityComponentDirectory, SystemError, Syst
 use crate::{
     components::{GlobalPositionData, ParentEntity, Position},
     entity_component_system::system_interface::SystemInterface,
-    entity_component_system::ComponentData,
     entity_component_system::EntityID,
 };
 
@@ -25,18 +24,16 @@ where
         CD: EntityComponentDirectory,
     {
         let entity_parent_chains: HashMap<EntityID, Vec<EntityID>> =
-            StoreQuery::<
+            StoreQuery::<(
                 EntityID,
-                (
-                    Ref<ComponentData<Position>>,
-                    Ref<ComponentData<ParentEntity>>,
-                    Ref<ComponentData<GlobalPositionData>>,
-                ),
-            >::iter(db.component_store)
-            .map(|(entity_id, (_, parent_entity, _))| {
+                Ref<Position>,
+                Ref<ParentEntity>,
+                Ref<GlobalPositionData>,
+            )>::iter(db.component_store)
+            .map(|(entity_id, _, parent_entity, _)| {
                 let mut parent_chain: Vec<EntityID> = Vec::new();
 
-                let mut candidate_id = ***parent_entity;
+                let mut candidate_id = **parent_entity;
 
                 loop {
                     parent_chain.push(candidate_id);
@@ -56,24 +53,19 @@ where
             .collect();
 
         for (entity_id, parent_chain) in entity_parent_chains {
-            let (position, mut global_position) =
-                StoreQuery::<
-                    EntityID,
-                    (
-                        Ref<ComponentData<Position>>,
-                        RefMut<ComponentData<GlobalPositionData>>,
-                    ),
-                >::get(db.component_store, entity_id);
-
-            ***global_position = ***position;
-
-            for (_, (position,)) in
-                StoreQuery::<EntityID, (Ref<ComponentData<Position>>,)>::iter_keys(
+            let (_, position, mut global_position) =
+                StoreQuery::<(EntityID, Ref<Position>, RefMut<GlobalPositionData>)>::get(
                     db.component_store,
-                    parent_chain.clone(),
-                )
-            {
-                ***global_position += ***position;
+                    entity_id,
+                );
+
+            **global_position = **position;
+
+            for (_, position) in StoreQuery::<(EntityID, Ref<Position>)>::iter_keys(
+                db.component_store,
+                &parent_chain,
+            ) {
+                **global_position += **position;
             }
         }
 

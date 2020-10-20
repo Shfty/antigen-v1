@@ -5,3 +5,6 @@ members = [
     "antigen_test",
     "antigen_curses"
 ]
+
+[profile.release]
+debug = true

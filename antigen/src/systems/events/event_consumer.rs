@@ -2,7 +2,7 @@ use std::{cell::RefMut, fmt::Debug, marker::PhantomData};
 
 use store::StoreQuery;
 
-use crate::entity_component_system::{system_interface::SystemInterface, ComponentData, EntityID};
+use crate::entity_component_system::{system_interface::SystemInterface, EntityID};
 use crate::{
     components::EventQueue,
     entity_component_system::{EntityComponentDirectory, SystemError, SystemTrait},
@@ -45,10 +45,8 @@ where
     where
         CD: EntityComponentDirectory,
     {
-        StoreQuery::<EntityID, (RefMut<ComponentData<EventQueue<T>>>,)>::iter(
-            db.component_store,
-        )
-        .for_each(|(_key, (mut event_queue,))| event_queue.clear());
+        StoreQuery::<(EntityID, RefMut<EventQueue<T>>)>::iter(db.component_store)
+            .for_each(|(_key, mut event_queue)| event_queue.clear());
 
         Ok(())
     }

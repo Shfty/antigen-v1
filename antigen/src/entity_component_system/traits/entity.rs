@@ -23,3 +23,9 @@ impl Display for EntityID {
         write!(f, "{}", entity_id)
     }
 }
+
+impl Into<usize> for EntityID {
+    fn into(self) -> usize {
+        self.0
+    }
+}

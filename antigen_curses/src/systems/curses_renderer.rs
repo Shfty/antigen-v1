@@ -4,8 +4,8 @@ use antigen::{
     components::{Size, SoftwareFramebuffer, Window},
     core::palette::Palette,
     entity_component_system::{
-        system_interface::SystemInterface, ComponentData, EntityComponentDirectory, EntityID,
-        SystemError, SystemTrait,
+        system_interface::SystemInterface, EntityComponentDirectory, EntityID, SystemError,
+        SystemTrait,
     },
     primitive_types::ColorRGB,
     primitive_types::ColorRGBF,
@@ -53,21 +53,16 @@ where
         CD: EntityComponentDirectory,
     {
         // Fetch window entity
-        let (_, (_window, curses_window, _size)) =
-            StoreQuery::<
-                EntityID,
-                (
-                    Ref<ComponentData<Window>>,
-                    Ref<ComponentData<CursesWindowData>>,
-                    Ref<ComponentData<Size>>,
-                ),
-            >::iter(db.component_store)
+        let (_, _window, curses_window, _size) =
+            StoreQuery::<(EntityID, Ref<Window>, Ref<CursesWindowData>, Ref<Size>)>::iter(
+                db.component_store,
+            )
             .next()
             .expect("No curses window entity");
 
         let window_width: i64;
         let window_height: i64;
-        let curses_window = (***curses_window)
+        let curses_window = (**curses_window)
             .as_ref()
             .expect("Failed to get curses window handle");
 
@@ -76,23 +71,19 @@ where
         window_height = height as i64;
 
         // Fetch software framebuffer entity
-        let (_, (software_framebuffer,)) = StoreQuery::<
-            EntityID,
-            (Ref<ComponentData<SoftwareFramebuffer<ColorRGBF>>>,),
-        >::iter(db.component_store)
-        .next()
-        .expect("No software framebuffer entity");
+        let (_, software_framebuffer) =
+            StoreQuery::<(EntityID, Ref<SoftwareFramebuffer<ColorRGBF>>)>::iter(db.component_store)
+                .next()
+                .expect("No software framebuffer entity");
 
         let color_buffer = software_framebuffer.get_color_buffer();
         let color_z_buffer = software_framebuffer.get_z_buffer();
 
         // Fetch string framebuffer entity
-        let (_, (string_framebuffer,)) = StoreQuery::<
-            EntityID,
-            (Ref<ComponentData<SoftwareFramebuffer<char>>>,),
-        >::iter(db.component_store)
-        .next()
-        .expect("No string framebuffer entity");
+        let (_, string_framebuffer) =
+            StoreQuery::<(EntityID, Ref<SoftwareFramebuffer<char>>)>::iter(db.component_store)
+                .next()
+                .expect("No string framebuffer entity");
 
         let char_buffer = string_framebuffer.get_color_buffer();
         let char_z_buffer = string_framebuffer.get_z_buffer();

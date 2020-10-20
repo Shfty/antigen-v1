@@ -1,20 +1,19 @@
 use std::{collections::HashMap, ops::Range};
 
 use antigen::{
-    components::{self as antigen_components, ChildEntitiesData},
+    components::{self as antigen_components},
     core::events::AntigenInputEvent,
     core::palette::RGBArrangementPalette,
     entity_component_system::{
         system_interface::SystemInterface, system_storage::SystemStorage, Assemblage,
-        ComponentData, EntityComponentDirectory, EntityComponentSystem, EntityID, Scene,
-        SystemRunner,
+        EntityComponentDirectory, EntityComponentSystem, EntityID, Scene, SystemRunner,
     },
     primitive_types::{ColorRGB, ColorRGBF, Vector2I},
     systems as antigen_systems,
 };
 use antigen_curses::{components as curses_components, systems as curses_systems};
 
-use crate::components::{self, DestructionTestInputData, InputAxisData};
+use crate::components;
 use crate::systems;
 
 #[derive(Eq, PartialEq, Hash)]
@@ -114,16 +113,16 @@ impl Scene for AntigenDebugScene {
         CD: EntityComponentDirectory,
     {
         // FIXME: Automatic storage population
+        /*
         {
-            db.component_store
-                .add_storage_for::<ComponentData<ChildEntitiesData>>();
+            db.component_store.add_storage_for::<ChildEntitiesData>();
+
+            db.component_store.add_storage_for::<InputAxisData>();
 
             db.component_store
-                .add_storage_for::<ComponentData<InputAxisData>>();
-
-            db.component_store
-                .add_storage_for::<ComponentData<DestructionTestInputData>>();
+                .add_storage_for::<DestructionTestInputData>();
         }
+        */
 
         let mut assemblages = create_assemblages()?;
 

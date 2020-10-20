@@ -2,6 +2,7 @@ use std::cell::{Ref, RefMut};
 
 use store::StoreQuery;
 
+use crate::components::{Control, SoftwareFramebuffer};
 use crate::{
     components::{ChildEntitiesData, GlobalPositionData, Position, Size, Window, ZIndex},
     entity_component_system::{
@@ -9,10 +10,6 @@ use crate::{
         SystemTrait,
     },
     primitive_types::Vector2I,
-};
-use crate::{
-    components::{Control, SoftwareFramebuffer},
-    entity_component_system::ComponentData,
 };
 
 const TAB_WIDTH: i64 = 4;
@@ -85,22 +82,18 @@ where
     where
         CD: EntityComponentDirectory,
     {
-        let (window_entity_id, (_window, size)) = StoreQuery::<
-            EntityID,
-            (Ref<ComponentData<Window>>, Ref<ComponentData<Size>>),
-        >::iter(db.component_store)
-        .next()
-        .expect("No window entity");
+        let (window_entity_id, _window, size) =
+            StoreQuery::<(EntityID, Ref<Window>, Ref<Size>)>::iter(db.component_store)
+                .next()
+                .expect("No window entity");
 
-        let window_width: i64 = (***size).0;
-        let window_height: i64 = (***size).1;
+        let window_width: i64 = (**size).0;
+        let window_height: i64 = (**size).1;
 
-        let (_, (mut string_framebuffer,)) = StoreQuery::<
-            EntityID,
-            (RefMut<ComponentData<SoftwareFramebuffer<char>>>,),
-        >::iter(db.component_store)
-        .next()
-        .expect("No CPU framebuffer entity");
+        let (_, mut string_framebuffer) =
+            StoreQuery::<(EntityID, RefMut<SoftwareFramebuffer<char>>)>::iter(db.component_store)
+                .next()
+                .expect("No CPU framebuffer entity");
 
         // Fetch color buffer entity
         let cell_count = (window_width * window_height) as usize;
@@ -118,19 +111,18 @@ where
         where
             CD: EntityComponentDirectory,
         {
-            let (control, char, string, z_index) = StoreQuery::<
-                EntityID,
-                (
-                    Option<Ref<ComponentData<Control>>>,
-                    Option<Ref<ComponentData<char>>>,
-                    Option<Ref<ComponentData<String>>>,
-                    Option<Ref<ComponentData<ZIndex>>>,
-                ),
-            >::get(db.component_store, entity_id);
+            let (_, control, char, string, z_index) =
+                StoreQuery::<(
+                    EntityID,
+                    Option<Ref<Control>>,
+                    Option<Ref<char>>,
+                    Option<Ref<String>>,
+                    Option<Ref<ZIndex>>,
+                )>::get(db.component_store, entity_id);
 
             if control.is_some() && (char.is_some() || string.is_some()) {
                 entity_z = if let Some(z_index) = z_index {
-                    ***z_index
+                    **z_index
                 } else {
                     entity_z
                 };
@@ -138,10 +130,10 @@ where
                 z_layers.push((entity_id, entity_z));
             }
 
-            let (child_entities,) = StoreQuery::<
-                EntityID,
-                (Option<Ref<ComponentData<ChildEntitiesData>>>,),
-            >::get(db.component_store, entity_id);
+            let (_, child_entities) = StoreQuery::<(EntityID, Option<Ref<ChildEntitiesData>>)>::get(
+                db.component_store,
+                entity_id,
+            );
 
             if let Some(child_entities) = child_entities {
                 for child_id in child_entities.iter() {
@@ -159,35 +151,33 @@ where
         string_framebuffer.clear();
 
         for (entity_id, z) in control_entities {
-            let (position, global_position, char, string) =
-                StoreQuery::<
+            let (_, position, global_position, char, string) =
+                StoreQuery::<(
                     EntityID,
-                    (
-                        Ref<ComponentData<Position>>,
-                        Option<Ref<ComponentData<GlobalPositionData>>>,
-                        Option<Ref<ComponentData<char>>>,
-                        Option<Ref<ComponentData<String>>>,
-                    ),
-                >::get(db.component_store, entity_id);
+                    Ref<Position>,
+                    Option<Ref<GlobalPositionData>>,
+                    Option<Ref<char>>,
+                    Option<Ref<String>>,
+                )>::get(db.component_store, entity_id);
 
             // Get Position
             let Vector2I(x, y) = if let Some(global_position) = global_position {
-                ***global_position
+                **global_position
             } else {
-                ***position
+                **position
             };
 
             let string = if let Some(string) = string {
-                (**string).clone()
+                (*string).clone()
             } else if let Some(char) = char {
-                (**char).to_string()
+                (*char).to_string()
             } else {
                 return Err("No valid string component".into());
             };
 
             for (i, string) in string.split('\n').enumerate() {
                 Self::render_string(
-                    &mut **string_framebuffer,
+                    &mut *string_framebuffer,
                     Vector2I(window_width, window_height),
                     Vector2I(x, y + i as i64),
                     string,

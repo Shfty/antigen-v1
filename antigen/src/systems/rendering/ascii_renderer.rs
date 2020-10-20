@@ -3,9 +3,10 @@ use std::cell::Ref;
 use store::StoreQuery;
 
 use crate::{
-    components::Position, entity_component_system::system_interface::SystemInterface,
-    entity_component_system::ComponentData, entity_component_system::EntityComponentDirectory,
-    entity_component_system::EntityID,
+    components::Position,
+    entity_component_system::{
+        system_interface::SystemInterface, EntityComponentDirectory, EntityID,
+    },
 };
 use crate::{
     entity_component_system::{SystemError, SystemTrait},
@@ -23,12 +24,10 @@ where
     where
         CD: EntityComponentDirectory,
     {
-        let positions: Vec<(Vector2I, char)> = StoreQuery::<
-            EntityID,
-            (Ref<ComponentData<Position>>, Ref<ComponentData<char>>),
-        >::iter(db.component_store)
-        .map(|(_, (position, char))| (***position, **char))
-        .collect();
+        let positions: Vec<(Vector2I, char)> =
+            StoreQuery::<(EntityID, Ref<Position>, Ref<char>)>::iter(db.component_store)
+                .map(|(_, position, char)| (**position, *char))
+                .collect();
 
         for y in 0..10 {
             for x in 0..40 {

@@ -5,8 +5,8 @@ use store::StoreQuery;
 use crate::{
     components::{Position, Velocity},
     entity_component_system::{
-        system_interface::SystemInterface, ComponentData, EntityComponentDirectory, EntityID,
-        SystemError, SystemTrait,
+        system_interface::SystemInterface, EntityComponentDirectory, EntityID, SystemError,
+        SystemTrait,
     },
 };
 
@@ -21,14 +21,8 @@ where
     where
         CD: EntityComponentDirectory,
     {
-        StoreQuery::<
-            EntityID,
-            (
-                Ref<ComponentData<Velocity>>,
-                RefMut<ComponentData<Position>>,
-            ),
-        >::iter(db.component_store)
-        .for_each(|(_key, (velocity, mut position))| ***position += ***velocity);
+        StoreQuery::<(EntityID, Ref<Velocity>, RefMut<Position>)>::iter(db.component_store)
+            .for_each(|(_key, velocity, mut position)| **position += **velocity);
 
         Ok(())
     }

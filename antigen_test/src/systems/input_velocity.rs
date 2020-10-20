@@ -5,7 +5,6 @@ use antigen::{
     components::Velocity,
     core::events::AntigenInputEvent,
     entity_component_system::system_interface::SystemInterface,
-    entity_component_system::ComponentData,
     entity_component_system::EntityComponentDirectory,
     entity_component_system::{EntityID, SystemError, SystemTrait},
     primitive_types::Vector2I,
@@ -29,12 +28,10 @@ where
     where
         CD: EntityComponentDirectory,
     {
-        let (_key, (event_queue,)) = StoreQuery::<
-            EntityID,
-            (Ref<ComponentData<EventQueue<AntigenInputEvent>>>,),
-        >::iter(db.component_store)
-        .next()
-        .expect("No antigen input event queue");
+        let (_key, event_queue) =
+            StoreQuery::<(EntityID, Ref<EventQueue<AntigenInputEvent>>)>::iter(db.component_store)
+                .next()
+                .expect("No antigen input event queue");
 
         let mut move_input: Vector2I = Vector2I(0, 0);
 
@@ -59,12 +56,10 @@ where
         move_input.0 = std::cmp::min(std::cmp::max(move_input.0, -1), 1);
         move_input.1 = std::cmp::min(std::cmp::max(move_input.1, -1), 1);
 
-        for (_key, (mut velocity,)) in StoreQuery::<
-            EntityID,
-            (RefMut<ComponentData<Velocity>>,),
-        >::iter(db.component_store)
+        for (_key, mut velocity) in
+            StoreQuery::<(EntityID, RefMut<Velocity>)>::iter(db.component_store)
         {
-            ***velocity = move_input;
+            **velocity = move_input;
         }
 
         Ok(())

@@ -2,6 +2,7 @@ use std::cell::{Ref, RefMut};
 
 use store::StoreQuery;
 
+use crate::components::{Control, SoftwareFramebuffer};
 use crate::{
     components::{
         CPUShader, CPUShaderInput, ChildEntitiesData, GlobalPositionData, Position, Size, Window,
@@ -14,10 +15,6 @@ use crate::{
     primitive_types::ColorRGB,
     primitive_types::ColorRGBF,
     primitive_types::Vector2I,
-};
-use crate::{
-    components::{Control, SoftwareFramebuffer},
-    entity_component_system::ComponentData,
 };
 
 #[derive(Debug)]
@@ -69,20 +66,18 @@ where
     where
         CD: EntityComponentDirectory,
     {
-        let (window_entity_id, (_window, size)) = StoreQuery::<
-            EntityID,
-            (Ref<ComponentData<Window>>, Ref<ComponentData<Size>>),
-        >::iter(db.component_store)
-        .next()
-        .expect("No window entity");
+        let (window_entity_id, _window, size) =
+            StoreQuery::<(EntityID, Ref<Window>, Ref<Size>)>::iter(db.component_store)
+                .next()
+                .expect("No window entity");
 
-        let window_width: i64 = (***size).0;
-        let window_height: i64 = (***size).1;
+        let window_width: i64 = (**size).0;
+        let window_height: i64 = (**size).1;
 
-        let (_, (mut software_framebuffer,)) = StoreQuery::<
+        let (_, mut software_framebuffer) = StoreQuery::<(
             EntityID,
-            (RefMut<ComponentData<SoftwareFramebuffer<ColorRGBF>>>,),
-        >::iter(db.component_store)
+            RefMut<SoftwareFramebuffer<ColorRGBF>>,
+        )>::iter(db.component_store)
         .next()
         .expect("No CPU framebuffer entity");
 
@@ -102,18 +97,16 @@ where
         where
             CD: EntityComponentDirectory,
         {
-            let (control, size, z_index) = StoreQuery::<
+            let (_, control, size, z_index) = StoreQuery::<(
                 EntityID,
-                (
-                    Option<Ref<ComponentData<Control>>>,
-                    Option<Ref<ComponentData<Size>>>,
-                    Option<Ref<ComponentData<ZIndex>>>,
-                ),
-            >::get(db.component_store, entity_id);
+                Option<Ref<Control>>,
+                Option<Ref<Size>>,
+                Option<Ref<ZIndex>>,
+            )>::get(db.component_store, entity_id);
 
             if let (Some(_), Some(_)) = (control, size) {
                 entity_z = if let Some(z_index) = z_index {
-                    ***z_index
+                    **z_index
                 } else {
                     entity_z
                 };
@@ -121,10 +114,10 @@ where
                 z_layers.push((entity_id, entity_z));
             }
 
-            let (child_entities,) = StoreQuery::<
-                EntityID,
-                (Option<Ref<ComponentData<ChildEntitiesData>>>,),
-            >::get(db.component_store, entity_id);
+            let (_, child_entities) = StoreQuery::<(EntityID, Option<Ref<ChildEntitiesData>>)>::get(
+                db.component_store,
+                entity_id,
+            );
 
             if let Some(child_entities) = child_entities {
                 for child_id in child_entities.iter() {
@@ -142,44 +135,42 @@ where
         software_framebuffer.clear();
 
         for (entity_id, z) in control_entities {
-            let (position, size, global_position, color, shader) =
-                StoreQuery::<
+            let (_, position, size, global_position, color, shader) =
+                StoreQuery::<(
                     EntityID,
-                    (
-                        Ref<ComponentData<Position>>,
-                        Ref<ComponentData<Size>>,
-                        Option<Ref<ComponentData<GlobalPositionData>>>,
-                        Option<Ref<ComponentData<ColorRGBF>>>,
-                        Option<Ref<ComponentData<CPUShader>>>,
-                    ),
-                >::get(db.component_store, entity_id);
+                    Ref<Position>,
+                    Ref<Size>,
+                    Option<Ref<GlobalPositionData>>,
+                    Option<Ref<ColorRGBF>>,
+                    Option<Ref<CPUShader>>,
+                )>::get(db.component_store, entity_id);
 
             // Get Position
             let position = if let Some(global_position) = global_position {
-                ***global_position
+                **global_position
             } else {
-                ***position
+                **position
             };
 
             // Get Size
-            let size = ***size;
+            let size = **size;
 
             // Get Color
             let color: ColorRGB<f32> = if let Some(color) = color {
-                **color
+                *color
             } else {
                 ColorRGB(1.0, 1.0, 1.0)
             };
 
             // Get shader
             let shader = if let Some(shader) = shader {
-                **shader
+                *shader
             } else {
                 CPUShader(CPUShader::color_passthrough)
             };
 
             Self::render_rect(
-                &mut **software_framebuffer,
+                &mut *software_framebuffer,
                 Vector2I(window_width, window_height),
                 position,
                 size,

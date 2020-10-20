@@ -3,8 +3,8 @@ use std::cell::{Ref, RefMut};
 use antigen::{
     components::{EventQueue, Size, Window},
     entity_component_system::{
-        system_interface::SystemInterface, ComponentData, EntityComponentDirectory, EntityID,
-        SystemError, SystemTrait,
+        system_interface::SystemInterface, EntityComponentDirectory, EntityID, SystemError,
+        SystemTrait,
     },
     primitive_types::Vector2I,
 };
@@ -18,9 +18,9 @@ pub struct CursesWindow;
 impl CursesWindow {
     fn try_create_window<CD>(
         &mut self,
-        curses_window: &mut RefMut<ComponentData<CursesWindowData>>,
-        size: &RefMut<ComponentData<Size>>,
-        string: Option<Ref<ComponentData<String>>>,
+        curses_window: &mut RefMut<CursesWindowData>,
+        size: &RefMut<Size>,
+        string: Option<Ref<String>>,
     ) -> Result<(), String>
     where
         CD: EntityComponentDirectory,
@@ -29,10 +29,10 @@ impl CursesWindow {
             return Ok(());
         }
 
-        let Vector2I(width, height) = ****size;
+        let Vector2I(width, height) = ***size;
 
         let title = if let Some(string) = string {
-            (**string).clone()
+            (*string).clone()
         } else {
             "Antigen".into()
         };
@@ -53,7 +53,7 @@ impl CursesWindow {
         window.keypad(true);
         window.timeout(0);
 
-        ****curses_window = Some(window);
+        ***curses_window = Some(window);
 
         Ok(())
     }
@@ -67,26 +67,21 @@ where
     where
         CD: EntityComponentDirectory,
     {
-        let (_, (curses_event_queue,)) = StoreQuery::<
-            EntityID,
-            (Ref<ComponentData<EventQueue<CursesEvent>>>,),
-        >::iter(db.component_store)
-        .next()
-        .expect("No curses event queue entity");
+        let (_, curses_event_queue) =
+            StoreQuery::<(EntityID, Ref<EventQueue<CursesEvent>>)>::iter(db.component_store)
+                .next()
+                .expect("No curses event queue entity");
 
         // Get window entity, update internal window state
-        let (_, (_window, mut size, mut curses_window, string)) =
-            StoreQuery::<
-                EntityID,
-                (
-                    Ref<ComponentData<Window>>,
-                    RefMut<ComponentData<Size>>,
-                    RefMut<ComponentData<CursesWindowData>>,
-                    Option<Ref<ComponentData<String>>>,
-                ),
-            >::iter(db.component_store)
-            .next()
-            .expect("No curses window entity");
+        let (_, _window, string, mut size, mut curses_window) = StoreQuery::<(
+            EntityID,
+            Ref<Window>,
+            Option<Ref<String>>,
+            RefMut<Size>,
+            RefMut<CursesWindowData>,
+        )>::iter(db.component_store)
+        .next()
+        .expect("No curses window entity");
 
         // Make sure the window exists
         self.try_create_window::<CD>(&mut curses_window, &size, string)?;
@@ -100,10 +95,10 @@ where
         }
 
         // Update window component size
-        let curses_window = (***curses_window).as_ref();
+        let curses_window = (**curses_window).as_ref();
         if let Some(curses_window) = curses_window {
             let (height, width) = curses_window.get_max_yx();
-            ***size = Vector2I(width as i64, height as i64);
+            **size = Vector2I(width as i64, height as i64);
         }
 
         Ok(())

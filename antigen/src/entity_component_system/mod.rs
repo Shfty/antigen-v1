@@ -20,10 +20,10 @@ use crate::{
     systems::EntityDebug, systems::SceneTreeDebug, systems::SystemDebug,
 };
 
-use store::Store;
+use store::HybridStore;
 
-mod component_storage;
-pub use component_storage::ComponentDataID;
+mod component_data_id;
+pub use component_data_id::*;
 
 pub struct EntityComponentSystem<CD, SS, SR>
 where
@@ -34,7 +34,7 @@ where
     pub entity_component_directory: CD,
     pub system_storage: SS,
     pub system_runner: SR,
-    pub component_store: Store,
+    pub component_store: HybridStore<EntityID>,
 }
 
 impl<'a, CD, SS, SR> EntityComponentSystem<CD, SS, SR>
@@ -58,7 +58,7 @@ where
 
             system_storage,
 
-            component_store: Store::default(),
+            component_store: HybridStore::default(),
         };
 
         {

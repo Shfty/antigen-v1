@@ -1,9 +1,11 @@
-use std::{cell::RefMut, collections::HashMap, fmt::Debug, time::Duration};
+use std::{cell::Ref, cell::RefMut, fmt::Debug, time::Duration};
+
+use store::StoreQuery;
 
 use crate::{
     components::{DebugSystemList, EventQueue, IntRange, SystemProfilingData},
     entity_component_system::{
-        system_interface::SystemInterface, EntityComponentDirectory, SystemError, SystemID,
+        system_interface::SystemInterface, EntityComponentDirectory, EntityID, SystemError,
         SystemTrait,
     },
 };
@@ -24,52 +26,28 @@ where
     where
         CD: EntityComponentDirectory,
     {
-        if let Some(system_debug_entity) =
-            db.entity_component_directory
-                .get_entity_by_predicate(|entity_id| {
-                    db.entity_has_component::<SystemProfilingData>(entity_id)
-                })
+        if let Some((_, system_profiling_data)) =
+            StoreQuery::<(EntityID, Ref<SystemProfilingData>)>::iter(db.component_store).next()
         {
             // Populate strings for debug system list entities
-            let system_durations: HashMap<SystemID, Duration>;
-            {
-                let system_debug_component =
-                    match db.get_entity_component::<SystemProfilingData>(system_debug_entity) {
-                        Ok(system_debug_component) => system_debug_component,
-                        Err(err) => return Err(err.into()),
-                    };
-                system_durations = system_debug_component.get_durations().clone();
-            }
+            let system_durations = system_profiling_data.get_durations();
             let total_duration: Duration = system_durations.values().sum();
 
             // Process system inspector events
-            let system_inspector_entity =
-                db.entity_component_directory
-                    .get_entity_by_predicate(|entity_id| {
-                        db.entity_has_component::<EventQueue<SystemInspectorEvent>>(entity_id)
-                            && db.entity_has_component::<IntRange>(entity_id)
-                    });
-
-            if let Some(system_inspector_entity) = system_inspector_entity {
-                let mut events: Vec<SystemInspectorEvent> = Vec::new();
-                {
-                    let mut event_queue: RefMut<Vec<SystemInspectorEvent>> = RefMut::map(
-                        db.get_entity_component_mut::<EventQueue<SystemInspectorEvent>>(
-                            system_inspector_entity,
-                        )?,
-                        |event_queue| &mut **event_queue,
-                    );
-
-                    events.append(event_queue.as_mut());
-                }
-
-                let mut int_range =
-                    db.get_entity_component_mut::<IntRange>(system_inspector_entity)?;
+            if let Some((_, event_queue, mut int_range)) = StoreQuery::<(
+                EntityID,
+                RefMut<EventQueue<SystemInspectorEvent>>,
+                RefMut<IntRange>,
+            )>::iter(db.component_store)
+            .next()
+            {
                 int_range.set_range(0..system_durations.len() as i64);
+
+                let events: &Vec<SystemInspectorEvent> = event_queue.as_ref();
                 for event in events {
                     let SystemInspectorEvent::SetInspectedSystem(index) = event;
                     if let Some(index) = index {
-                        int_range.set_index(index as i64);
+                        int_range.set_index(*index as i64);
                     } else {
                         int_range.set_index(-1);
                     }
@@ -77,11 +55,9 @@ where
             }
 
             // Compile system strings
-            let mut system_ids: Vec<&SystemID> = system_durations.keys().collect();
-            system_ids.sort();
-            let mut system_strings: Vec<String> = system_ids
+            let mut system_strings: Vec<String> = system_durations
                 .iter()
-                .flat_map(|system_id| {
+                .flat_map(|(system_id, _)| {
                     let duration = system_durations.get(system_id)?;
 
                     Some(format!(
@@ -103,15 +79,13 @@ where
                 total_duration.as_nanos(),
             ));
 
-            let debug_system_list_entities = db
-                .entity_component_directory
-                .get_entities_by_predicate(|entity_id| {
-                    db.entity_has_component::<DebugSystemList>(entity_id)
-                        && db.entity_has_component::<Vec<String>>(entity_id)
-                });
-
-            for entity_id in debug_system_list_entities {
-                *db.get_entity_component_mut::<Vec<String>>(entity_id)? = system_strings.clone();
+            if let Some((_, _, mut strings)) =
+                StoreQuery::<(EntityID, Ref<DebugSystemList>, RefMut<Vec<String>>)>::iter(
+                    db.component_store,
+                )
+                .next()
+            {
+                *strings = system_strings;
             }
         }
 

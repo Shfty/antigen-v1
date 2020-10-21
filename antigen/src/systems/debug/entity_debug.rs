@@ -1,4 +1,6 @@
-use std::{cell::RefMut, fmt::Debug};
+use std::{cell::Ref, cell::RefMut, fmt::Debug};
+
+use store::StoreQuery;
 
 use crate::{
     components::EventQueue,
@@ -37,30 +39,17 @@ where
             });
         debug_entities.sort();
 
-        // Process entity inspector events
-        let entity_inspector_entity =
-            db.entity_component_directory
-                .get_entity_by_predicate(|entity_id| {
-                    db.entity_has_component::<EventQueue<EntityInspectorEvent>>(entity_id)
-                        && db.entity_has_component::<IntRange>(entity_id)
-                });
-
-        if let Some(entity_inspector_entity) = entity_inspector_entity {
-            let mut events: Vec<EntityInspectorEvent> = Vec::new();
-            {
-                let mut event_queue: RefMut<Vec<EntityInspectorEvent>> = RefMut::map(
-                    db.get_entity_component_mut::<EventQueue<EntityInspectorEvent>>(
-                        entity_inspector_entity,
-                    )?,
-                    |event_queue| &mut **event_queue,
-                );
-
-                events.append(event_queue.as_mut());
-            }
-
-            let mut int_range = db.get_entity_component_mut::<IntRange>(entity_inspector_entity)?;
+        if let Some((_, mut event_queue, mut int_range)) = StoreQuery::<(
+            EntityID,
+            RefMut<EventQueue<EntityInspectorEvent>>,
+            RefMut<IntRange>,
+        )>::iter(db.component_store)
+        .next()
+        {
             int_range.set_range(0..debug_entities.len() as i64);
-            for event in events {
+
+            let event_queue: &mut Vec<EntityInspectorEvent> = event_queue.as_mut();
+            for event in event_queue.drain(..) {
                 let EntityInspectorEvent::SetInspectedEntity(index) = event;
                 if let Some(index) = index {
                     int_range.set_index(index as i64);
@@ -82,15 +71,13 @@ where
             })
             .collect();
 
-        let debug_entity_list_entities =
-            db.entity_component_directory
-                .get_entities_by_predicate(|entity_id| {
-                    db.entity_has_component::<DebugEntityList>(entity_id)
-                        && db.entity_has_component::<Vec<String>>(entity_id)
-                });
-
-        for entity_id in debug_entity_list_entities {
-            *db.get_entity_component_mut::<Vec<String>>(entity_id)? = entity_strings.clone();
+        if let Some((_, _, mut strings)) =
+            StoreQuery::<(EntityID, Ref<DebugEntityList>, RefMut<Vec<String>>)>::iter(
+                db.component_store,
+            )
+            .next()
+        {
+            *strings = entity_strings;
         }
 
         Ok(())

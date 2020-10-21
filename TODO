@@ -3,7 +3,7 @@ TODO: Address DenseVecStorage
       Less performant than SparseVecStorage, which is less performant than HashMapStorage
       Probably better to drop it for now
 
-TODO: Investigate performance loss, ~3x worse in release mode, ~5x worse in debug mode compared to master branch
+TODO: Investigate performance loss, ~2x worse in release mode, ~4x worse in debug mode compared to master branch
 
 TODO: Factor out EntityComponentDirectory in favour of a simple EntityID list
 

@@ -1,4 +1,6 @@
-use std::cell::RefMut;
+use std::cell::{Ref, RefMut};
+
+use store::StoreQuery;
 
 use crate::{
     components::DebugComponentList, components::DebugExclude, components::IntRange,
@@ -38,30 +40,17 @@ where
         debug_entities.sort();
 
         // Process component inspector events
-        let component_inspector_entity =
-            db.entity_component_directory
-                .get_entity_by_predicate(|entity_id| {
-                    db.entity_has_component::<EventQueue<ComponentInspectorEvent>>(entity_id)
-                        && db.entity_has_component::<IntRange>(entity_id)
-                });
-
-        if let Some(component_inspector_entity) = component_inspector_entity {
-            let mut events: Vec<ComponentInspectorEvent> = Vec::new();
-            {
-                let mut event_queue: RefMut<Vec<ComponentInspectorEvent>> = RefMut::map(
-                    db.get_entity_component_mut::<EventQueue<ComponentInspectorEvent>>(
-                        component_inspector_entity,
-                    )?,
-                    |event_queue| &mut **event_queue,
-                );
-
-                events.append(event_queue.as_mut());
-            }
-
-            let mut int_range =
-                db.get_entity_component_mut::<IntRange>(component_inspector_entity)?;
+        if let Some((_, mut event_queue, mut int_range)) = StoreQuery::<(
+            EntityID,
+            RefMut<EventQueue<ComponentInspectorEvent>>,
+            RefMut<IntRange>,
+        )>::iter(db.component_store)
+        .next()
+        {
             int_range.set_range(0..debug_entities.len() as i64);
-            for event in events {
+
+            let events: &mut Vec<ComponentInspectorEvent> = event_queue.as_mut();
+            for event in events.drain(..) {
                 let ComponentInspectorEvent::SetInspectedComponent(index) = event;
                 if let Some(index) = index {
                     int_range.set_index(index as i64);
@@ -71,28 +60,15 @@ where
             }
         }
 
-        // Populate entity components list
-        let entity_inspector_entity =
-            db.entity_component_directory
-                .get_entity_by_predicate(|entity_id| {
-                    db.entity_has_component::<EventQueue<EntityInspectorEvent>>(entity_id)
-                        && db.entity_has_component::<IntRange>(entity_id)
-                });
-
         // Populate strings for debug component list entities
-        let debug_component_list_entities = db
-            .entity_component_directory
-            .get_entities_by_predicate(|entity_id| {
-                db.entity_has_component::<DebugComponentList>(entity_id)
-                    && db.entity_has_component::<Vec<String>>(entity_id)
-            });
-
-        if let Some(entity_inspector_entity) = entity_inspector_entity {
-            let int_range_index = db
-                .get_entity_component::<IntRange>(entity_inspector_entity)?
-                .get_index();
-
-            if let Some(inspected_entity) = debug_entities.get(int_range_index as usize) {
+        if let Some((_, _, int_range)) = StoreQuery::<(
+            EntityID,
+            Ref<EventQueue<EntityInspectorEvent>>,
+            Ref<IntRange>,
+        )>::iter(db.component_store)
+        .next()
+        {
+            if let Some(inspected_entity) = debug_entities.get(int_range.get_index() as usize) {
                 let mut components =
                     db.entity_component_directory
                         .get_components_by_predicate(|component_id| {
@@ -107,9 +83,12 @@ where
                     .map(|component_id| component_id.get_name())
                     .collect();
 
-                for entity_id in debug_component_list_entities {
-                    *db.get_entity_component_mut::<Vec<String>>(entity_id)? =
-                        component_strings.clone();
+                for (_, _, mut strings) in
+                    StoreQuery::<(EntityID, Ref<DebugComponentList>, RefMut<Vec<String>>)>::iter(
+                        db.component_store,
+                    )
+                {
+                    *strings = component_strings.clone();
                 }
             }
         }

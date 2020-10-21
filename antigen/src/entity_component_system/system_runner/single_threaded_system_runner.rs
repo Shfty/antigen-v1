@@ -1,9 +1,16 @@
+use std::cell::RefMut;
+
+use store::StoreQuery;
+
 use crate::{
-    components::SystemProfilingData, core::profiler::Profiler,
-    entity_component_system::system_storage::SystemStorage,
-    entity_component_system::EntityComponentDirectory, entity_component_system::SystemError,
-    entity_component_system::SystemID, entity_component_system::SystemInterface,
+    components::SystemProfilingData,
+    core::profiler::Profiler,
+    entity_component_system::EntityComponentDirectory,
+    entity_component_system::SystemError,
+    entity_component_system::SystemID,
+    entity_component_system::SystemInterface,
     entity_component_system::SystemTrait,
+    entity_component_system::{system_storage::SystemStorage, EntityID},
 };
 
 use super::SystemRunner;
@@ -24,28 +31,25 @@ impl SystemRunner for SingleThreadedSystemRunner {
     {
         superluminal_perf::begin_event("System Runner");
 
-        if let Some(system_debug_entity) = system_interface
-            .entity_component_directory
-            .get_entity_by_predicate(|entity_id| {
-                system_interface.entity_has_component::<SystemProfilingData>(entity_id)
-            })
-        {
-            let systems = system_storage.get_systems();
-            let mut systems: Vec<(SystemID, &mut dyn SystemTrait<CD>)> =
-                systems.into_iter().collect();
-            systems.sort_by(|(lhs_id, _), (rhs_id, _)| lhs_id.cmp(rhs_id));
+        let systems = system_storage.get_systems();
+        let mut systems: Vec<(SystemID, &mut dyn SystemTrait<CD>)> = systems.into_iter().collect();
+        systems.sort_by(|(lhs_id, _), (rhs_id, _)| lhs_id.cmp(rhs_id));
 
-            for (system_id, system) in systems {
-                let label = system_id.get_name();
-                let profiler = Profiler::start();
-                superluminal_perf::begin_event_with_data("Run System", &label, 0);
-                system.run(system_interface)?;
-                superluminal_perf::end_event();
-                let duration = profiler.finish();
+        for (system_id, system) in systems {
+            let label = system_id.get_name();
+            let profiler = Profiler::start();
+            superluminal_perf::begin_event_with_data("Run System", &label, 0);
+            system.run(system_interface)?;
+            superluminal_perf::end_event();
+            let duration = profiler.finish();
 
-                system_interface
-                    .get_entity_component_mut::<SystemProfilingData>(system_debug_entity)?
-                    .set_duration(system_id, duration);
+            if let Some((_, mut system_debug)) =
+                StoreQuery::<(EntityID, RefMut<SystemProfilingData>)>::iter(
+                    system_interface.component_store,
+                )
+                .next()
+            {
+                system_debug.set_duration(system_id, duration)
             }
         }
 

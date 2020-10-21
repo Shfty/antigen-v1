@@ -1,4 +1,6 @@
-use std::{collections::HashMap};
+use std::{cell::Ref, cell::RefMut, collections::HashMap};
+
+use store::StoreQuery;
 
 use crate::{
     components::{
@@ -55,14 +57,12 @@ where
     where
         CD: EntityComponentDirectory,
     {
-        let list_control_entities =
-            db.entity_component_directory
-                .get_entities_by_predicate(|entity_id| {
-                    db.entity_has_component::<ListData>(entity_id)
-                        && db.entity_has_component::<Position>(entity_id)
-                        && db.entity_has_component::<Size>(entity_id)
-                        && db.entity_has_component::<ParentEntity>(entity_id)
-                });
+        let list_control_entities: Vec<EntityID> =
+            StoreQuery::<(EntityID, Ref<ListData>, Ref<Position>, Ref<Size>, Ref<ParentEntity>)>::iter(
+                db.component_store,
+            )
+            .map(|(entity_id, _, _, _, _)| entity_id)
+            .collect();
 
         for list_control_entity in list_control_entities {
             self.list_hover_entities
@@ -244,23 +244,13 @@ where
 
                 // If the mouse was clicked inside this control, update the selected index
                 if contains_mouse {
-                    let event_queue_entity =
-                        db.entity_component_directory
-                            .get_entity_by_predicate(|entity_id| {
-                                db.entity_has_component::<EventQueue<AntigenInputEvent>>(entity_id)
-                            });
-
-                    if let Some(event_queue_entity) = event_queue_entity {
-                        let event_queue: Vec<AntigenInputEvent>;
-                        {
-                            event_queue = (**db
-                                .get_entity_component::<EventQueue<AntigenInputEvent>>(
-                                    event_queue_entity,
-                                )?)
-                            .clone();
-                        }
-
-                        for event in event_queue {
+                    if let Some((_, event_queue)) = StoreQuery::<(
+                        EntityID,
+                        Ref<EventQueue<AntigenInputEvent>>,
+                    )>::iter(db.component_store)
+                    .next()
+                    {
+                        for event in event_queue.iter() {
                             match event {
                                 AntigenInputEvent::MousePress { button_mask: 1 } => {
                                     let index = if let Some(hovered_item) = hovered_item {
@@ -270,26 +260,29 @@ where
                                     };
 
                                     // Push press event into queue
-                                    if let Ok(mut list_event_queue) = db
-                                        .get_entity_component_mut::<EventQueue<ListEvent>>(
-                                            list_control_entity,
-                                        )
-                                    {
+                                    let (_, mut list, list_event_queue) = StoreQuery::<(
+                                        EntityID,
+                                        RefMut<ListData>,
+                                        Option<RefMut<EventQueue<ListEvent>>>,
+                                    )>::get(
+                                        db.component_store,
+                                        list_control_entity,
+                                    );
+
+                                    if let Some(mut list_event_queue) = list_event_queue {
                                         list_event_queue.push(ListEvent::Pressed(index));
                                     }
 
-                                    if let Ok(mut list) =
-                                        db.get_entity_component_mut::<ListData>(list_control_entity)
-                                    {
-                                        list.set_selected_index(index);
-                                    }
+                                    list.set_selected_index(index);
                                 }
                                 AntigenInputEvent::MouseScroll { delta } => {
-                                    if let Ok(mut list) =
-                                        db.get_entity_component_mut::<ListData>(list_control_entity)
-                                    {
-                                        list.add_scroll_offset(delta as i64);
-                                    }
+                                    let (_, mut list) =
+                                        StoreQuery::<(EntityID, RefMut<ListData>)>::get(
+                                            db.component_store,
+                                            list_control_entity,
+                                        );
+
+                                    list.add_scroll_offset(*delta as i64);
                                 }
                                 _ => (),
                             }

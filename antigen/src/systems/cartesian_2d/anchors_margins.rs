@@ -1,4 +1,6 @@
-use std::collections::HashMap;
+use std::{cell::Ref, collections::HashMap};
+
+use store::StoreQuery;
 
 use crate::{
     components::Anchors,
@@ -37,20 +39,14 @@ where
     where
         CD: EntityComponentDirectory,
     {
-        // Fetch anchor entities
-        let anchor_entities =
-            db.entity_component_directory
-                .get_entities_by_predicate(|entity_id| {
-                    db.entity_has_component::<Anchors>(entity_id)
-                        && db.entity_has_component::<Position>(entity_id)
-                        && db.entity_has_component::<ParentEntity>(entity_id)
-                });
-
         // Sort into a HashMap based on tree depth
         let mut tree_depth_entities: HashMap<i64, Vec<EntityID>> = HashMap::new();
 
-        for entity_id in &anchor_entities {
-            let parent_id: EntityID = **db.get_entity_component::<ParentEntity>(*entity_id)?;
+        StoreQuery::<(EntityID, Ref<Anchors>, Ref<Position>, Ref<ParentEntity>)>::iter(
+            db.component_store,
+        )
+        .for_each(|(entity_id, _, _, parent_entity)| {
+            let parent_id: EntityID = **parent_entity;
 
             let mut candidate_id = parent_id;
             let mut depth = 0i64;
@@ -66,13 +62,13 @@ where
 
             match tree_depth_entities.get_mut(&depth) {
                 Some(tree_depth) => {
-                    tree_depth.push(*entity_id);
+                    tree_depth.push(entity_id);
                 }
                 None => {
-                    tree_depth_entities.insert(depth, vec![*entity_id]);
+                    tree_depth_entities.insert(depth, vec![entity_id]);
                 }
             };
-        }
+        });
 
         // Convert HashMap into a vector, starting at the root layer and moving down
         let mut anchor_entities: Vec<EntityID> = Vec::new();

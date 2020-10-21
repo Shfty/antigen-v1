@@ -1,3 +1,7 @@
+use std::cell::{Ref, RefMut};
+
+use store::StoreQuery;
+
 use crate::{
     components::Name,
     entity_component_system::{SystemError, SystemTrait},
@@ -100,16 +104,10 @@ where
             traverse_tree(db, root_entity, &mut scene_tree_strings, Vec::new())?;
         }
 
-        let debug_scene_tree_entities =
-            db.entity_component_directory
-                .get_entities_by_predicate(|entity_id| {
-                    db.entity_has_component::<DebugSceneTree>(entity_id)
-                        && db.entity_has_component::<Vec<String>>(entity_id)
-                });
-
-        for entity_id in debug_scene_tree_entities {
-            *db.get_entity_component_mut::<Vec<String>>(entity_id)? = scene_tree_strings.clone();
-        }
+        StoreQuery::<(EntityID, Ref<DebugSceneTree>, RefMut<Vec<String>>)>::iter(
+            db.component_store,
+        )
+        .for_each(|(_, _, mut strings)| *strings = scene_tree_strings.clone());
 
         Ok(())
     }

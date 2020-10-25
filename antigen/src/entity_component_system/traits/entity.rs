@@ -1,12 +1,14 @@
-use crate::core::uid::UID;
-use std::{fmt::Display, sync::atomic::AtomicUsize, sync::atomic::Ordering};
+use std::{
+    fmt::Display,
+    sync::atomic::{AtomicU32, Ordering},
+};
 
 #[derive(Debug, Copy, Clone, Hash, Ord, PartialOrd, Eq, PartialEq)]
-pub struct EntityID(pub UID);
+pub struct EntityID(pub u32);
 
 impl EntityID {
     pub fn next() -> Self {
-        static COUNTER: AtomicUsize = AtomicUsize::new(0);
+        static COUNTER: AtomicU32 = AtomicU32::new(0);
         EntityID(COUNTER.fetch_add(1, Ordering::Relaxed))
     }
 }
@@ -24,8 +26,14 @@ impl Display for EntityID {
     }
 }
 
-impl Into<usize> for EntityID {
-    fn into(self) -> usize {
+impl From<u32> for EntityID {
+    fn from(val: u32) -> Self {
+        EntityID(val)
+    }
+}
+
+impl Into<u32> for EntityID {
+    fn into(self) -> u32 {
         self.0
     }
 }

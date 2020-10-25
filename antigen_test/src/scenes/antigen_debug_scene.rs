@@ -112,18 +112,6 @@ impl Scene for AntigenDebugScene {
     where
         CD: EntityComponentDirectory,
     {
-        // FIXME: Automatic storage population
-        /*
-        {
-            db.component_store.add_storage_for::<ChildEntitiesData>();
-
-            db.component_store.add_storage_for::<InputAxisData>();
-
-            db.component_store
-                .add_storage_for::<DestructionTestInputData>();
-        }
-        */
-
         let mut assemblages = create_assemblages()?;
 
         // Create global event queues
@@ -132,6 +120,9 @@ impl Scene for AntigenDebugScene {
             global_event_queues_entity,
             antigen_components::EventQueue::<curses_components::CursesEvent>::default(),
         )?;
+
+        println!("Component Store: {:#?}", db.component_store);
+
         db.insert_entity_component(
             global_event_queues_entity,
             antigen_components::EventQueue::<AntigenInputEvent>::default(),
@@ -189,7 +180,7 @@ impl Scene for AntigenDebugScene {
         )?;
 
         create_game_window(db, &mut assemblages, main_window_entity)?;
-
+        
         create_entity_list_window(
             db,
             &mut assemblages,
@@ -215,7 +206,7 @@ impl Scene for AntigenDebugScene {
             main_window_entity,
             system_inspector_entity,
         )?;
-
+        
         Ok(())
     }
 

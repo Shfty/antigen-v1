@@ -1,15 +1,21 @@
-TODO: Address DenseVecStorage
-      Circular reference happens on the first frame, unlike other storages
-      Less performant than SparseVecStorage, which is less performant than HashMapStorage
-      Probably better to drop it for now
+TODO: Implement "no component" functionality for StoreQuery
+      Add a NoComponent<T> variant alongside Ref/RefMut/Option<Ref>/Option<RefMut>
 
-TODO: Investigate performance loss, ~2x worse in release mode, ~4x worse in debug mode compared to master branch
+TODO: Replacement for get_components_by_predicate functionality
+      May be better to comment it out and finish the refactor first, handle as part of debug reimplementation
 
 TODO: Factor out EntityComponentDirectory in favour of a simple EntityID list
 
 TODO: Factor SystemRunner and SystemStorage back into EntityComponentSystem
 
 TODO: Factor out UID in favor of more explicit per-case types
+
+TODO: Address DenseVecStorage
+      Circular reference happens on the first frame, unlike other storages
+      Less performant than SparseVecStorage, which is less performant than HashMapStorage
+      Probably better to drop it for now
+
+TODO: Investigate performance loss, ~2x worse in release mode, ~4x worse in debug mode compared to master branch
 
 TODO: Reimplement debugging around new Store-based component setup
       Leverage TypeKey / TypedData for this

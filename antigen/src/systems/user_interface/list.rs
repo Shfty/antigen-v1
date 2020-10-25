@@ -266,7 +266,7 @@ where
                                         Option<RefMut<EventQueue<ListEvent>>>,
                                     )>::get(
                                         db.component_store,
-                                        list_control_entity,
+                                        &list_control_entity,
                                     );
 
                                     if let Some(mut list_event_queue) = list_event_queue {
@@ -279,7 +279,7 @@ where
                                     let (_, mut list) =
                                         StoreQuery::<(EntityID, RefMut<ListData>)>::get(
                                             db.component_store,
-                                            list_control_entity,
+                                            &list_control_entity,
                                         );
 
                                     list.add_scroll_offset(*delta as i64);

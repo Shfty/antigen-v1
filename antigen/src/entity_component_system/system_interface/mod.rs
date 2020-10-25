@@ -1,6 +1,6 @@
 use std::cell::{Ref, RefMut};
 
-use store::{HybridStore, StoreTrait};
+use store::{Store};
 
 use crate::components::Name;
 
@@ -13,7 +13,7 @@ where
 {
     pub entity_component_directory: &'a mut CD,
 
-    pub component_store: &'a mut HybridStore<EntityID>,
+    pub component_store: &'a mut Store<EntityID>,
 }
 
 impl<'a, CD> SystemInterface<'a, CD>
@@ -22,7 +22,7 @@ where
 {
     pub fn new(
         entity_component_directory: &'a mut CD,
-        component_store: &'a mut HybridStore<EntityID>,
+        component_store: &'a mut Store<EntityID>,
     ) -> Self {
         SystemInterface {
             entity_component_directory,
@@ -75,7 +75,7 @@ where
         CD: EntityComponentDirectory,
         T: ComponentTrait + 'static,
     {
-        self.component_store.get::<T>(entity_id).ok_or(format!(
+        self.component_store.get::<T>(&entity_id).ok_or(format!(
             "Failed to get component store for type {}",
             std::any::type_name::<T>()
         ))
@@ -86,7 +86,7 @@ where
         CD: EntityComponentDirectory,
         T: ComponentTrait + 'static,
     {
-        self.component_store.get_mut::<T>(entity_id).ok_or(format!(
+        self.component_store.get_mut::<T>(&entity_id).ok_or(format!(
             "Failed to get component store for type {}",
             std::any::type_name::<T>()
         ))

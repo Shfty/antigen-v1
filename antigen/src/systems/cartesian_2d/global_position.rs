@@ -56,7 +56,7 @@ where
             let (_, position, mut global_position) =
                 StoreQuery::<(EntityID, Ref<Position>, RefMut<GlobalPositionData>)>::get(
                     db.component_store,
-                    entity_id,
+                    &entity_id,
                 );
 
             **global_position = **position;

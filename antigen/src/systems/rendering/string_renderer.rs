@@ -118,7 +118,7 @@ where
                     Option<Ref<char>>,
                     Option<Ref<String>>,
                     Option<Ref<ZIndex>>,
-                )>::get(db.component_store, entity_id);
+                )>::get(db.component_store, &entity_id);
 
             if control.is_some() && (char.is_some() || string.is_some()) {
                 entity_z = if let Some(z_index) = z_index {
@@ -132,7 +132,7 @@ where
 
             let (_, child_entities) = StoreQuery::<(EntityID, Option<Ref<ChildEntitiesData>>)>::get(
                 db.component_store,
-                entity_id,
+                &entity_id,
             );
 
             if let Some(child_entities) = child_entities {
@@ -158,7 +158,7 @@ where
                     Option<Ref<GlobalPositionData>>,
                     Option<Ref<char>>,
                     Option<Ref<String>>,
-                )>::get(db.component_store, entity_id);
+                )>::get(db.component_store, &entity_id);
 
             // Get Position
             let Vector2I(x, y) = if let Some(global_position) = global_position {

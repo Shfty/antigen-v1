@@ -102,7 +102,7 @@ where
                 Option<Ref<Control>>,
                 Option<Ref<Size>>,
                 Option<Ref<ZIndex>>,
-            )>::get(db.component_store, entity_id);
+            )>::get(db.component_store, &entity_id);
 
             if let (Some(_), Some(_)) = (control, size) {
                 entity_z = if let Some(z_index) = z_index {
@@ -116,7 +116,7 @@ where
 
             let (_, child_entities) = StoreQuery::<(EntityID, Option<Ref<ChildEntitiesData>>)>::get(
                 db.component_store,
-                entity_id,
+                &entity_id,
             );
 
             if let Some(child_entities) = child_entities {
@@ -143,7 +143,7 @@ where
                     Option<Ref<GlobalPositionData>>,
                     Option<Ref<ColorRGBF>>,
                     Option<Ref<CPUShader>>,
-                )>::get(db.component_store, entity_id);
+                )>::get(db.component_store, &entity_id);
 
             // Get Position
             let position = if let Some(global_position) = global_position {

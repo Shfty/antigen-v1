@@ -66,7 +66,7 @@ where
                             Option<Ref<ParentEntity>>,
                             Option<Ref<Window>>,
                             Option<Ref<Position>>,
-                        )>::get(db.component_store, candidate_id);
+                        )>::get(db.component_store, &candidate_id);
 
                     if let Some(parent_entity) = parent_entity {
                         candidate_id = **parent_entity;

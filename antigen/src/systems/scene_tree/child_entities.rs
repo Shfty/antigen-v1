@@ -37,14 +37,14 @@ where
         CD: EntityComponentDirectory,
     {
         // Add child entities data to parents that don't have it yet
-        let entities_to_add: Vec<EntityID> =
+        let mut entities_to_add: Vec<EntityID> =
             StoreQuery::<(EntityID, Ref<ParentEntity>)>::iter(db.component_store)
                 .flat_map(|(_, parent_entity)| {
                     let parent_id: EntityID = **parent_entity;
                     let (_, child_entities) =
                         StoreQuery::<(EntityID, Option<Ref<ChildEntitiesData>>)>::get(
                             db.component_store,
-                            parent_id,
+                            &parent_id,
                         );
 
                     if child_entities.is_none() {
@@ -54,6 +54,9 @@ where
                     }
                 })
                 .collect();
+        
+        entities_to_add.sort_unstable();
+        entities_to_add.dedup();
 
         for entity_id in entities_to_add {
             db.insert_entity_component(entity_id, ChildEntitiesData::default())?;
@@ -67,7 +70,7 @@ where
 
             let (_, mut child_entities) = StoreQuery::<(EntityID, RefMut<ChildEntitiesData>)>::get(
                 db.component_store,
-                parent_id,
+                &parent_id,
             );
 
             if !child_entities.contains(&entity_id) {
@@ -85,7 +88,7 @@ where
 
             let (_, child_entities) = StoreQuery::<(EntityID, Ref<ChildEntitiesData>)>::get(
                 db.component_store,
-                parent_id,
+                &parent_id,
             );
 
             let valid_entities: Vec<EntityID> = child_entities
@@ -93,20 +96,22 @@ where
                 .filter(|entity_id| db.is_valid_entity(entity_id))
                 .copied()
                 .collect();
-
+            
             if valid_entities.is_empty() {
                 entities_to_remove.push(parent_id);
             } else {
                 entities_to_update.insert(parent_id, valid_entities);
             }
         }
-
+        
         for entity_id in entities_to_remove {
             db.remove_component_from_entity::<ChildEntitiesData>(entity_id)?;
         }
 
-        let (entity_ids_to_update, valid_keys_to_update): (Vec<EntityID>, Vec<Vec<EntityID>>) =
+        let (entity_ids_to_update, mut valid_keys_to_update): (Vec<EntityID>, Vec<Vec<EntityID>>) =
             entities_to_update.into_iter().unzip();
+
+        valid_keys_to_update.sort_unstable();
 
         for ((_, mut child_entities), valid_entities) in
             StoreQuery::<(EntityID, RefMut<ChildEntitiesData>)>::iter_keys(

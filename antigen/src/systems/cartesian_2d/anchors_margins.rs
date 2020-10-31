@@ -59,29 +59,25 @@ impl SystemTrait for AnchorsMargins {
         );
 
         // Convert HashMap into a vector, starting at the root layer and moving down
-        let mut anchor_entities: Vec<EntityID> = Vec::new();
         let mut tree_depth_keys: Vec<i64> = tree_depth_entities.keys().copied().collect();
         tree_depth_keys.sort();
-        for i in tree_depth_keys {
-            if let Some(tree_depth_entities) = tree_depth_entities.get_mut(&i) {
-                anchor_entities.append(tree_depth_entities);
-            }
-        }
 
         // Update position and size based on anchors
-        for entity_id in anchor_entities {
-            let parent_id: EntityID = **db.get::<ParentEntity>(&entity_id).unwrap();
-
+        for entity_id in tree_depth_keys
+            .into_iter()
+            .flat_map(|key| tree_depth_entities.get(&key).into_iter().flatten())
+        {
+            let parent_id: EntityID = **db.get::<ParentEntity>(entity_id).unwrap();
             let parent_position = *db.get::<Position>(&parent_id).unwrap();
-            let Vector2I(parent_pos_x, parent_pos_y) = *parent_position;
 
+            let Vector2I(parent_pos_x, parent_pos_y) = *parent_position;
             let Vector2I(parent_width, parent_height) = **db.get::<Size>(&parent_id).unwrap();
 
             let (anchor_left, anchor_right, anchor_top, anchor_bottom) =
-                db.get::<Anchors>(&entity_id).unwrap().get_anchors();
+                db.get::<Anchors>(entity_id).unwrap().get_anchors();
 
             let (margin_left, margin_right, margin_top, margin_bottom) =
-                match db.get::<Margins>(&entity_id) {
+                match db.get::<Margins>(entity_id) {
                     Some(margins_component) => margins_component.get_margins(),
                     None => (0, 0, 0, 0),
                 };
@@ -89,7 +85,7 @@ impl SystemTrait for AnchorsMargins {
             let x = margin_left + parent_pos_x + (parent_width as f32 * anchor_left).floor() as i64;
             let y = margin_top + parent_pos_y + (parent_height as f32 * anchor_top).floor() as i64;
 
-            **db.get_mut::<Position>(&entity_id).unwrap() = Vector2I(x, y);
+            **db.get_mut::<Position>(entity_id).unwrap() = Vector2I(x, y);
 
             let width = (parent_width as f32 * (anchor_right - anchor_left)).ceil() as i64
                 - (margin_right + margin_left);
@@ -99,7 +95,7 @@ impl SystemTrait for AnchorsMargins {
                 - (margin_bottom + margin_top);
             let height = std::cmp::max(height, 0);
 
-            **db.get_mut::<Size>(&entity_id).unwrap() = Vector2I(width, height);
+            **db.get_mut::<Size>(entity_id).unwrap() = Vector2I(width, height);
         }
 
         Ok(())

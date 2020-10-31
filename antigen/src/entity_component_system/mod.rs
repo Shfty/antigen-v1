@@ -14,6 +14,8 @@ use store::{Assembler, StoreQuery};
 
 use std::cell::RefMut;
 
+type SystemProfilingEntity<'a> = (EntityID, RefMut<'a, SystemProfilingData>);
+
 pub struct EntityComponentSystem {
     system_store: SystemStore,
     component_store: ComponentStore,
@@ -62,7 +64,7 @@ impl<'a> EntityComponentSystem {
             let duration = profiler.finish();
 
             if let Some((_, mut system_debug)) =
-                StoreQuery::<(EntityID, RefMut<SystemProfilingData>)>::iter(
+                StoreQuery::<SystemProfilingEntity>::iter(
                     self.component_store.as_ref(),
                 )
                 .next()

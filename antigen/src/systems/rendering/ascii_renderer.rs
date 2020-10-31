@@ -11,13 +11,15 @@ use crate::{
     primitive_types::Vector2I,
 };
 
+type ReadCharEntities<'a> = (EntityID, Ref<'a, Position>, Ref<'a, char>);
+
 #[derive(Debug)]
 pub struct ASCIIRendererSystem;
 
 impl SystemTrait for ASCIIRendererSystem {
     fn run(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
         let positions: Vec<(Vector2I, char)> =
-            StoreQuery::<(EntityID, Ref<Position>, Ref<char>)>::iter(db.as_ref())
+            StoreQuery::<ReadCharEntities>::iter(db.as_ref())
                 .map(|(_, position, char)| (**position, *char))
                 .collect();
 

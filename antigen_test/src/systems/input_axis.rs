@@ -11,18 +11,20 @@ use antigen::{
 };
 use store::StoreQuery;
 
+type ReadAntigenEventQueue<'a> = (EntityID, Ref<'a, EventQueue<AntigenInputEvent>>);
+type WriteInputAxis<'a> = (EntityID, Ref<'a, InputAxisData>, RefMut<'a, IntRange>);
+
 #[derive(Debug)]
 pub struct InputAxis;
 
 impl SystemTrait for InputAxis {
     fn run(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
-        let (_key, event_queue) =
-            StoreQuery::<(EntityID, Ref<EventQueue<AntigenInputEvent>>)>::iter(db.as_ref())
-                .next()
-                .expect("No antigen input event queue");
+        let (_key, event_queue) = StoreQuery::<ReadAntigenEventQueue>::iter(db.as_ref())
+            .next()
+            .expect("No antigen input event queue");
 
         for (_key, input_axis_data, mut int_range) in
-            StoreQuery::<(EntityID, Ref<InputAxisData>, RefMut<IntRange>)>::iter(db.as_ref())
+            StoreQuery::<WriteInputAxis>::iter(db.as_ref())
         {
             let prev_input = input_axis_data.get_negative_input();
             let next_input = input_axis_data.get_positive_input();

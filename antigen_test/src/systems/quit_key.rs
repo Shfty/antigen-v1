@@ -10,6 +10,8 @@ use antigen::{
 
 use store::StoreQuery;
 
+type ReadAntigenEventQueue<'a> = (EntityID, Ref<'a, EventQueue<AntigenInputEvent>>);
+
 #[derive(Debug)]
 pub struct QuitKey {
     key: antigen::core::keyboard::Key,
@@ -23,9 +25,7 @@ impl QuitKey {
 
 impl SystemTrait for QuitKey {
     fn run(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
-        for (_key, event_queue) in
-            StoreQuery::<(EntityID, Ref<EventQueue<AntigenInputEvent>>)>::iter(db.as_ref())
-        {
+        for (_key, event_queue) in StoreQuery::<ReadAntigenEventQueue>::iter(db.as_ref()) {
             for event in event_queue.iter() {
                 if let AntigenInputEvent::KeyPress { key_code } = event {
                     if *key_code == self.key {

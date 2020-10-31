@@ -12,6 +12,10 @@ use store::StoreQuery;
 
 use crate::components::CursesWindowData;
 
+type ReadCursesWindow<'a> = (EntityID, Ref<'a, Window>, Ref<'a, CursesWindowData>, Ref<'a, Size>);
+type ReadSoftwareFramebuffer<'a> = (EntityID, Ref<'a, SoftwareFramebuffer<ColorRGBF>>);
+type ReadStringFramebuffer<'a> = (EntityID, Ref<'a, SoftwareFramebuffer<char>>);
+
 #[derive(Debug, Copy, Clone)]
 pub enum TextColorMode {
     BlackWhite,
@@ -47,7 +51,7 @@ where
     fn run(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
         // Fetch window entity
         let (_, _window, curses_window, _size) =
-            StoreQuery::<(EntityID, Ref<Window>, Ref<CursesWindowData>, Ref<Size>)>::iter(
+            StoreQuery::<ReadCursesWindow>::iter(
                 db.as_ref(),
             )
             .next()
@@ -65,7 +69,7 @@ where
 
         // Fetch software framebuffer entity
         let (_, software_framebuffer) =
-            StoreQuery::<(EntityID, Ref<SoftwareFramebuffer<ColorRGBF>>)>::iter(db.as_ref())
+            StoreQuery::<ReadSoftwareFramebuffer>::iter(db.as_ref())
                 .next()
                 .expect("No software framebuffer entity");
 
@@ -74,7 +78,7 @@ where
 
         // Fetch string framebuffer entity
         let (_, string_framebuffer) =
-            StoreQuery::<(EntityID, Ref<SoftwareFramebuffer<char>>)>::iter(db.as_ref())
+            StoreQuery::<ReadStringFramebuffer>::iter(db.as_ref())
                 .next()
                 .expect("No string framebuffer entity");
 

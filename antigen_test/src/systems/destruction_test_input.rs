@@ -11,6 +11,9 @@ use store::StoreQuery;
 
 use crate::components::DestructionTestInputData;
 
+type ReadAntigenEventQueue<'a> = (EntityID, Ref<'a, EventQueue<AntigenInputEvent>>);
+type ReadDestructionTestInput<'a> = (EntityID, Ref<'a, DestructionTestInputData>);
+
 #[derive(Debug)]
 pub struct DestructionTestInput;
 
@@ -18,27 +21,23 @@ impl SystemTrait for DestructionTestInput {
     fn run(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
         let entities_to_destroy: Vec<EntityID>;
         {
-            let (_key, event_queue) =
-                StoreQuery::<(EntityID, Ref<EventQueue<AntigenInputEvent>>)>::iter(
-                    db.as_ref(),
-                )
+            let (_key, event_queue) = StoreQuery::<ReadAntigenEventQueue>::iter(db.as_ref())
                 .next()
                 .expect("No antigen input event queue");
 
-            entities_to_destroy =
-                StoreQuery::<(EntityID, Ref<DestructionTestInputData>)>::iter(db.as_ref())
-                    .flat_map(|(entity_id, destruction_test)| {
-                        event_queue.iter().flat_map(move |event| {
-                            if let AntigenInputEvent::KeyPress { key_code } = event {
-                                if *key_code == **destruction_test {
-                                    return Some(entity_id);
-                                }
+            entities_to_destroy = StoreQuery::<ReadDestructionTestInput>::iter(db.as_ref())
+                .flat_map(|(entity_id, destruction_test)| {
+                    event_queue.iter().flat_map(move |event| {
+                        if let AntigenInputEvent::KeyPress { key_code } = event {
+                            if *key_code == **destruction_test {
+                                return Some(entity_id);
                             }
+                        }
 
-                            None
-                        })
+                        None
                     })
-                    .collect();
+                })
+                .collect();
         }
 
         for entity_id in entities_to_destroy {

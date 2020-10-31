@@ -8,13 +8,29 @@ use crate::{
         CPUShader, CPUShaderInput, ChildEntitiesData, GlobalPositionData, Position, Size, Window,
         ZIndex,
     },
-    entity_component_system::{
-        ComponentStore, EntityID, SystemError, SystemTrait,
-    },
+    entity_component_system::{ComponentStore, EntityID, SystemError, SystemTrait},
     primitive_types::ColorRGB,
     primitive_types::ColorRGBF,
     primitive_types::Vector2I,
 };
+
+type ReadWindowEntity<'a> = (EntityID, Ref<'a, Window>, Ref<'a, Size>);
+type WriteSoftwareFramebuffer<'a> = (EntityID, RefMut<'a, SoftwareFramebuffer<ColorRGBF>>);
+type ReadControlTransforms<'a> = (
+    EntityID,
+    Option<Ref<'a, Control>>,
+    Option<Ref<'a, Size>>,
+    Option<Ref<'a, ZIndex>>,
+);
+type ReadChildEntities<'a> = (EntityID, Option<Ref<'a, ChildEntitiesData>>);
+type ReadControlEntities<'a> = (
+    EntityID,
+    Ref<'a, Position>,
+    Ref<'a, Size>,
+    Option<Ref<'a, GlobalPositionData>>,
+    Option<Ref<'a, ColorRGBF>>,
+    Option<Ref<'a, CPUShader>>,
+);
 
 #[derive(Debug)]
 pub struct SoftwareRenderer;
@@ -62,20 +78,17 @@ impl SoftwareRenderer {
 
 impl SystemTrait for SoftwareRenderer {
     fn run(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
-        let (window_entity_id, _window, size) =
-            StoreQuery::<(EntityID, Ref<Window>, Ref<Size>)>::iter(db.as_ref())
-                .next()
-                .expect("No window entity");
+        let (window_entity_id, _window, size) = StoreQuery::<ReadWindowEntity>::iter(db.as_ref())
+            .next()
+            .expect("No window entity");
 
         let window_width: i64 = (**size).0;
         let window_height: i64 = (**size).1;
 
-        let (_, mut software_framebuffer) = StoreQuery::<(
-            EntityID,
-            RefMut<SoftwareFramebuffer<ColorRGBF>>,
-        )>::iter(db.as_ref())
-        .next()
-        .expect("No CPU framebuffer entity");
+        let (_, mut software_framebuffer) =
+            StoreQuery::<WriteSoftwareFramebuffer>::iter(db.as_ref())
+                .next()
+                .expect("No CPU framebuffer entity");
 
         // Fetch color buffer entity
         let cell_count = (window_width * window_height) as usize;
@@ -90,12 +103,8 @@ impl SystemTrait for SoftwareRenderer {
             z_layers: &mut Vec<(EntityID, i64)>,
             mut entity_z: i64,
         ) -> Result<(), String> {
-            let (_, control, size, z_index) = StoreQuery::<(
-                EntityID,
-                Option<Ref<Control>>,
-                Option<Ref<Size>>,
-                Option<Ref<ZIndex>>,
-            )>::get(db.as_ref(), &entity_id);
+            let (_, control, size, z_index) =
+                StoreQuery::<ReadControlTransforms>::get(db.as_ref(), &entity_id);
 
             if let (Some(_), Some(_)) = (control, size) {
                 entity_z = if let Some(z_index) = z_index {
@@ -107,10 +116,7 @@ impl SystemTrait for SoftwareRenderer {
                 z_layers.push((entity_id, entity_z));
             }
 
-            let (_, child_entities) = StoreQuery::<(EntityID, Option<Ref<ChildEntitiesData>>)>::get(
-                db.as_ref(),
-                &entity_id,
-            );
+            let (_, child_entities) = StoreQuery::<ReadChildEntities>::get(db.as_ref(), &entity_id);
 
             if let Some(child_entities) = child_entities {
                 for child_id in child_entities.iter() {
@@ -129,14 +135,7 @@ impl SystemTrait for SoftwareRenderer {
 
         for (entity_id, z) in control_entities {
             let (_, position, size, global_position, color, shader) =
-                StoreQuery::<(
-                    EntityID,
-                    Ref<Position>,
-                    Ref<Size>,
-                    Option<Ref<GlobalPositionData>>,
-                    Option<Ref<ColorRGBF>>,
-                    Option<Ref<CPUShader>>,
-                )>::get(db.as_ref(), &entity_id);
+                StoreQuery::<ReadControlEntities>::get(db.as_ref(), &entity_id);
 
             // Get Position
             let position = if let Some(global_position) = global_position {

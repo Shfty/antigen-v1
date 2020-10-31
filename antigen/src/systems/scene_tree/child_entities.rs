@@ -10,6 +10,10 @@ use store::{Assembler, Disassemble, StoreQuery};
 
 use std::cell::{Ref, RefMut};
 
+type ReadParentEntities<'a> = (EntityID, Ref<'a, ParentEntity>);
+type MaybeReadChildEntities<'a> = (EntityID, Option<Ref<'a, ChildEntitiesData>>);
+type WriteChildEntities<'a> = (EntityID, RefMut<'a, ChildEntitiesData>);
+
 #[derive(Debug)]
 pub struct ChildEntities;
 
@@ -17,13 +21,11 @@ impl SystemTrait for ChildEntities {
     fn run(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
         // Add child entities data to parents that don't have it yet
         let mut entities_to_add: Vec<EntityID> =
-            StoreQuery::<(EntityID, Ref<ParentEntity>)>::iter(db.as_ref())
+            StoreQuery::<ReadParentEntities>::iter(db.as_ref())
                 .flat_map(|(_, parent_entity)| {
                     let parent_id: EntityID = **parent_entity;
-                    let (_, child_entities) = StoreQuery::<(
-                        EntityID,
-                        Option<Ref<ChildEntitiesData>>,
-                    )>::get(db.as_ref(), &parent_id);
+                    let (_, child_entities) =
+                        StoreQuery::<MaybeReadChildEntities>::get(db.as_ref(), &parent_id);
 
                     if child_entities.is_none() {
                         Some(parent_id)
@@ -44,13 +46,11 @@ impl SystemTrait for ChildEntities {
         }
 
         // Add new child entities to parents' child entity data
-        for (entity_id, parent_entity) in
-            StoreQuery::<(EntityID, Ref<ParentEntity>)>::iter(db.as_ref())
-        {
+        for (entity_id, parent_entity) in StoreQuery::<ReadParentEntities>::iter(db.as_ref()) {
             let parent_id: EntityID = **parent_entity;
 
             let (_, mut child_entities) =
-                StoreQuery::<(EntityID, RefMut<ChildEntitiesData>)>::get(db.as_ref(), &parent_id);
+                StoreQuery::<WriteChildEntities>::get(db.as_ref(), &parent_id);
 
             if !child_entities.contains(&entity_id) {
                 child_entities.push(entity_id);
@@ -60,11 +60,11 @@ impl SystemTrait for ChildEntities {
         // Prune child entity data that doesn't exist anymore
         let mut entities_to_update: HashMap<EntityID, Vec<EntityID>> = HashMap::default();
         let mut entities_to_remove: Vec<EntityID> = Vec::new();
-        for (_, parent_entity) in StoreQuery::<(EntityID, Ref<ParentEntity>)>::iter(db.as_ref()) {
+        for (_, parent_entity) in StoreQuery::<ReadParentEntities>::iter(db.as_ref()) {
             let parent_id = **parent_entity;
 
             let (_, child_entities) =
-                StoreQuery::<(EntityID, Ref<ChildEntitiesData>)>::get(db.as_ref(), &parent_id);
+                StoreQuery::<WriteChildEntities>::get(db.as_ref(), &parent_id);
 
             let valid_entities: Vec<EntityID> = child_entities
                 .iter()
@@ -89,11 +89,8 @@ impl SystemTrait for ChildEntities {
         valid_keys_to_update.sort_unstable();
 
         for ((_, mut child_entities), valid_entities) in
-            StoreQuery::<(EntityID, RefMut<ChildEntitiesData>)>::iter_keys(
-                db.as_ref(),
-                &entity_ids_to_update,
-            )
-            .zip(valid_keys_to_update.into_iter())
+            StoreQuery::<WriteChildEntities>::iter_keys(db.as_ref(), &entity_ids_to_update)
+                .zip(valid_keys_to_update.into_iter())
         {
             **child_entities = valid_entities
         }

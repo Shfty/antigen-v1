@@ -10,13 +10,16 @@ use antigen::{
 };
 use store::StoreQuery;
 
+type ReadAntigenEventQueue<'a> = (EntityID, Ref<'a, EventQueue<AntigenInputEvent>>);
+type WriteVelocity<'a> = (EntityID, RefMut<'a, Velocity>);
+
 #[derive(Debug)]
 pub struct InputVelocity;
 
 impl SystemTrait for InputVelocity {
     fn run(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
         let (_key, event_queue) =
-            StoreQuery::<(EntityID, Ref<EventQueue<AntigenInputEvent>>)>::iter(db.as_ref())
+            StoreQuery::<ReadAntigenEventQueue>::iter(db.as_ref())
                 .next()
                 .expect("No antigen input event queue");
 
@@ -44,7 +47,7 @@ impl SystemTrait for InputVelocity {
         move_input.1 = std::cmp::min(std::cmp::max(move_input.1, -1), 1);
 
         for (_key, mut velocity) in
-            StoreQuery::<(EntityID, RefMut<Velocity>)>::iter(db.as_ref())
+            StoreQuery::<WriteVelocity>::iter(db.as_ref())
         {
             **velocity = move_input;
         }

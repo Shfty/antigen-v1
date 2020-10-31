@@ -16,6 +16,13 @@ use crate::{
     entity_component_system::ComponentStore,
 };
 
+type AnchorsEntity<'a> = (
+    EntityID,
+    Ref<'a, Anchors>,
+    Ref<'a, Position>,
+    Ref<'a, ParentEntity>,
+);
+
 #[derive(Debug)]
 pub struct AnchorsMargins;
 
@@ -24,8 +31,8 @@ impl SystemTrait for AnchorsMargins {
         // Sort into a HashMap based on tree depth
         let mut tree_depth_entities: HashMap<i64, Vec<EntityID>> = HashMap::default();
 
-        StoreQuery::<(EntityID, Ref<Anchors>, Ref<Position>, Ref<ParentEntity>)>::iter(db.as_ref())
-            .for_each(|(entity_id, _, _, parent_entity)| {
+        StoreQuery::<AnchorsEntity>::iter(db.as_ref()).for_each(
+            |(entity_id, _, _, parent_entity)| {
                 let parent_id: EntityID = **parent_entity;
 
                 let mut candidate_id = parent_id;
@@ -48,7 +55,8 @@ impl SystemTrait for AnchorsMargins {
                         tree_depth_entities.insert(depth, vec![entity_id]);
                     }
                 };
-            });
+            },
+        );
 
         // Convert HashMap into a vector, starting at the root layer and moving down
         let mut anchor_entities: Vec<EntityID> = Vec::new();

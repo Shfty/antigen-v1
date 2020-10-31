@@ -13,6 +13,24 @@ use crate::{
 
 use store::{Assembler, StoreQuery};
 
+type ReadListEntities<'a> = (
+    EntityID,
+    Ref<'a, ListData>,
+    Ref<'a, Position>,
+    Ref<'a, Size>,
+    Ref<'a, ParentEntity>,
+);
+
+type ReadAntigenEventQueueEntity<'a> = (EntityID, Ref<'a, EventQueue<AntigenInputEvent>>);
+
+type WriteListEventQueue<'a> = (
+    EntityID,
+    RefMut<'a, ListData>,
+    Option<RefMut<'a, EventQueue<ListEvent>>>,
+);
+
+type WriteListData<'a> = (EntityID, RefMut<'a, ListData>);
+
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub enum ListEvent {
     Hovered(i64),
@@ -33,22 +51,17 @@ pub struct List {
 
 impl SystemTrait for List {
     fn run<'a>(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
-        let list_control_entities: Vec<EntityID> = StoreQuery::<(
-            EntityID,
-            Ref<ListData>,
-            Ref<Position>,
-            Ref<Size>,
-            Ref<ParentEntity>,
-        )>::iter(db.as_ref())
-        .map(|(entity_id, _, _, _, _)| entity_id)
-        .collect();
+        let list_control_entities: Vec<EntityID> =
+            StoreQuery::<ReadListEntities>::iter(db.as_ref())
+                .map(|(entity_id, _, _, _, _)| entity_id)
+                .collect();
 
         for list_control_entity in list_control_entities {
             self.list_hover_entities
                 .entry(list_control_entity)
                 .or_insert_with(|| {
                     let entity_id = EntityID::next();
-                    
+
                     Assembler::new()
                         .key(entity_id)
                         .fields((
@@ -61,7 +74,7 @@ impl SystemTrait for List {
                             ParentEntity(list_control_entity),
                         ))
                         .finish(db);
-                        
+
                     entity_id
                 });
 
@@ -229,11 +242,8 @@ impl SystemTrait for List {
 
                 // If the mouse was clicked inside this control, update the selected index
                 if contains_mouse {
-                    if let Some((_, event_queue)) = StoreQuery::<(
-                        EntityID,
-                        Ref<EventQueue<AntigenInputEvent>>,
-                    )>::iter(db.as_ref())
-                    .next()
+                    if let Some((_, event_queue)) =
+                        StoreQuery::<ReadAntigenEventQueueEntity>::iter(db.as_ref()).next()
                     {
                         for event in event_queue.iter() {
                             match event {
@@ -245,14 +255,11 @@ impl SystemTrait for List {
                                     };
 
                                     // Push press event into queue
-                                    let (_, mut list, list_event_queue) = StoreQuery::<(
-                                        EntityID,
-                                        RefMut<ListData>,
-                                        Option<RefMut<EventQueue<ListEvent>>>,
-                                    )>::get(
-                                        db.as_ref(),
-                                        &list_control_entity,
-                                    );
+                                    let (_, mut list, list_event_queue) =
+                                        StoreQuery::<WriteListEventQueue>::get(
+                                            db.as_ref(),
+                                            &list_control_entity,
+                                        );
 
                                     if let Some(mut list_event_queue) = list_event_queue {
                                         list_event_queue.push(ListEvent::Pressed(index));
@@ -261,11 +268,10 @@ impl SystemTrait for List {
                                     list.set_selected_index(index);
                                 }
                                 AntigenInputEvent::MouseScroll { delta } => {
-                                    let (_, mut list) =
-                                        StoreQuery::<(EntityID, RefMut<ListData>)>::get(
-                                            db.as_ref(),
-                                            &list_control_entity,
-                                        );
+                                    let (_, mut list) = StoreQuery::<WriteListData>::get(
+                                        db.as_ref(),
+                                        &list_control_entity,
+                                    );
 
                                     list.add_scroll_offset(*delta as i64);
                                 }

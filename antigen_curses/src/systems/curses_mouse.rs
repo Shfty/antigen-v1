@@ -13,6 +13,9 @@ use crate::components::CursesEvent;
 const WHEEL_UP: usize = 65536;
 const WHEEL_DOWN: usize = 2097152;
 
+type ReadCursesEventQueue<'a> = (EntityID, Ref<'a, EventQueue<CursesEvent>>);
+type WriteAntigenEventQueue<'a> = (EntityID, RefMut<'a, EventQueue<AntigenInputEvent>>);
+
 /// Converts pancurses mouse inputs into antigen mouse inputs
 #[derive(Debug)]
 pub struct CursesMouse {
@@ -32,12 +35,12 @@ impl Default for CursesMouse {
 impl SystemTrait for CursesMouse {
     fn run(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
         let (_, curses_event_queue) =
-            StoreQuery::<(EntityID, Ref<EventQueue<CursesEvent>>)>::iter(db.as_ref())
+            StoreQuery::<ReadCursesEventQueue>::iter(db.as_ref())
                 .next()
                 .expect("No curses event queue entity");
 
         let (_, mut antigen_event_queue) =
-            StoreQuery::<(EntityID, RefMut<EventQueue<AntigenInputEvent>>)>::iter(db.as_ref())
+            StoreQuery::<WriteAntigenEventQueue>::iter(db.as_ref())
                 .next()
                 .expect("No antigen event queue entity");
 

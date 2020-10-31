@@ -7,6 +7,14 @@ use crate::{
     entity_component_system::{ComponentStore, EntityID, SystemError, SystemTrait},
 };
 
+type SystemProfilingEntity<'a> = (EntityID, RefMut<'a, SystemProfilingData>);
+type SystemInspectorEventQueue<'a> = (
+    EntityID,
+    RefMut<'a, EventQueue<SystemInspectorEvent>>,
+    RefMut<'a, IntRange>,
+);
+type DebugSystemListEntity<'a> = (EntityID, Ref<'a, DebugSystemList>, RefMut<'a, Vec<String>>);
+
 #[derive(Debug)]
 pub struct SystemDebug;
 
@@ -18,7 +26,7 @@ pub enum SystemInspectorEvent {
 impl SystemTrait for SystemDebug {
     fn run(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
         if let Some((_, mut system_profiling_data)) =
-            StoreQuery::<(EntityID, RefMut<SystemProfilingData>)>::iter(db.as_ref()).next()
+            StoreQuery::<SystemProfilingEntity>::iter(db.as_ref()).next()
         {
             // Populate strings for debug system list entities
             let system_durations = system_profiling_data.get_durations();
@@ -26,12 +34,8 @@ impl SystemTrait for SystemDebug {
                 system_durations.iter().map(|(_, duration)| duration).sum();
 
             // Process system inspector events
-            if let Some((_, event_queue, mut int_range)) = StoreQuery::<(
-                EntityID,
-                RefMut<EventQueue<SystemInspectorEvent>>,
-                RefMut<IntRange>,
-            )>::iter(db.as_ref())
-            .next()
+            if let Some((_, event_queue, mut int_range)) =
+                StoreQuery::<SystemInspectorEventQueue>::iter(db.as_ref()).next()
             {
                 int_range.set_range(0..system_durations.len() as i64);
 
@@ -70,10 +74,7 @@ impl SystemTrait for SystemDebug {
             ));
 
             if let Some((_, _, mut strings)) =
-                StoreQuery::<(EntityID, Ref<DebugSystemList>, RefMut<Vec<String>>)>::iter(
-                    db.as_ref(),
-                )
-                .next()
+                StoreQuery::<DebugSystemListEntity>::iter(db.as_ref()).next()
             {
                 *strings = system_strings;
             }

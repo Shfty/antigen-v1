@@ -11,15 +11,17 @@ use crate::{
     entity_component_system::{ComponentStore, EntityID},
 };
 
+type DebugEntities = (EntityID, NoField<DebugExclude>);
+type SceneTreeDebugEntity<'a> = (EntityID, Ref<'a, DebugSceneTree>, RefMut<'a, Vec<String>>);
+
 #[derive(Debug)]
 pub struct SceneTreeDebug;
 
 impl SystemTrait for SceneTreeDebug {
     fn run(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
-        let mut debug_entities: Vec<EntityID> =
-            StoreQuery::<(EntityID, NoField<DebugExclude>)>::iter(db.as_ref())
-                .map(|(entity_id, _)| entity_id)
-                .collect();
+        let mut debug_entities: Vec<EntityID> = StoreQuery::<DebugEntities>::iter(db.as_ref())
+            .map(|(entity_id, _)| entity_id)
+            .collect();
         debug_entities.sort();
 
         let root_entities: Vec<EntityID> = debug_entities
@@ -92,8 +94,11 @@ impl SystemTrait for SceneTreeDebug {
             traverse_tree(db, root_entity, &mut scene_tree_strings, Vec::new())?;
         }
 
-        StoreQuery::<(EntityID, Ref<DebugSceneTree>, RefMut<Vec<String>>)>::iter(db.as_ref())
-            .for_each(|(_, _, mut strings)| *strings = scene_tree_strings.clone());
+        let (_, _, mut strings) = StoreQuery::<SceneTreeDebugEntity>::iter(db.as_ref())
+            .next()
+            .expect("No scene tree debug entity");
+
+        *strings = scene_tree_strings;
 
         Ok(())
     }

@@ -8,6 +8,9 @@ use crate::{
 };
 use crate::{components::EventTargets, entity_component_system::ComponentStore};
 
+type ReadOutputQueues<'a, T> = (EntityID, Ref<'a, EventQueue<T>>, Ref<'a, EventTargets>);
+type WriteInputQueues<'a, T> = (EntityID, RefMut<'a, EventQueue<T>>);
+
 #[derive(Debug)]
 pub struct EventProcessor<O, I>
 where
@@ -34,7 +37,7 @@ where
 {
     fn run(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
         for (_, out_event_queue, event_targets) in
-            StoreQuery::<(EntityID, Ref<EventQueue<O>>, Ref<EventTargets>)>::iter(db.as_ref())
+            StoreQuery::<ReadOutputQueues<O>>::iter(db.as_ref())
         {
             let mut events: Vec<I> = out_event_queue
                 .iter()
@@ -49,7 +52,7 @@ where
                 .collect();
 
             for (_, mut in_event_queue) in
-                StoreQuery::<(EntityID, RefMut<EventQueue<I>>)>::iter_keys(db.as_ref(), &keys)
+                StoreQuery::<WriteInputQueues<I>>::iter_keys(db.as_ref(), &keys)
             {
                 in_event_queue.append(&mut events);
             }

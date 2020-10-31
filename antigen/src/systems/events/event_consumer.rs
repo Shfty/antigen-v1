@@ -8,6 +8,8 @@ use crate::{
     entity_component_system::{SystemError, SystemTrait},
 };
 
+type WriteEventQueueEntity<'a, T> = (EntityID, RefMut<'a, EventQueue<T>>);
+
 #[derive(Debug)]
 pub struct EventConsumer<T>
 where
@@ -32,7 +34,7 @@ where
     T: Debug + 'static,
 {
     fn run(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
-        StoreQuery::<(EntityID, RefMut<EventQueue<T>>)>::iter(db.as_ref())
+        StoreQuery::<WriteEventQueueEntity<T>>::iter(db.as_ref())
             .for_each(|(_key, mut event_queue)| event_queue.clear());
 
         Ok(())

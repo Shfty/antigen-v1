@@ -13,23 +13,30 @@ use crate::{
 
 use super::EntityInspectorEvent;
 
+type DebugEntities = (EntityID, NoField<DebugExclude>);
+type DebugComponentDataListEntity<'a> = (
+    EntityID,
+    Ref<'a, DebugComponentDataList>,
+    RefMut<'a, Vec<String>>,
+);
+type EntityInspectorEntity<'a> = (
+    EntityID,
+    Ref<'a, EventQueue<EntityInspectorEvent>>,
+    Ref<'a, IntRange>,
+);
+
 #[derive(Debug)]
 pub struct ComponentDataDebug;
 
 impl SystemTrait for ComponentDataDebug {
     fn run(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
-        let mut debug_entities: Vec<EntityID> =
-            StoreQuery::<(EntityID, NoField<DebugExclude>)>::iter(db.as_ref())
-                .map(|(entity_id, _)| entity_id)
-                .collect();
+        let mut debug_entities: Vec<EntityID> = StoreQuery::<DebugEntities>::iter(db.as_ref())
+            .map(|(entity_id, _)| entity_id)
+            .collect();
         debug_entities.sort();
 
         // Populate strings for debug component list entities
-        let (_, _, int_range) = StoreQuery::<(
-            EntityID,
-            Ref<EventQueue<EntityInspectorEvent>>,
-            Ref<IntRange>,
-        )>::iter(db.as_ref())
+        let (_, _, int_range) = StoreQuery::<EntityInspectorEntity>::iter(db.as_ref())
         .next()
         .expect("No entity inspector present");
 
@@ -44,13 +51,11 @@ impl SystemTrait for ComponentDataDebug {
 
             component_strings.sort_unstable();
 
-            for (_, _, mut strings) in
-                StoreQuery::<(EntityID, Ref<DebugComponentDataList>, RefMut<Vec<String>>)>::iter(
-                    db.as_ref(),
-                )
-            {
-                *strings = component_strings.clone();
-            }
+            let (_, _, mut strings) = StoreQuery::<DebugComponentDataListEntity>::iter(db.as_ref())
+                .next()
+                .expect("No debug component data list entity");
+
+            *strings = component_strings;
 
             /*
             let (_, _, int_range) = StoreQuery::<(

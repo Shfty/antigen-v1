@@ -2,14 +2,21 @@ use std::cell::{Ref, RefMut};
 
 use antigen::{
     components::{EventQueue, Size, Window},
-    entity_component_system::{
-        ComponentStore, EntityID, SystemError, SystemTrait,
-    },
+    entity_component_system::{ComponentStore, EntityID, SystemError, SystemTrait},
     primitive_types::Vector2I,
 };
 use store::StoreQuery;
 
 use crate::components::{CursesEvent, CursesWindowData};
+
+type ReadCursesEventQueue<'a> = (EntityID, Ref<'a, EventQueue<CursesEvent>>);
+type WriteCursesWindow<'a> = (
+    EntityID,
+    Ref<'a, Window>,
+    Option<Ref<'a, String>>,
+    RefMut<'a, Size>,
+    RefMut<'a, CursesWindowData>,
+);
 
 #[derive(Debug)]
 pub struct CursesWindow;
@@ -57,21 +64,15 @@ impl CursesWindow {
 
 impl SystemTrait for CursesWindow {
     fn run(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
-        let (_, curses_event_queue) =
-            StoreQuery::<(EntityID, Ref<EventQueue<CursesEvent>>)>::iter(db.as_ref())
-                .next()
-                .expect("No curses event queue entity");
+        let (_, curses_event_queue) = StoreQuery::<ReadCursesEventQueue>::iter(db.as_ref())
+            .next()
+            .expect("No curses event queue entity");
 
         // Get window entity, update internal window state
-        let (_, _window, string, mut size, mut curses_window) = StoreQuery::<(
-            EntityID,
-            Ref<Window>,
-            Option<Ref<String>>,
-            RefMut<Size>,
-            RefMut<CursesWindowData>,
-        )>::iter(db.as_ref())
-        .next()
-        .expect("No curses window entity");
+        let (_, _window, string, mut size, mut curses_window) =
+            StoreQuery::<WriteCursesWindow>::iter(db.as_ref())
+                .next()
+                .expect("No curses window entity");
 
         // Make sure the window exists
         self.try_create_window(&mut curses_window, &size, string)?;

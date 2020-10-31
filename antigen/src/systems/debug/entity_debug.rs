@@ -18,24 +18,27 @@ pub enum EntityInspectorEvent {
     SetInspectedEntity(Option<usize>),
 }
 
+type DebugEntities = (EntityID, NoField<DebugExclude>);
+type EntityInspectorEventQueue<'a> = (
+    EntityID,
+    RefMut<'a, EventQueue<EntityInspectorEvent>>,
+    RefMut<'a, IntRange>,
+);
+type DebugEntityListEntity<'a> = (EntityID, Ref<'a, DebugEntityList>, RefMut<'a, Vec<String>>);
+
 #[derive(Debug)]
 pub struct EntityDebug;
 
 impl SystemTrait for EntityDebug {
     fn run(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
         // Fetch debugged entities
-        let mut debug_entities: Vec<EntityID> =
-            StoreQuery::<(EntityID, NoField<DebugExclude>)>::iter(db.as_ref())
-                .map(|(entity_id, _)| entity_id)
-                .collect();
+        let mut debug_entities: Vec<EntityID> = StoreQuery::<DebugEntities>::iter(db.as_ref())
+            .map(|(entity_id, _)| entity_id)
+            .collect();
         debug_entities.sort();
 
-        if let Some((_, mut event_queue, mut int_range)) = StoreQuery::<(
-            EntityID,
-            RefMut<EventQueue<EntityInspectorEvent>>,
-            RefMut<IntRange>,
-        )>::iter(db.as_ref())
-        .next()
+        if let Some((_, mut event_queue, mut int_range)) =
+            StoreQuery::<EntityInspectorEventQueue>::iter(db.as_ref()).next()
         {
             int_range.set_range(0..debug_entities.len() as i64);
 
@@ -63,8 +66,7 @@ impl SystemTrait for EntityDebug {
             .collect();
 
         if let Some((_, _, mut strings)) =
-            StoreQuery::<(EntityID, Ref<DebugEntityList>, RefMut<Vec<String>>)>::iter(db.as_ref())
-                .next()
+            StoreQuery::<DebugEntityListEntity>::iter(db.as_ref()).next()
         {
             *strings = entity_strings;
         }

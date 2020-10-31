@@ -5,13 +5,29 @@ use store::StoreQuery;
 use crate::components::{Control, SoftwareFramebuffer};
 use crate::{
     components::{ChildEntitiesData, GlobalPositionData, Position, Size, Window, ZIndex},
-    entity_component_system::{
-        ComponentStore, EntityID, SystemError, SystemTrait,
-    },
+    entity_component_system::{ComponentStore, EntityID, SystemError, SystemTrait},
     primitive_types::Vector2I,
 };
 
 const TAB_WIDTH: i64 = 4;
+
+type WindowEntity<'a> = (EntityID, Ref<'a, Window>, Ref<'a, Size>);
+type ReadStringControlTransforms<'a> = (
+    EntityID,
+    Option<Ref<'a, Control>>,
+    Option<Ref<'a, char>>,
+    Option<Ref<'a, String>>,
+    Option<Ref<'a, ZIndex>>,
+);
+type WriteStringFramebuffer<'a> = (EntityID, RefMut<'a, SoftwareFramebuffer<char>>);
+type MaybeReadChildEntities<'a> = (EntityID, Option<Ref<'a, ChildEntitiesData>>);
+type ReadStringControlEntities<'a> = (
+    EntityID,
+    Ref<'a, Position>,
+    Option<Ref<'a, GlobalPositionData>>,
+    Option<Ref<'a, char>>,
+    Option<Ref<'a, String>>,
+);
 
 #[derive(Debug)]
 pub struct StringRenderer;
@@ -75,18 +91,16 @@ impl StringRenderer {
 
 impl SystemTrait for StringRenderer {
     fn run(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
-        let (window_entity_id, _window, size) =
-            StoreQuery::<(EntityID, Ref<Window>, Ref<Size>)>::iter(db.as_ref())
-                .next()
-                .expect("No window entity");
+        let (window_entity_id, _window, size) = StoreQuery::<WindowEntity>::iter(db.as_ref())
+            .next()
+            .expect("No window entity");
 
         let window_width: i64 = (**size).0;
         let window_height: i64 = (**size).1;
 
-        let (_, mut string_framebuffer) =
-            StoreQuery::<(EntityID, RefMut<SoftwareFramebuffer<char>>)>::iter(db.as_ref())
-                .next()
-                .expect("No CPU framebuffer entity");
+        let (_, mut string_framebuffer) = StoreQuery::<WriteStringFramebuffer>::iter(db.as_ref())
+            .next()
+            .expect("No string framebuffer entity");
 
         // Fetch color buffer entity
         let cell_count = (window_width * window_height) as usize;
@@ -102,13 +116,7 @@ impl SystemTrait for StringRenderer {
             mut entity_z: i64,
         ) -> Result<(), String> {
             let (_, control, char, string, z_index) =
-                StoreQuery::<(
-                    EntityID,
-                    Option<Ref<Control>>,
-                    Option<Ref<char>>,
-                    Option<Ref<String>>,
-                    Option<Ref<ZIndex>>,
-                )>::get(db.as_ref(), &entity_id);
+                StoreQuery::<ReadStringControlTransforms>::get(db.as_ref(), &entity_id);
 
             if control.is_some() && (char.is_some() || string.is_some()) {
                 entity_z = if let Some(z_index) = z_index {
@@ -120,10 +128,8 @@ impl SystemTrait for StringRenderer {
                 z_layers.push((entity_id, entity_z));
             }
 
-            let (_, child_entities) = StoreQuery::<(EntityID, Option<Ref<ChildEntitiesData>>)>::get(
-                db.as_ref(),
-                &entity_id,
-            );
+            let (_, child_entities) =
+                StoreQuery::<MaybeReadChildEntities>::get(db.as_ref(), &entity_id);
 
             if let Some(child_entities) = child_entities {
                 for child_id in child_entities.iter() {
@@ -142,13 +148,7 @@ impl SystemTrait for StringRenderer {
 
         for (entity_id, z) in control_entities {
             let (_, position, global_position, char, string) =
-                StoreQuery::<(
-                    EntityID,
-                    Ref<Position>,
-                    Option<Ref<GlobalPositionData>>,
-                    Option<Ref<char>>,
-                    Option<Ref<String>>,
-                )>::get(db.as_ref(), &entity_id);
+                StoreQuery::<ReadStringControlEntities>::get(db.as_ref(), &entity_id);
 
             // Get Position
             let Vector2I(x, y) = if let Some(global_position) = global_position {

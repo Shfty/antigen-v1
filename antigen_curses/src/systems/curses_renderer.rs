@@ -1,12 +1,9 @@
-use std::cell::Ref;
+use std::{cell::Ref, fmt::Debug};
 
 use antigen::{
     components::{Size, SoftwareFramebuffer, Window},
     core::palette::Palette,
-    entity_component_system::{
-        system_interface::SystemInterface, EntityComponentDirectory, EntityID, SystemError,
-        SystemTrait,
-    },
+    entity_component_system::{ComponentStore, EntityID, SystemError, SystemTrait},
     primitive_types::ColorRGB,
     primitive_types::ColorRGBF,
 };
@@ -25,7 +22,7 @@ pub enum TextColorMode {
 #[derive(Debug)]
 pub struct CursesRenderer<T>
 where
-    T: Palette,
+    T: Debug + Palette,
 {
     palette: T,
     text_color_mode: TextColorMode,
@@ -33,7 +30,7 @@ where
 
 impl<T> CursesRenderer<T>
 where
-    T: Palette<From = f32, To = f32>,
+    T: Debug + Palette<From = f32, To = f32>,
 {
     pub fn new(palette: T, text_color_mode: TextColorMode) -> Self {
         CursesRenderer {
@@ -43,19 +40,15 @@ where
     }
 }
 
-impl<CD, T> SystemTrait<CD> for CursesRenderer<T>
+impl<T> SystemTrait for CursesRenderer<T>
 where
-    CD: EntityComponentDirectory,
-    T: Palette<From = f32, To = f32>,
+    T: Debug + Palette<From = f32, To = f32>,
 {
-    fn run(&mut self, db: &mut SystemInterface<CD>) -> Result<(), SystemError>
-    where
-        CD: EntityComponentDirectory,
-    {
+    fn run(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
         // Fetch window entity
         let (_, _window, curses_window, _size) =
             StoreQuery::<(EntityID, Ref<Window>, Ref<CursesWindowData>, Ref<Size>)>::iter(
-                db.component_store,
+                db.as_ref(),
             )
             .next()
             .expect("No curses window entity");
@@ -72,7 +65,7 @@ where
 
         // Fetch software framebuffer entity
         let (_, software_framebuffer) =
-            StoreQuery::<(EntityID, Ref<SoftwareFramebuffer<ColorRGBF>>)>::iter(db.component_store)
+            StoreQuery::<(EntityID, Ref<SoftwareFramebuffer<ColorRGBF>>)>::iter(db.as_ref())
                 .next()
                 .expect("No software framebuffer entity");
 
@@ -81,7 +74,7 @@ where
 
         // Fetch string framebuffer entity
         let (_, string_framebuffer) =
-            StoreQuery::<(EntityID, Ref<SoftwareFramebuffer<char>>)>::iter(db.component_store)
+            StoreQuery::<(EntityID, Ref<SoftwareFramebuffer<char>>)>::iter(db.as_ref())
                 .next()
                 .expect("No string framebuffer entity");
 

@@ -9,8 +9,7 @@ use crate::{
         ZIndex,
     },
     entity_component_system::{
-        system_interface::SystemInterface, EntityComponentDirectory, EntityID, SystemError,
-        SystemTrait,
+        ComponentStore, EntityID, SystemError, SystemTrait,
     },
     primitive_types::ColorRGB,
     primitive_types::ColorRGBF,
@@ -44,30 +43,27 @@ impl SoftwareRenderer {
         let min_y = std::cmp::max(pos_y, 0);
         let max_y = std::cmp::min(pos_y + height, window_height);
 
-        let x_range = min_x..max_x;
-        let y_range = min_y..max_y;
-        for ry in y_range {
-            for rx in x_range.clone() {
-                let local_pos = Vector2I(rx - pos_x, ry - pos_y);
-                let CPUShader(color_shader) = color_shader;
-                if let Some(color) = color_shader(CPUShaderInput::new(local_pos, size, color)) {
-                    framebuffer.draw(rx, ry, window_width, color, z);
-                }
+        let grid_iter = (min_y..max_y).flat_map(move |y| {
+            (min_x..max_x).map(move |x| {
+                let world_pos = Vector2I(x, y);
+                let local_pos = Vector2I(x - pos_x, y - pos_y);
+                (world_pos, local_pos)
+            })
+        });
+
+        for (Vector2I(rx, ry), local_pos) in grid_iter {
+            let CPUShader(color_shader) = color_shader;
+            if let Some(color) = color_shader(CPUShaderInput::new(local_pos, size, color)) {
+                framebuffer.draw(rx, ry, window_width, color, z);
             }
         }
     }
 }
 
-impl<CD> SystemTrait<CD> for SoftwareRenderer
-where
-    CD: EntityComponentDirectory,
-{
-    fn run(&mut self, db: &mut SystemInterface<CD>) -> Result<(), SystemError>
-    where
-        CD: EntityComponentDirectory,
-    {
+impl SystemTrait for SoftwareRenderer {
+    fn run(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
         let (window_entity_id, _window, size) =
-            StoreQuery::<(EntityID, Ref<Window>, Ref<Size>)>::iter(db.component_store)
+            StoreQuery::<(EntityID, Ref<Window>, Ref<Size>)>::iter(db.as_ref())
                 .next()
                 .expect("No window entity");
 
@@ -77,7 +73,7 @@ where
         let (_, mut software_framebuffer) = StoreQuery::<(
             EntityID,
             RefMut<SoftwareFramebuffer<ColorRGBF>>,
-        )>::iter(db.component_store)
+        )>::iter(db.as_ref())
         .next()
         .expect("No CPU framebuffer entity");
 
@@ -88,21 +84,18 @@ where
         // Recursively traverse parent-child tree and populate Z-ordered list of controls
         let mut control_entities: Vec<(EntityID, i64)> = Vec::new();
 
-        fn populate_control_entities<CD>(
-            db: &SystemInterface<CD>,
+        fn populate_control_entities(
+            db: &ComponentStore,
             entity_id: EntityID,
             z_layers: &mut Vec<(EntityID, i64)>,
             mut entity_z: i64,
-        ) -> Result<(), String>
-        where
-            CD: EntityComponentDirectory,
-        {
+        ) -> Result<(), String> {
             let (_, control, size, z_index) = StoreQuery::<(
                 EntityID,
                 Option<Ref<Control>>,
                 Option<Ref<Size>>,
                 Option<Ref<ZIndex>>,
-            )>::get(db.component_store, &entity_id);
+            )>::get(db.as_ref(), &entity_id);
 
             if let (Some(_), Some(_)) = (control, size) {
                 entity_z = if let Some(z_index) = z_index {
@@ -115,7 +108,7 @@ where
             }
 
             let (_, child_entities) = StoreQuery::<(EntityID, Option<Ref<ChildEntitiesData>>)>::get(
-                db.component_store,
+                db.as_ref(),
                 &entity_id,
             );
 
@@ -128,7 +121,7 @@ where
             Ok(())
         };
 
-        populate_control_entities(db, window_entity_id, &mut control_entities, 0)?;
+        populate_control_entities(&db, window_entity_id, &mut control_entities, 0)?;
         control_entities.sort();
 
         // Render Entities
@@ -143,7 +136,7 @@ where
                     Option<Ref<GlobalPositionData>>,
                     Option<Ref<ColorRGBF>>,
                     Option<Ref<CPUShader>>,
-                )>::get(db.component_store, &entity_id);
+                )>::get(db.as_ref(), &entity_id);
 
             // Get Position
             let position = if let Some(global_position) = global_position {

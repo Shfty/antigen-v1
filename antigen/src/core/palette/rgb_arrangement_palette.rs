@@ -2,6 +2,7 @@ use crate::primitive_types::{ColorRGB, ColorRGB8, ColorRGBF};
 
 use super::Palette;
 
+#[derive(Debug, Default, Clone, PartialEq, PartialOrd)]
 pub struct RGBArrangementPalette {
     colors: Vec<ColorRGB8>,
 
@@ -106,7 +107,7 @@ impl RGBArrangementPalette {
 impl Palette for RGBArrangementPalette {
     type From = f32;
     type To = f32;
-    
+
     fn get_colors(&self) -> Vec<ColorRGBF> {
         let colors: Vec<ColorRGBF> = self
             .colors

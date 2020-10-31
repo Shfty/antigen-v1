@@ -4,9 +4,7 @@ use store::StoreQuery;
 
 use crate::{
     components::Position,
-    entity_component_system::{
-        system_interface::SystemInterface, EntityComponentDirectory, EntityID,
-    },
+    entity_component_system::{ComponentStore, EntityID},
 };
 use crate::{
     entity_component_system::{SystemError, SystemTrait},
@@ -16,16 +14,10 @@ use crate::{
 #[derive(Debug)]
 pub struct ASCIIRendererSystem;
 
-impl<CD> SystemTrait<CD> for ASCIIRendererSystem
-where
-    CD: EntityComponentDirectory,
-{
-    fn run(&mut self, db: &mut SystemInterface<CD>) -> Result<(), SystemError>
-    where
-        CD: EntityComponentDirectory,
-    {
+impl SystemTrait for ASCIIRendererSystem {
+    fn run(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
         let positions: Vec<(Vector2I, char)> =
-            StoreQuery::<(EntityID, Ref<Position>, Ref<char>)>::iter(db.component_store)
+            StoreQuery::<(EntityID, Ref<Position>, Ref<char>)>::iter(db.as_ref())
                 .map(|(_, position, char)| (**position, *char))
                 .collect();
 

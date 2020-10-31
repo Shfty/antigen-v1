@@ -25,12 +25,12 @@ where
         }
     }
 
-    pub fn get_color_buffer(&self) -> Vec<T> {
-        self.color_buffer.clone()
+    pub fn get_color_buffer(&self) -> &Vec<T> {
+        &self.color_buffer
     }
 
-    pub fn get_z_buffer(&self) -> Vec<Option<i64>> {
-        self.z_buffer.clone()
+    pub fn get_z_buffer(&self) -> &Vec<Option<i64>> {
+        &self.z_buffer
     }
 
     pub fn clear(&mut self) {

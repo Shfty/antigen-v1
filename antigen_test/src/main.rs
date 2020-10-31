@@ -6,12 +6,7 @@ use std::time::Duration;
 
 use antigen::{
     core::profiler::Profiler,
-    entity_component_system::Scene,
-    entity_component_system::SingleThreadedDirectory,
-    entity_component_system::{
-        system_runner::SingleThreadedSystemRunner, system_storage::HeapSystemStorage,
-        EntityComponentSystem, SystemError,
-    },
+    entity_component_system::{EntityComponentSystem, SystemError},
 };
 
 fn main() {
@@ -27,13 +22,11 @@ fn main() {
 }
 
 fn main_internal() -> Result<(), SystemError> {
-    let mut ecs = EntityComponentSystem::<
-        SingleThreadedDirectory,
-        HeapSystemStorage<SingleThreadedDirectory>,
-        SingleThreadedSystemRunner,
-    >::default();
+    let mut ecs = EntityComponentSystem::default();
 
-    scenes::AntigenDebugScene::load(&mut ecs)?;
+    scenes::antigen_debug_scene::system_assembler(Default::default()).finish(&mut ecs);
+    scenes::antigen_debug_scene::entity_assembler(Default::default())
+        .finish(ecs.get_component_store());
 
     // Main loop
     let frame_time_target = Duration::from_secs_f32(1.0 / 60.0);

@@ -3,8 +3,7 @@ use std::cell::{Ref, RefMut};
 use antigen::{
     components::{EventQueue, Size, Window},
     entity_component_system::{
-        system_interface::SystemInterface, EntityComponentDirectory, EntityID, SystemError,
-        SystemTrait,
+        ComponentStore, EntityID, SystemError, SystemTrait,
     },
     primitive_types::Vector2I,
 };
@@ -16,15 +15,12 @@ use crate::components::{CursesEvent, CursesWindowData};
 pub struct CursesWindow;
 
 impl CursesWindow {
-    fn try_create_window<CD>(
+    fn try_create_window(
         &mut self,
         curses_window: &mut RefMut<CursesWindowData>,
         size: &RefMut<Size>,
         string: Option<Ref<String>>,
-    ) -> Result<(), String>
-    where
-        CD: EntityComponentDirectory,
-    {
+    ) -> Result<(), String> {
         if curses_window.is_some() {
             return Ok(());
         }
@@ -59,16 +55,10 @@ impl CursesWindow {
     }
 }
 
-impl<CD> SystemTrait<CD> for CursesWindow
-where
-    CD: EntityComponentDirectory,
-{
-    fn run(&mut self, db: &mut SystemInterface<CD>) -> Result<(), SystemError>
-    where
-        CD: EntityComponentDirectory,
-    {
+impl SystemTrait for CursesWindow {
+    fn run(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
         let (_, curses_event_queue) =
-            StoreQuery::<(EntityID, Ref<EventQueue<CursesEvent>>)>::iter(db.component_store)
+            StoreQuery::<(EntityID, Ref<EventQueue<CursesEvent>>)>::iter(db.as_ref())
                 .next()
                 .expect("No curses event queue entity");
 
@@ -79,12 +69,12 @@ where
             Option<Ref<String>>,
             RefMut<Size>,
             RefMut<CursesWindowData>,
-        )>::iter(db.component_store)
+        )>::iter(db.as_ref())
         .next()
         .expect("No curses window entity");
 
         // Make sure the window exists
-        self.try_create_window::<CD>(&mut curses_window, &size, string)?;
+        self.try_create_window(&mut curses_window, &size, string)?;
 
         // Process any pending resize inputs
         if curses_event_queue

@@ -4,7 +4,7 @@ use antigen::{
     components::EventQueue,
     components::Window,
     entity_component_system::{
-        system_interface::SystemInterface, EntityComponentDirectory, EntityID, SystemError,
+        ComponentStore, EntityID, SystemError,
         SystemTrait,
     },
 };
@@ -16,21 +16,15 @@ use crate::components::{CursesEvent, CursesWindowData};
 #[derive(Debug)]
 pub struct CursesInputBuffer;
 
-impl<CD> SystemTrait<CD> for CursesInputBuffer
-where
-    CD: EntityComponentDirectory,
-{
-    fn run(&mut self, db: &mut SystemInterface<CD>) -> Result<(), SystemError>
-    where
-        CD: EntityComponentDirectory,
-    {
+impl SystemTrait for CursesInputBuffer {
+    fn run(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
         let (_, mut event_queue) =
-            StoreQuery::<(EntityID, RefMut<EventQueue<CursesEvent>>,)>::iter(db.component_store)
+            StoreQuery::<(EntityID, RefMut<EventQueue<CursesEvent>>)>::iter(db.as_ref())
                 .next()
                 .expect("No curses event queue");
 
         let (_, _window, curses_window) =
-            StoreQuery::<(EntityID, Ref<Window>, Ref<CursesWindowData>)>::iter(db.component_store)
+            StoreQuery::<(EntityID, Ref<Window>, Ref<CursesWindowData>)>::iter(db.as_ref())
                 .next()
                 .expect("No curses window");
 

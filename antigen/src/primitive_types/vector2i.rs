@@ -3,6 +3,11 @@ use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 #[derive(Debug, Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub struct Vector2I(pub i64, pub i64);
 
+impl Vector2I {
+    pub const ZERO: Vector2I = Vector2I(0, 0);
+    pub const ONE: Vector2I = Vector2I(1, 1);
+}
+
 impl Add for Vector2I {
     type Output = Vector2I;
 

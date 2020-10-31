@@ -4,8 +4,7 @@ use antigen::{
     components::EventQueue,
     components::Velocity,
     core::events::AntigenInputEvent,
-    entity_component_system::system_interface::SystemInterface,
-    entity_component_system::EntityComponentDirectory,
+    entity_component_system::ComponentStore,
     entity_component_system::{EntityID, SystemError, SystemTrait},
     primitive_types::Vector2I,
 };
@@ -14,22 +13,10 @@ use store::StoreQuery;
 #[derive(Debug)]
 pub struct InputVelocity;
 
-impl InputVelocity {
-    pub fn new() -> Self {
-        InputVelocity
-    }
-}
-
-impl<CD> SystemTrait<CD> for InputVelocity
-where
-    CD: EntityComponentDirectory,
-{
-    fn run(&mut self, db: &mut SystemInterface<CD>) -> Result<(), SystemError>
-    where
-        CD: EntityComponentDirectory,
-    {
+impl SystemTrait for InputVelocity {
+    fn run(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
         let (_key, event_queue) =
-            StoreQuery::<(EntityID, Ref<EventQueue<AntigenInputEvent>>)>::iter(db.component_store)
+            StoreQuery::<(EntityID, Ref<EventQueue<AntigenInputEvent>>)>::iter(db.as_ref())
                 .next()
                 .expect("No antigen input event queue");
 
@@ -57,7 +44,7 @@ where
         move_input.1 = std::cmp::min(std::cmp::max(move_input.1, -1), 1);
 
         for (_key, mut velocity) in
-            StoreQuery::<(EntityID, RefMut<Velocity>)>::iter(db.component_store)
+            StoreQuery::<(EntityID, RefMut<Velocity>)>::iter(db.as_ref())
         {
             **velocity = move_input;
         }

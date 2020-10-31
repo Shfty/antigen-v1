@@ -1,6 +1,6 @@
 use std::cell::{Ref, RefMut};
 
-use store::StoreQuery;
+use store::{NoField, StoreQuery};
 
 use crate::{
     components::Name,
@@ -8,46 +8,34 @@ use crate::{
 };
 use crate::{
     components::{ChildEntitiesData, DebugExclude, DebugSceneTree, ParentEntity},
-    entity_component_system::{
-        system_interface::SystemInterface, EntityComponentDirectory, EntityID,
-    },
+    entity_component_system::{ComponentStore, EntityID},
 };
 
 #[derive(Debug)]
 pub struct SceneTreeDebug;
 
-impl<CD> SystemTrait<CD> for SceneTreeDebug
-where
-    CD: EntityComponentDirectory,
-{
-    fn run(&mut self, db: &mut SystemInterface<CD>) -> Result<(), SystemError>
-    where
-        CD: EntityComponentDirectory,
-    {
-        let mut debug_entities: Vec<EntityID> = db
-            .entity_component_directory
-            .get_entities_by_predicate(|entity_id| {
-                !db.entity_has_component::<DebugExclude>(entity_id)
-            });
+impl SystemTrait for SceneTreeDebug {
+    fn run(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
+        let mut debug_entities: Vec<EntityID> =
+            StoreQuery::<(EntityID, NoField<DebugExclude>)>::iter(db.as_ref())
+                .map(|(entity_id, _)| entity_id)
+                .collect();
         debug_entities.sort();
 
         let root_entities: Vec<EntityID> = debug_entities
             .iter()
-            .filter(|entity_id| !db.entity_has_component::<ParentEntity>(entity_id))
+            .filter(|entity_id| !db.contains_type_key::<ParentEntity>(entity_id))
             .copied()
             .collect();
 
         let mut scene_tree_strings: Vec<String> = Vec::new();
 
-        fn traverse_tree<CD>(
-            db: &mut SystemInterface<CD>,
+        fn traverse_tree(
+            db: &mut ComponentStore,
             entity_id: &EntityID,
             scene_tree_strings: &mut Vec<String>,
             mut padding: Vec<String>,
-        ) -> Result<(), String>
-        where
-            CD: EntityComponentDirectory,
-        {
+        ) -> Result<(), String> {
             let depth = padding.len();
 
             let prefix: String = if depth == 0 {
@@ -64,19 +52,19 @@ where
                 };
             }
 
-            let label: String = match db.get_entity_component::<Name>(*entity_id) {
-                Ok(name) => (**name).clone(),
-                Err(_) => "Entity".into(),
+            let label: String = match db.get::<Name>(entity_id) {
+                Some(name) => (**name).clone(),
+                None => "Entity".into(),
             };
 
             let label = format!("{}:\t{}{}", entity_id, &prefix, label);
             scene_tree_strings.push(label);
 
             let child_ids: Vec<EntityID>;
-            if let Ok(child_entities) = db.get_entity_component::<ChildEntitiesData>(*entity_id) {
+            if let Some(child_entities) = db.get::<ChildEntitiesData>(entity_id) {
                 child_ids = child_entities
                     .iter()
-                    .filter(|child_id| !db.entity_has_component::<DebugExclude>(child_id))
+                    .filter(|child_id| !db.contains_type_key::<DebugExclude>(child_id))
                     .copied()
                     .collect();
             } else {
@@ -104,10 +92,8 @@ where
             traverse_tree(db, root_entity, &mut scene_tree_strings, Vec::new())?;
         }
 
-        StoreQuery::<(EntityID, Ref<DebugSceneTree>, RefMut<Vec<String>>)>::iter(
-            db.component_store,
-        )
-        .for_each(|(_, _, mut strings)| *strings = scene_tree_strings.clone());
+        StoreQuery::<(EntityID, Ref<DebugSceneTree>, RefMut<Vec<String>>)>::iter(db.as_ref())
+            .for_each(|(_, _, mut strings)| *strings = scene_tree_strings.clone());
 
         Ok(())
     }

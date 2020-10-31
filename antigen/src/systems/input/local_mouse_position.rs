@@ -7,8 +7,7 @@ use crate::{
     components::{GlobalPositionData, ParentEntity, Position, Window},
     core::events::AntigenInputEvent,
     entity_component_system::{
-        system_interface::SystemInterface, EntityComponentDirectory, EntityID, SystemError,
-        SystemTrait,
+        ComponentStore, EntityID, SystemError, SystemTrait,
     },
     primitive_types::Vector2I,
 };
@@ -18,28 +17,10 @@ use crate::components::LocalMousePositionData;
 #[derive(Debug)]
 pub struct LocalMousePosition;
 
-impl Default for LocalMousePosition {
-    fn default() -> Self {
-        LocalMousePosition
-    }
-}
-
-impl LocalMousePosition {
-    pub fn new() -> Self {
-        LocalMousePosition::default()
-    }
-}
-
-impl<CD> SystemTrait<CD> for LocalMousePosition
-where
-    CD: EntityComponentDirectory,
-{
-    fn run(&mut self, db: &mut SystemInterface<CD>) -> Result<(), SystemError>
-    where
-        CD: EntityComponentDirectory,
-    {
+impl SystemTrait for LocalMousePosition {
+    fn run(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
         let (_, event_queue) =
-            StoreQuery::<(EntityID, Ref<EventQueue<AntigenInputEvent>>)>::iter(db.component_store)
+            StoreQuery::<(EntityID, Ref<EventQueue<AntigenInputEvent>>)>::iter(db.as_ref())
                 .next()
                 .expect("No antigen input event queue");
 
@@ -55,7 +36,7 @@ where
                     Ref<Position>,
                     Option<Ref<GlobalPositionData>>,
                     RefMut<LocalMousePositionData>,
-                )>::iter(db.component_store)
+                )>::iter(db.as_ref())
             {
                 let mut candidate_id = entity_id;
                 let mut window_position = Vector2I::default();
@@ -66,7 +47,7 @@ where
                             Option<Ref<ParentEntity>>,
                             Option<Ref<Window>>,
                             Option<Ref<Position>>,
-                        )>::get(db.component_store, &candidate_id);
+                        )>::get(db.as_ref(), &candidate_id);
 
                     if let Some(parent_entity) = parent_entity {
                         candidate_id = **parent_entity;

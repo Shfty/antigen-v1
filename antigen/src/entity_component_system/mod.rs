@@ -1,79 +1,43 @@
+mod storage;
 mod traits;
 
-pub mod system_interface;
-pub mod system_runner;
-pub mod system_storage;
-
-mod assemblage;
-mod entity_component_directory;
-
-pub use assemblage::*;
-pub use entity_component_directory::*;
-
-pub use system_interface::SystemInterface;
-pub use system_runner::SystemRunner;
-pub use system_storage::SystemStorage;
+pub use storage::*;
 pub use traits::*;
 
 use crate::{
-    components::SystemProfilingData, systems::ComponentDataDebug, systems::ComponentDebug,
-    systems::EntityDebug, systems::SceneTreeDebug, systems::SystemDebug,
+    components::Name, components::SystemProfilingData, core::profiler::Profiler,
+    systems::ComponentDataDebug, systems::ComponentDebug, systems::EntityDebug,
+    systems::SceneTreeDebug, systems::SystemDebug,
 };
 
-use store::Store;
+use store::{Assembler, StoreQuery};
 
-mod component_data_id;
-pub use component_data_id::*;
+use std::cell::RefMut;
 
-pub struct EntityComponentSystem<CD, SS, SR>
-where
-    CD: EntityComponentDirectory + 'static,
-    SS: SystemStorage<CD>,
-    SR: SystemRunner,
-{
-    pub entity_component_directory: CD,
-    pub system_storage: SS,
-    pub system_runner: SR,
-    pub component_store: Store<EntityID>,
+pub struct EntityComponentSystem {
+    system_store: SystemStore,
+    component_store: ComponentStore,
 }
 
-impl<'a, CD, SS, SR> EntityComponentSystem<CD, SS, SR>
-where
-    CD: EntityComponentDirectory + 'static,
-    SS: SystemStorage<CD> + 'static,
-    SR: SystemRunner + 'static,
-{
-    pub fn new(
-        entity_component_directory: CD,
-        system_runner: SR,
-
-        system_storage: SS,
-    ) -> Result<Self, String>
-    where
-        SR: SystemRunner + 'static,
-    {
+impl<'a> EntityComponentSystem {
+    pub fn new() -> Result<Self, String> {
         let mut ecs = EntityComponentSystem {
-            entity_component_directory,
-            system_runner,
-
-            system_storage,
-
-            component_store: Store::default(),
+            system_store: SystemStore::default(),
+            component_store: ComponentStore::default(),
         };
 
-        {
-            let mut db = ecs.get_system_interface();
+        Assembler::new()
+            .key(EntityID::next())
+            .fields((
+                Name("System Profiling Data".into()),
+                SystemProfilingData::default(),
+            ))
+            .finish(&mut ecs.component_store);
 
-            let system_debug_entity = db.create_entity("System Profiling Data".into())?;
-            {
-                db.insert_entity_component(system_debug_entity, SystemProfilingData::default())?;
-            }
-        }
-
+        ecs.push_system(SystemDebug);
         ecs.push_system(EntityDebug);
         ecs.push_system(SceneTreeDebug);
         ecs.push_system(ComponentDebug);
-        ecs.push_system(SystemDebug);
         ecs.push_system(ComponentDataDebug);
 
         Ok(ecs)
@@ -81,36 +45,44 @@ where
 
     pub fn push_system<T>(&mut self, system: T)
     where
-        T: SystemTrait<CD> + 'static,
+        T: SystemTrait + 'static,
     {
-        self.system_storage.insert_system(system);
+        self.system_store.insert_system(system);
     }
 
     pub fn run(&'a mut self) -> Result<(), SystemError> {
-        let mut system_interface = SystemInterface::new(
-            &mut self.entity_component_directory,
-            &mut self.component_store,
-        );
+        superluminal_perf::begin_event("System Runner");
 
-        self.system_runner
-            .run(&mut self.system_storage, &mut system_interface)
+        for (system_id, system) in self.system_store.iter() {
+            let label = system_id.get_name();
+            let profiler = Profiler::start();
+            superluminal_perf::begin_event_with_data("Run System", &label, 0);
+            system.run(&mut self.component_store)?;
+            superluminal_perf::end_event();
+            let duration = profiler.finish();
+
+            if let Some((_, mut system_debug)) =
+                StoreQuery::<(EntityID, RefMut<SystemProfilingData>)>::iter(
+                    self.component_store.as_ref(),
+                )
+                .next()
+            {
+                system_debug.set_duration(system_id, duration)
+            }
+        }
+
+        superluminal_perf::end_event();
+
+        Ok(())
     }
 
-    pub fn get_system_interface(&'a mut self) -> SystemInterface<CD> {
-        SystemInterface::new(
-            &mut self.entity_component_directory,
-            &mut self.component_store,
-        )
+    pub fn get_component_store(&'a mut self) -> &mut ComponentStore {
+        &mut self.component_store
     }
 }
 
-impl<'a, CD, SS, SR> Default for EntityComponentSystem<CD, SS, SR>
-where
-    CD: EntityComponentDirectory + Default + 'static,
-    SS: SystemStorage<CD> + Default + 'static,
-    SR: SystemRunner + Default + 'static,
-{
+impl<'a> Default for EntityComponentSystem {
     fn default() -> Self {
-        EntityComponentSystem::new(CD::default(), SR::default(), SS::default()).unwrap()
+        EntityComponentSystem::new().unwrap()
     }
 }

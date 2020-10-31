@@ -3,10 +3,7 @@ use std::cell::{Ref, RefMut};
 use antigen::{
     components::EventQueue,
     core::events::AntigenInputEvent,
-    entity_component_system::{
-        system_interface::SystemInterface, EntityComponentDirectory, EntityID, SystemError,
-        SystemTrait,
-    },
+    entity_component_system::{ComponentStore, EntityID, SystemError, SystemTrait},
     primitive_types::Vector2I,
 };
 use store::StoreQuery;
@@ -23,8 +20,8 @@ pub struct CursesMouse {
     button_mask: usize,
 }
 
-impl CursesMouse {
-    pub fn new() -> Self {
+impl Default for CursesMouse {
+    fn default() -> Self {
         CursesMouse {
             position: Vector2I::default(),
             button_mask: 0,
@@ -32,31 +29,17 @@ impl CursesMouse {
     }
 }
 
-impl Default for CursesMouse {
-    fn default() -> Self {
-        CursesMouse::new()
-    }
-}
-
-impl<CD> SystemTrait<CD> for CursesMouse
-where
-    CD: EntityComponentDirectory,
-{
-    fn run(&mut self, db: &mut SystemInterface<CD>) -> Result<(), SystemError>
-    where
-        CD: EntityComponentDirectory,
-    {
+impl SystemTrait for CursesMouse {
+    fn run(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
         let (_, curses_event_queue) =
-            StoreQuery::<(EntityID, Ref<EventQueue<CursesEvent>>)>::iter(db.component_store)
+            StoreQuery::<(EntityID, Ref<EventQueue<CursesEvent>>)>::iter(db.as_ref())
                 .next()
                 .expect("No curses event queue entity");
 
-        let (_, mut antigen_event_queue) = StoreQuery::<(
-            EntityID,
-            RefMut<EventQueue<AntigenInputEvent>>,
-        )>::iter(db.component_store)
-        .next()
-        .expect("No antigen event queue entity");
+        let (_, mut antigen_event_queue) =
+            StoreQuery::<(EntityID, RefMut<EventQueue<AntigenInputEvent>>)>::iter(db.as_ref())
+                .next()
+                .expect("No antigen event queue entity");
 
         for curses_event in curses_event_queue.iter() {
             if *curses_event == CursesEvent::KeyMouse {

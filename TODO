@@ -1,24 +1,21 @@
-TODO: Implement "no component" functionality for StoreQuery
-      Add a NoComponent<T> variant alongside Ref/RefMut/Option<Ref>/Option<RefMut>
+TODO: Refactor sweep for systems
+      Need to make sure querying is being done optimally under new setup
+      Minimize cloning in favor of iterators
+      Fix concessions made due to inherited mutability
+      Use Assembler for cases where entity creation needs to be deferred due to inherited mutability
+      Create type aliases for query signatures
+            Reduces signature repetition
+            Better expressivity for query blocks
+            Ex:
+                  type IntegratePlayerPosition<'a> = (HasField<char>, Ref<'a, Velocity>, RefMut<'a, Position>);
+                  StoreQuery::<IntegratePlayerPosition>::iter(db.as_mut()).for_each(|(_, velocity, position)| **position += **velocity);
 
-TODO: Replacement for get_components_by_predicate functionality
-      May be better to comment it out and finish the refactor first, handle as part of debug reimplementation
-
-TODO: Factor out EntityComponentDirectory in favour of a simple EntityID list
-
-TODO: Factor SystemRunner and SystemStorage back into EntityComponentSystem
-
-TODO: Factor out UID in favor of more explicit per-case types
-
-TODO: Address DenseVecStorage
-      Circular reference happens on the first frame, unlike other storages
-      Less performant than SparseVecStorage, which is less performant than HashMapStorage
-      Probably better to drop it for now
-
-TODO: Investigate performance loss, ~2x worse in release mode, ~4x worse in debug mode compared to master branch
-
-TODO: Reimplement debugging around new Store-based component setup
-      Leverage TypeKey / TypedData for this
+TODO: Figure out a solution for avoiding inherited mutability when using assemblages
+      Currently necessary due to the automatic storage population strategy
+      Nesting RefCells is undesirable due to extra borrow complexity
+      Add unchecked variants of insert and assemble functions?
+            Moves responsibility to the calling code
+            Solves the problem, but the ideal would be fully transparent automation
 
 TODO: Refactor sweep for impl Trait
       Arguments, return types
@@ -35,6 +32,10 @@ TODO: Can anchors/margins be refactored into separate systems?
             GlobalPosition already does this, but is in and of itself more general
             Preferable to keep things unified if possible - too much overlap between GlobalPosition and MarginPosition
             Could handle in renderer?
+
+TODO: Fix list hover/selection overlay positioning
+      Doesn't account for height of previous entries
+      Causes incorrect selection indices
 
 TODO: Account for list scroll when positioning hover/selection overlays
 TODO: Max limit for list scroll offset
@@ -71,12 +72,9 @@ TODO: Refactor software renderer / string renderer into a single generic system
       Need to figure out a good abstraction
       Could move common logic into an impl, have the renderers call it manually
 
-TODO: Debug excluding every list item entity is too specific
-      List system shouldn't know about DebugExclude
-      How to solve? Assemblages would be ideal, but they're generic over component storage / entity-component directory
-            Don't want to make List generic - too messy
-
-TODO: Component data inspector
+TODO: Pass an assemblage through during ListData instantiation to be used for list items
+      Can this be done with generics instead of a dyn trait object?
+            Would introduce a dependency in ListSystem
 
 TODO: Filtering for debug components
       (Would this be better expressed as a sort + color highlight?)
@@ -103,9 +101,23 @@ TODO: Profiler window
             Could setup shader-specific systems and dataflow for more complex functionality
                   Easy to keep general, can define your own pipeline
 
+TODO: Component data inspector
+      How would this work?
+      Seems like it would be necessary to introduce some sort of property interface for get/set of specific fields
+      Doesn't seem like it could be easily automated without macros
+
 TODO: Clipping rects for UI controls
 TODO: Refactor list system to only update when hover, selection, list item count or contents have changed
 
 TODO: Register entity fetches and associated logic at System registration time
       Allows for runtime lookup optimization
-      
+
+TODO: Custom component storage registration
+    SparseVecMap - Very common components (ex. position)
+    DenseVecMap - Somewhat common components (ex. mesh, physics body)
+    HashMap - Rare components (ex. framebuffer, texture, audio)
+
+    How to encode rarity? Custom entity fetches could be used as a heuristic
+    
+    How should these categories interact with Store's default type sizing predicate?
+        Rarity should probably take precedence, since memory wastage scales linearly with entity count for SparseVecMap

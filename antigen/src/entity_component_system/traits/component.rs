@@ -1,36 +1,6 @@
-use std::{
-    any::Any,
-    any::TypeId,
-    fmt::{Debug, Display},
-};
+use std::{any::Any, fmt::Debug};
 
-/// Type-based unique component ID
-#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
-pub struct ComponentID {
-    pub type_id: TypeId,
-    pub type_name: &'static str,
-}
-
-impl ComponentID {
-    pub fn get<T: ComponentTrait + 'static>() -> Self {
-        ComponentID {
-            type_id: TypeId::of::<T>(),
-            type_name: std::any::type_name::<T>(),
-        }
-    }
-}
-
-impl ComponentID {
-    pub fn get_name(&self) -> String {
-        crate::core::type_name::strip_crate_names(self.type_name)
-    }
-}
-
-impl Display for ComponentID {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.type_name)
-    }
-}
+use store::TypeKey;
 
 /// Base component trait
 pub trait ComponentTrait: Debug + UpcastComponentTrait {}
@@ -74,7 +44,7 @@ where
         component.as_any().downcast_ref::<T>().unwrap_or_else(|| {
             panic!(
                 "Failed to downcast component to type {}",
-                crate::core::type_name::type_name::<T>()
+                TypeKey::of::<T>().get_name()
             )
         })
     }
@@ -86,7 +56,7 @@ where
             .unwrap_or_else(|| {
                 panic!(
                     "Failed to downcast component to type {}",
-                    crate::core::type_name::type_name::<T>()
+                    TypeKey::of::<T>().get_name()
                 )
             })
     }

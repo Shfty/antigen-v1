@@ -4,10 +4,7 @@ use store::StoreQuery;
 
 use crate::{
     components::{DebugSystemList, EventQueue, IntRange, SystemProfilingData},
-    entity_component_system::{
-        system_interface::SystemInterface, EntityComponentDirectory, EntityID, SystemError,
-        SystemTrait,
-    },
+    entity_component_system::{ComponentStore, EntityID, SystemError, SystemTrait},
 };
 
 #[derive(Debug)]
@@ -18,27 +15,22 @@ pub enum SystemInspectorEvent {
     SetInspectedSystem(Option<usize>),
 }
 
-impl<CD> SystemTrait<CD> for SystemDebug
-where
-    CD: EntityComponentDirectory,
-{
-    fn run(&mut self, db: &mut SystemInterface<CD>) -> Result<(), SystemError>
-    where
-        CD: EntityComponentDirectory,
-    {
-        if let Some((_, system_profiling_data)) =
-            StoreQuery::<(EntityID, Ref<SystemProfilingData>)>::iter(db.component_store).next()
+impl SystemTrait for SystemDebug {
+    fn run(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
+        if let Some((_, mut system_profiling_data)) =
+            StoreQuery::<(EntityID, RefMut<SystemProfilingData>)>::iter(db.as_ref()).next()
         {
             // Populate strings for debug system list entities
             let system_durations = system_profiling_data.get_durations();
-            let total_duration: Duration = system_durations.values().sum();
+            let total_duration: Duration =
+                system_durations.iter().map(|(_, duration)| duration).sum();
 
             // Process system inspector events
             if let Some((_, event_queue, mut int_range)) = StoreQuery::<(
                 EntityID,
                 RefMut<EventQueue<SystemInspectorEvent>>,
                 RefMut<IntRange>,
-            )>::iter(db.component_store)
+            )>::iter(db.as_ref())
             .next()
             {
                 int_range.set_range(0..system_durations.len() as i64);
@@ -57,12 +49,10 @@ where
             // Compile system strings
             let mut system_strings: Vec<String> = system_durations
                 .iter()
-                .flat_map(|(system_id, _)| {
-                    let duration = system_durations.get(system_id)?;
-
+                .flat_map(|(system_id, duration)| {
                     Some(format!(
                         "{} ({}ms / {}us / {}ns)",
-                        system_id,
+                        system_id.get_name(),
                         duration.as_millis(),
                         duration.as_micros(),
                         duration.as_nanos(),
@@ -81,12 +71,14 @@ where
 
             if let Some((_, _, mut strings)) =
                 StoreQuery::<(EntityID, Ref<DebugSystemList>, RefMut<Vec<String>>)>::iter(
-                    db.component_store,
+                    db.as_ref(),
                 )
                 .next()
             {
                 *strings = system_strings;
             }
+
+            system_profiling_data.clear_durations();
         }
 
         Ok(())

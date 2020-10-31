@@ -1,6 +1,6 @@
 use std::{cell::Ref, cell::RefMut, fmt::Debug};
 
-use store::StoreQuery;
+use store::{NoField, StoreQuery};
 
 use crate::{
     components::EventQueue,
@@ -10,9 +10,7 @@ use crate::{
 };
 use crate::{
     components::{DebugEntityList, DebugExclude},
-    entity_component_system::{
-        system_interface::SystemInterface, EntityComponentDirectory, EntityID,
-    },
+    entity_component_system::{ComponentStore, EntityID},
 };
 
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
@@ -23,27 +21,20 @@ pub enum EntityInspectorEvent {
 #[derive(Debug)]
 pub struct EntityDebug;
 
-impl<CD> SystemTrait<CD> for EntityDebug
-where
-    CD: EntityComponentDirectory,
-{
-    fn run(&mut self, db: &mut SystemInterface<CD>) -> Result<(), SystemError>
-    where
-        CD: EntityComponentDirectory,
-    {
+impl SystemTrait for EntityDebug {
+    fn run(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
         // Fetch debugged entities
-        let mut debug_entities: Vec<EntityID> = db
-            .entity_component_directory
-            .get_entities_by_predicate(|entity_id| {
-                !db.entity_has_component::<DebugExclude>(entity_id)
-            });
+        let mut debug_entities: Vec<EntityID> =
+            StoreQuery::<(EntityID, NoField<DebugExclude>)>::iter(db.as_ref())
+                .map(|(entity_id, _)| entity_id)
+                .collect();
         debug_entities.sort();
 
         if let Some((_, mut event_queue, mut int_range)) = StoreQuery::<(
             EntityID,
             RefMut<EventQueue<EntityInspectorEvent>>,
             RefMut<IntRange>,
-        )>::iter(db.component_store)
+        )>::iter(db.as_ref())
         .next()
         {
             int_range.set_range(0..debug_entities.len() as i64);
@@ -63,19 +54,17 @@ where
         let entity_strings: Vec<String> = debug_entities
             .iter()
             .map(|entity_id| {
-                let label: String = match db.get_entity_component::<Name>(*entity_id) {
-                    Ok(name) => (**name).clone(),
-                    Err(_) => "Entity".into(),
+                let label: String = match db.get::<Name>(entity_id) {
+                    Some(name) => (**name).clone(),
+                    None => "Entity".into(),
                 };
                 format!("{}:\t{}", entity_id, label)
             })
             .collect();
 
         if let Some((_, _, mut strings)) =
-            StoreQuery::<(EntityID, Ref<DebugEntityList>, RefMut<Vec<String>>)>::iter(
-                db.component_store,
-            )
-            .next()
+            StoreQuery::<(EntityID, Ref<DebugEntityList>, RefMut<Vec<String>>)>::iter(db.as_ref())
+                .next()
         {
             *strings = entity_strings;
         }

@@ -3,7 +3,7 @@ use std::ops::{Deref, DerefMut};
 use crate::primitive_types::Vector2I;
 
 #[derive(Debug, Default, Copy, Clone)]
-pub struct Velocity(Vector2I);
+pub struct Velocity(pub Vector2I);
 
 impl Deref for Velocity {
     type Target = Vector2I;

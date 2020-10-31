@@ -5,8 +5,7 @@ use antigen::{
     components::EventQueue,
     components::IntRange,
     core::events::AntigenInputEvent,
-    entity_component_system::system_interface::SystemInterface,
-    entity_component_system::EntityComponentDirectory,
+    entity_component_system::ComponentStore,
     entity_component_system::EntityID,
     entity_component_system::{SystemError, SystemTrait},
 };
@@ -15,21 +14,15 @@ use store::StoreQuery;
 #[derive(Debug)]
 pub struct InputAxis;
 
-impl<CD> SystemTrait<CD> for InputAxis
-where
-    CD: EntityComponentDirectory,
-{
-    fn run(&mut self, db: &mut SystemInterface<CD>) -> Result<(), SystemError>
-    where
-        CD: EntityComponentDirectory,
-    {
+impl SystemTrait for InputAxis {
+    fn run(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
         let (_key, event_queue) =
-            StoreQuery::<(EntityID, Ref<EventQueue<AntigenInputEvent>>)>::iter(db.component_store)
+            StoreQuery::<(EntityID, Ref<EventQueue<AntigenInputEvent>>)>::iter(db.as_ref())
                 .next()
                 .expect("No antigen input event queue");
 
         for (_key, input_axis_data, mut int_range) in
-            StoreQuery::<(EntityID, Ref<InputAxisData>, RefMut<IntRange>)>::iter(db.component_store)
+            StoreQuery::<(EntityID, Ref<InputAxisData>, RefMut<IntRange>)>::iter(db.as_ref())
         {
             let prev_input = input_axis_data.get_negative_input();
             let next_input = input_axis_data.get_positive_input();

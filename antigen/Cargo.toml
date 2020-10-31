@@ -8,4 +8,5 @@ edition = "2018"
 
 [dependencies]
 superluminal-perf = "0.1.1"
+fnv = "1.0.7"
 store = { path = "../../store_v2/store" }

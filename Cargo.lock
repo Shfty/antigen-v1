@@ -4,6 +4,7 @@
 name = "antigen"
 version = "0.1.0"
 dependencies = [
+ "fnv",
  "store",
  "superluminal-perf",
 ]

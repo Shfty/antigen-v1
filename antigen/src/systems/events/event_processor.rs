@@ -4,9 +4,9 @@ use store::StoreQuery;
 
 use crate::{
     components::EventQueue,
-    entity_component_system::{EntityComponentDirectory, EntityID, SystemError, SystemTrait},
+    entity_component_system::{EntityID, SystemError, SystemTrait},
 };
-use crate::{components::EventTargets, entity_component_system::system_interface::SystemInterface};
+use crate::{components::EventTargets, entity_component_system::ComponentStore};
 
 #[derive(Debug)]
 pub struct EventProcessor<O, I>
@@ -27,20 +27,14 @@ where
     }
 }
 
-impl<CD, O, I> SystemTrait<CD> for EventProcessor<O, I>
+impl<O, I> SystemTrait for EventProcessor<O, I>
 where
-    CD: EntityComponentDirectory,
     O: Debug + Copy + 'static,
     I: Debug + Copy + 'static,
 {
-    fn run(&mut self, db: &mut SystemInterface<CD>) -> Result<(), SystemError>
-    where
-        CD: EntityComponentDirectory,
-    {
+    fn run(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
         for (_, out_event_queue, event_targets) in
-            StoreQuery::<(EntityID, Ref<EventQueue<O>>, Ref<EventTargets>)>::iter(
-                db.component_store,
-            )
+            StoreQuery::<(EntityID, Ref<EventQueue<O>>, Ref<EventTargets>)>::iter(db.as_ref())
         {
             let mut events: Vec<I> = out_event_queue
                 .iter()
@@ -51,11 +45,11 @@ where
             let keys: Vec<EntityID> = (**event_targets)
                 .iter()
                 .copied()
-                .filter(|entity_id| db.entity_has_component::<EventQueue<I>>(entity_id))
+                .filter(|entity_id| db.contains_type_key::<EventQueue<I>>(entity_id))
                 .collect();
 
             for (_, mut in_event_queue) in
-                StoreQuery::<(EntityID, RefMut<EventQueue<I>>)>::iter_keys(db.component_store, &keys)
+                StoreQuery::<(EntityID, RefMut<EventQueue<I>>)>::iter_keys(db.as_ref(), &keys)
             {
                 in_event_queue.append(&mut events);
             }

@@ -1,92 +1,84 @@
 use std::cell::{Ref, RefMut};
 
-use store::StoreQuery;
+use store::{NoField, StoreQuery};
 
 use crate::{
     components::DebugComponentDataList, components::DebugExclude, components::IntRange,
-    entity_component_system::system_interface::SystemInterface,
-    entity_component_system::ComponentID, entity_component_system::EntityComponentDirectory,
-    entity_component_system::EntityID,
+    entity_component_system::ComponentStore, entity_component_system::EntityID,
 };
 use crate::{
     components::EventQueue,
     entity_component_system::{SystemError, SystemTrait},
 };
 
-use super::{ComponentInspectorEvent, EntityInspectorEvent};
+use super::EntityInspectorEvent;
 
 #[derive(Debug)]
 pub struct ComponentDataDebug;
 
-impl<CD> SystemTrait<CD> for ComponentDataDebug
-where
-    CD: EntityComponentDirectory,
-{
-    fn run(&mut self, db: &mut SystemInterface<CD>) -> Result<(), SystemError>
-    where
-        CD: EntityComponentDirectory,
-    {
-        let mut debug_entities: Vec<EntityID> = db
-            .entity_component_directory
-            .get_entities_by_predicate(|entity_id| {
-                !db.entity_has_component::<DebugExclude>(entity_id)
-            });
+impl SystemTrait for ComponentDataDebug {
+    fn run(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
+        let mut debug_entities: Vec<EntityID> =
+            StoreQuery::<(EntityID, NoField<DebugExclude>)>::iter(db.as_ref())
+                .map(|(entity_id, _)| entity_id)
+                .collect();
         debug_entities.sort();
 
         // Populate strings for debug component list entities
-        if let Some((_, _, int_range)) = StoreQuery::<(
+        let (_, _, int_range) = StoreQuery::<(
             EntityID,
             Ref<EventQueue<EntityInspectorEvent>>,
             Ref<IntRange>,
-        )>::iter(db.component_store)
+        )>::iter(db.as_ref())
         .next()
-        {
-            if let Some(inspected_entity) = debug_entities.get(int_range.get_index() as usize) {
-                let mut components =
-                    db.entity_component_directory
-                        .get_components_by_predicate(|component_id| {
-                            db.entity_component_directory
-                                .entity_has_component_by_id(inspected_entity, component_id)
-                        });
+        .expect("No entity inspector present");
 
-                components.sort_by_key(ComponentID::get_name);
+        let index = int_range.get_index();
+        if index >= 0 {
+            let inspected_entity = &debug_entities[int_range.get_index() as usize];
 
-                if let Some((_, _, int_range)) = StoreQuery::<(
+            let mut component_strings: Vec<String> = db
+                .iter_key_untyped(inspected_entity)
+                .map(|(key, value)| format!("{:?}: {:#?}", key, value))
+                .collect();
+
+            component_strings.sort_unstable();
+
+            for (_, _, mut strings) in
+                StoreQuery::<(EntityID, Ref<DebugComponentDataList>, RefMut<Vec<String>>)>::iter(
+                    db.as_ref(),
+                )
+            {
+                *strings = component_strings.clone();
+            }
+
+            /*
+            let (_, _, int_range) = StoreQuery::<(
+                EntityID,
+                Ref<EventQueue<ComponentInspectorEvent>>,
+                Ref<IntRange>,
+            )>::iter(db.as_ref())
+            .next()
+            .expect("No component inspector present");
+
+            let index = int_range.get_index();
+            if index >= 0 {
+                let component_strings: Vec<String> = db
+                    .component_store
+                    .iter_key_untyped(inspected_entity)
+                    .map(|(key, value)| format!("{:?}: {:#?}", key, value))
+                    .collect();
+
+                for (_, _, mut strings) in StoreQuery::<(
                     EntityID,
-                    Ref<EventQueue<ComponentInspectorEvent>>,
-                    Ref<IntRange>,
-                )>::iter(db.component_store)
-                .next()
+                    Ref<DebugComponentDataList>,
+                    RefMut<Vec<String>>,
+                )>::iter(db.as_ref())
                 {
-                    if let Some(inspected_component) =
-                        components.get(int_range.get_index() as usize)
-                    {
-                        let component_data_id = db
-                            .entity_component_directory
-                            .get_entity_component_data_id(inspected_entity, inspected_component)?;
-
-                        // FIXME: Reimplement debugging with new Store-based component setup
-                        /*
-                        let component_data_string = db
-                            .component_storage
-                            .get_component_data_string(&component_data_id)?;
-                        */
-                        let component_data_string = format!("{}", component_data_id);
-
-                        if let Some((_, _, mut strings)) = StoreQuery::<(
-                            EntityID,
-                            Ref<DebugComponentDataList>,
-                            RefMut<Vec<String>>,
-                        )>::iter(
-                            db.component_store
-                        )
-                        .next()
-                        {
-                            *strings = vec![component_data_string];
-                        }
-                    }
+                    *strings = component_strings.clone();
                 }
             }
+            */
         }
 
         Ok(())

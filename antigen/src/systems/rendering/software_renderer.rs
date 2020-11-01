@@ -4,26 +4,21 @@ use store::StoreQuery;
 
 use crate::components::{Control, SoftwareFramebuffer};
 use crate::{
-    components::{
-        CPUShader, CPUShaderInput, ChildEntitiesData, GlobalPositionData, Position, Size, Window,
-        ZIndex,
-    },
-    entity_component_system::{ComponentStore, EntityID, SystemError, SystemTrait},
+    components::{CPUShader, CPUShaderInput, GlobalPositionData, Position, Size},
+    entity_component_system::{ComponentStore, EntityID},
     primitive_types::ColorRGB,
     primitive_types::ColorRGBF,
     primitive_types::Vector2I,
 };
 
-type ReadWindowEntity<'a> = (EntityID, Ref<'a, Window>, Ref<'a, Size>);
-type WriteSoftwareFramebuffer<'a> = (EntityID, RefMut<'a, SoftwareFramebuffer<ColorRGBF>>);
-type ReadControlTransforms<'a> = (
+use super::Renderer;
+
+type ReadControlTransform<'a> = (
     EntityID,
     Option<Ref<'a, Control>>,
     Option<Ref<'a, Size>>,
-    Option<Ref<'a, ZIndex>>,
 );
-type ReadChildEntities<'a> = (EntityID, Option<Ref<'a, ChildEntitiesData>>);
-type ReadControlEntities<'a> = (
+type ReadControlEntity<'a> = (
     EntityID,
     Ref<'a, Position>,
     Ref<'a, Size>,
@@ -46,9 +41,6 @@ impl SoftwareRenderer {
         z: i64,
     ) {
         let Vector2I(width, height) = size;
-        if width == 0 || height == 0 {
-            return;
-        }
 
         let Vector2I(window_width, window_height) = window_size;
         let Vector2I(pos_x, pos_y) = position;
@@ -76,102 +68,59 @@ impl SoftwareRenderer {
     }
 }
 
-impl SystemTrait for SoftwareRenderer {
-    fn run(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
-        let (window_entity_id, _window, size) = StoreQuery::<ReadWindowEntity>::iter(db.as_ref())
-            .next()
-            .expect("No window entity");
+impl Renderer for SoftwareRenderer {
+    type Data = ColorRGBF;
 
-        let window_width: i64 = (**size).0;
-        let window_height: i64 = (**size).1;
+    fn entity_predicate(db: &ComponentStore, entity_id: EntityID) -> bool {
+        let (_, control, size) =
+            StoreQuery::<ReadControlTransform>::get(db.as_ref(), &entity_id);
 
-        let (_, mut software_framebuffer) =
-            StoreQuery::<WriteSoftwareFramebuffer>::iter(db.as_ref())
-                .next()
-                .expect("No CPU framebuffer entity");
+        control.is_some() && size.is_some()
+    }
 
-        // Fetch color buffer entity
-        let cell_count = (window_width * window_height) as usize;
-        software_framebuffer.resize(cell_count);
+    fn render(
+        &self,
+        db: &ComponentStore,
+        framebuffer: &mut RefMut<SoftwareFramebuffer<ColorRGBF>>,
+        window_size: Vector2I,
+        entity_id: EntityID,
+        z: i64,
+    ) {
+        let (_, position, size, global_position, color, shader) =
+            StoreQuery::<ReadControlEntity>::get(db.as_ref(), &entity_id);
 
-        // Recursively traverse parent-child tree and populate Z-ordered list of controls
-        let mut control_entities: Vec<(EntityID, i64)> = Vec::new();
-
-        fn populate_control_entities(
-            db: &ComponentStore,
-            entity_id: EntityID,
-            z_layers: &mut Vec<(EntityID, i64)>,
-            mut entity_z: i64,
-        ) -> Result<(), String> {
-            let (_, control, size, z_index) =
-                StoreQuery::<ReadControlTransforms>::get(db.as_ref(), &entity_id);
-
-            if let (Some(_), Some(_)) = (control, size) {
-                entity_z = if let Some(z_index) = z_index {
-                    **z_index
-                } else {
-                    entity_z
-                };
-
-                z_layers.push((entity_id, entity_z));
-            }
-
-            let (_, child_entities) = StoreQuery::<ReadChildEntities>::get(db.as_ref(), &entity_id);
-
-            if let Some(child_entities) = child_entities {
-                for child_id in child_entities.iter() {
-                    populate_control_entities(db, *child_id, z_layers, entity_z)?;
-                }
-            }
-
-            Ok(())
+        // Get Position
+        let position = if let Some(global_position) = global_position {
+            **global_position
+        } else {
+            **position
         };
 
-        populate_control_entities(&db, window_entity_id, &mut control_entities, 0)?;
-        control_entities.sort();
+        // Get Size
+        let size = **size;
 
-        // Render Entities
-        software_framebuffer.clear();
+        // Get Color
+        let color: ColorRGB<f32> = if let Some(color) = color {
+            *color
+        } else {
+            ColorRGB(1.0, 1.0, 1.0)
+        };
 
-        for (entity_id, z) in control_entities {
-            let (_, position, size, global_position, color, shader) =
-                StoreQuery::<ReadControlEntities>::get(db.as_ref(), &entity_id);
+        // Get shader
+        let shader = if let Some(shader) = shader {
+            *shader
+        } else {
+            CPUShader(CPUShader::color_passthrough)
+        };
 
-            // Get Position
-            let position = if let Some(global_position) = global_position {
-                **global_position
-            } else {
-                **position
-            };
-
-            // Get Size
-            let size = **size;
-
-            // Get Color
-            let color: ColorRGB<f32> = if let Some(color) = color {
-                *color
-            } else {
-                ColorRGB(1.0, 1.0, 1.0)
-            };
-
-            // Get shader
-            let shader = if let Some(shader) = shader {
-                *shader
-            } else {
-                CPUShader(CPUShader::color_passthrough)
-            };
-
-            Self::render_rect(
-                &mut *software_framebuffer,
-                Vector2I(window_width, window_height),
-                position,
-                size,
-                color,
-                shader,
-                z,
-            );
-        }
-
-        Ok(())
+        Self::render_rect(
+            &mut *framebuffer,
+            window_size,
+            position,
+            size,
+            color,
+            shader,
+            z,
+        );
     }
 }

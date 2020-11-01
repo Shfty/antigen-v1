@@ -4,23 +4,21 @@ use store::StoreQuery;
 
 use crate::components::{Control, SoftwareFramebuffer};
 use crate::{
-    components::{ChildEntitiesData, GlobalPositionData, Position, Size, Window, ZIndex},
-    entity_component_system::{ComponentStore, EntityID, SystemError, SystemTrait},
+    components::{GlobalPositionData, Position},
+    entity_component_system::{ComponentStore, EntityID},
     primitive_types::Vector2I,
 };
 
+use super::Renderer;
+
 const TAB_WIDTH: i64 = 4;
 
-type WindowEntity<'a> = (EntityID, Ref<'a, Window>, Ref<'a, Size>);
 type ReadStringControlTransforms<'a> = (
     EntityID,
     Option<Ref<'a, Control>>,
     Option<Ref<'a, char>>,
     Option<Ref<'a, String>>,
-    Option<Ref<'a, ZIndex>>,
 );
-type WriteStringFramebuffer<'a> = (EntityID, RefMut<'a, SoftwareFramebuffer<char>>);
-type MaybeReadChildEntities<'a> = (EntityID, Option<Ref<'a, ChildEntitiesData>>);
 type ReadStringControlEntities<'a> = (
     EntityID,
     Ref<'a, Position>,
@@ -89,93 +87,50 @@ impl StringRenderer {
     }
 }
 
-impl SystemTrait for StringRenderer {
-    fn run(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
-        let (window_entity_id, _window, size) = StoreQuery::<WindowEntity>::iter(db.as_ref())
-            .next()
-            .expect("No window entity");
+impl Renderer for StringRenderer {
+    type Data = char;
 
-        let window_width: i64 = (**size).0;
-        let window_height: i64 = (**size).1;
+    fn entity_predicate(db: &ComponentStore, entity_id: EntityID) -> bool {
+        let (_, control, char, string) =
+            StoreQuery::<ReadStringControlTransforms>::get(db.as_ref(), &entity_id);
 
-        let (_, mut string_framebuffer) = StoreQuery::<WriteStringFramebuffer>::iter(db.as_ref())
-            .next()
-            .expect("No string framebuffer entity");
+        control.is_some() && (char.is_some() || string.is_some())
+    }
 
-        // Fetch color buffer entity
-        let cell_count = (window_width * window_height) as usize;
-        string_framebuffer.resize(cell_count);
+    fn render(
+        &self,
+        db: &ComponentStore,
+        framebuffer: &mut RefMut<SoftwareFramebuffer<Self::Data>>,
+        window_size: Vector2I,
+        entity_id: EntityID,
+        z: i64,
+    ) {
+        let (_, position, global_position, char, string) =
+            StoreQuery::<ReadStringControlEntities>::get(db.as_ref(), &entity_id);
 
-        // Recursively traverse parent-child tree and populate Z-ordered list of controls
-        let mut control_entities: Vec<(EntityID, i64)> = Vec::new();
-
-        fn populate_control_entities(
-            db: &ComponentStore,
-            entity_id: EntityID,
-            z_layers: &mut Vec<(EntityID, i64)>,
-            mut entity_z: i64,
-        ) -> Result<(), String> {
-            let (_, control, char, string, z_index) =
-                StoreQuery::<ReadStringControlTransforms>::get(db.as_ref(), &entity_id);
-
-            if control.is_some() && (char.is_some() || string.is_some()) {
-                entity_z = if let Some(z_index) = z_index {
-                    **z_index
-                } else {
-                    entity_z
-                };
-
-                z_layers.push((entity_id, entity_z));
-            }
-
-            let (_, child_entities) =
-                StoreQuery::<MaybeReadChildEntities>::get(db.as_ref(), &entity_id);
-
-            if let Some(child_entities) = child_entities {
-                for child_id in child_entities.iter() {
-                    populate_control_entities(db, *child_id, z_layers, entity_z)?;
-                }
-            }
-
-            Ok(())
+        // Get Position
+        let Vector2I(x, y) = if let Some(global_position) = global_position {
+            **global_position
+        } else {
+            **position
         };
 
-        populate_control_entities(&db, window_entity_id, &mut control_entities, 0)?;
-        control_entities.sort();
+        let string = if let Some(string) = string {
+            (*string).clone()
+        } else if let Some(char) = char {
+            (*char).to_string()
+        } else {
+            panic!("No valid string component");
+        };
 
-        // Render Entities
-        string_framebuffer.clear();
-
-        for (entity_id, z) in control_entities {
-            let (_, position, global_position, char, string) =
-                StoreQuery::<ReadStringControlEntities>::get(db.as_ref(), &entity_id);
-
-            // Get Position
-            let Vector2I(x, y) = if let Some(global_position) = global_position {
-                **global_position
-            } else {
-                **position
-            };
-
-            let string = if let Some(string) = string {
-                (*string).clone()
-            } else if let Some(char) = char {
-                (*char).to_string()
-            } else {
-                return Err("No valid string component".into());
-            };
-
-            for (i, string) in string.split('\n').enumerate() {
-                Self::render_string(
-                    &mut *string_framebuffer,
-                    Vector2I(window_width, window_height),
-                    Vector2I(x, y + i as i64),
-                    string,
-                    z,
-                )
-            }
+        for (i, string) in string.split('\n').enumerate() {
+            Self::render_string(
+                &mut *framebuffer,
+                window_size,
+                Vector2I(x, y + i as i64),
+                string,
+                z,
+            )
         }
-
-        Ok(())
     }
 }

@@ -1,355 +1,377 @@
-use crate::systems;
+use crate::{
+    assemblage::{color_framebuffer, string_framebuffer},
+    systems,
+};
 
 use antigen::{
-    components::DebugComponentDataList,
-    components::DebugComponentList,
-    components::DebugSceneTree,
-    components::DebugSystemList,
-    components::EventQueue,
-    components::{self as antigen_components},
-    core::events::AntigenInputEvent,
-    core::palette::RGBArrangementPalette,
-    entity_component_system::EntityAssembler,
-    entity_component_system::{EntityID, SystemAssembler},
+    assemblage::{button_control, list_control, string_control, EntityBuilder},
+    components::{
+        self as antigen_components, DebugComponentDataList, DebugComponentList, DebugSceneTree,
+        DebugSystemList, EventQueue,
+    },
+    core::{events::AntigenInputEvent, palette::RGBArrangementPalette},
+    entity_component_system::{EntityID, SystemBuilder},
     primitive_types::{ColorRGB, ColorRGBF, Vector2I},
     systems as antigen_systems,
+    systems::ButtonEvent,
 };
 use antigen_components::{
-    Anchors, CPUShader, Control, DebugEntityList, DebugExclude, EventTargets,
-    LocalMousePositionData, Margins, Name, ParentEntity, Position, Size, ZIndex,
+    Anchors, Connection, DebugEntityList, DebugExclude, LocalMousePositionData, Margins, Name,
+    ParentEntity, Position, Size, SoftwareShader, StringShader, ZIndex,
 };
-use antigen_curses::{components as curses_components, systems as curses_systems};
+use antigen_curses::{
+    assemblage::curses,
+    components::{self as curses_components, CursesPalette},
+    systems as curses_systems,
+    systems::CursesColorsEvent,
+};
 
 use antigen_systems::ListEvent;
 
 use std::ops::Range;
 
-pub fn system_assembler(assembler: SystemAssembler) -> SystemAssembler {
-    use system_assemblers::*;
+use self::component_builders::*;
 
-    assembler
-        .assemble(event_consumers)
-        .assemble(curses)
-        .assemble(input)
-        .system(antigen_systems::List::default())
-        .assemble(event_processors)
-        .system(antigen_systems::EventConsumer::<ListEvent>::default())
-        .assemble(gameplay)
-        .assemble(scene_tree)
-        .assemble(rendering)
+pub fn system_assembler(builder: SystemBuilder) -> SystemBuilder {
+    use system_builders::*;
+
+    builder
+        .map(event_consumers)
+        .map(curses)
+        .map(input)
+        .map(user_interface)
+        .map(event_processors)
+        .map(gameplay)
+        .map(scene_tree)
+        .map(rendering)
 }
 
-mod system_assemblers {
-    use super::*;
-
-    pub fn event_consumers(assembler: SystemAssembler) -> SystemAssembler {
-        assembler
-            .system(antigen_systems::EventConsumer::<AntigenInputEvent>::default())
-            .system(antigen_systems::EventConsumer::<
-                curses_components::CursesEvent,
-            >::default())
-    }
-
-    pub fn curses(assembler: SystemAssembler) -> SystemAssembler {
-        assembler
-            .system(curses_systems::CursesInputBuffer)
-            .system(curses_systems::CursesKeyboard)
-            .system(curses_systems::CursesMouse::default())
-            .system(curses_systems::CursesWindow)
-    }
-
-    pub fn input(assembler: SystemAssembler) -> SystemAssembler {
-        assembler
-            .system(antigen_systems::LocalMousePosition)
-            .system(systems::QuitKey::new(antigen::core::keyboard::Key::Escape))
-            .system(systems::InputAxis)
-    }
-
-    pub fn event_processors(assembler: SystemAssembler) -> SystemAssembler {
-        assembler
-            .system(antigen_systems::EventProcessor::<
-                ListEvent,
-                antigen_systems::EntityInspectorEvent,
-            >::new(
-                |list_event: ListEvent| match list_event {
-                ListEvent::Pressed(index) => Some(
-                    antigen_systems::EntityInspectorEvent::SetInspectedEntity(index),
-                ),
-                _ => None,
-            }
-            ))
-            .system(antigen_systems::EventProcessor::<
-                ListEvent,
-                antigen_systems::ComponentInspectorEvent,
-            >::new(
-                |list_event: ListEvent| match list_event {
-                ListEvent::Pressed(index) => {
-                    Some(antigen_systems::ComponentInspectorEvent::SetInspectedComponent(index))
-                }
-                _ => None,
-            }
-            ))
-            .system(antigen_systems::EventProcessor::<
-                ListEvent,
-                antigen_systems::SystemInspectorEvent,
-            >::new(
-                |list_event: ListEvent| match list_event {
-                ListEvent::Pressed(index) => Some(
-                    antigen_systems::SystemInspectorEvent::SetInspectedSystem(index),
-                ),
-                _ => None,
-            }
-            ))
-    }
-
-    pub fn gameplay(assembler: SystemAssembler) -> SystemAssembler {
-        assembler
-            .system(systems::InputVelocity)
-            .system(antigen_systems::PositionIntegrator)
-    }
-
-    pub fn scene_tree(assembler: SystemAssembler) -> SystemAssembler {
-        assembler
-            .system(antigen_systems::AnchorsMargins)
-            .system(antigen_systems::GlobalPosition)
-            .system(antigen_systems::ChildEntities)
-    }
-
-    pub fn rendering(assembler: SystemAssembler) -> SystemAssembler {
-        assembler
-            .system(antigen_systems::SoftwareRenderer)
-            .system(antigen_systems::StringRenderer)
-            .system(curses_systems::CursesRenderer::new(
-                RGBArrangementPalette::new_884(),
-                curses_systems::TextColorMode::BlackWhite,
-            ))
-    }
-}
-
-pub fn entity_assembler(assembler: EntityAssembler) -> EntityAssembler {
-    use entity_assemblers::*;
+pub fn entity_assembler(builder: EntityBuilder) -> EntityBuilder {
+    use entity_builders::*;
 
     let entity_inspector_entity = EntityID::next();
     let component_inspector_entity = EntityID::next();
     let system_inspector_entity = EntityID::next();
 
+    let curses_palette = EntityID::next();
+
     // Inspectors
-    assembler
+    builder
         // Inspectors
-        .assemble(entity_inspector(entity_inspector_entity))
-        .assemble(component_inspector(component_inspector_entity))
-        .assemble(system_inspector(component_inspector_entity))
+        .map_key(entity_inspector_entity, entity_inspector)
+        .map_key(component_inspector_entity, component_inspector)
+        .map_key(system_inspector_entity, system_inspector)
+        // Curses palette
+        .key_fields(
+            curses_palette,
+            (
+                Name("Curses Palette".into()),
+                CursesPalette::default(),
+                EventQueue::<CursesColorsEvent>::new(vec![CursesColorsEvent::SetPalette(
+                    RGBArrangementPalette::new_884(),
+                )]),
+            ),
+        )
         // Global Event Queues
-        .assemble(global_event_queue)
+        .map_key(EntityID::next(), global_event_queue)
         // Framebuffers
-        .assemble(cpu_framebuffer)
-        .assemble(string_framebuffer)
+        .map_key(EntityID::next(), color_framebuffer)
+        .map_key(EntityID::next(), string_framebuffer)
         // Main window
-        .assemble(main_window(
-            Some("Main Window"),
-            Position::default(),
-            Size(Vector2I(256, 64)),
-        ))
+        .key(EntityID::next())
+        .map(main_window)
+        .fields((Name("Main Window".into()), Size(Vector2I(256, 64))))
+        .finish()
         // Subwindows
-        .assemble(|assembler: EntityAssembler| {
-            let main_window_entity = assembler.current_key();
-
-            assembler
-                .assemble(game_window(main_window_entity))
-                .assemble(|assembler: EntityAssembler| {
-                    let game_window_entity = assembler.current_key();
-
-                    assembler
-                        .assemble(test_rect(game_window_entity))
-                        .assemble(player(Position(Vector2I::ONE), game_window_entity))
-                        .assemble(|assembler: EntityAssembler| {
-                            let test_player_entity = assembler.current_key();
-                            assembler.assemble(test_string(test_player_entity))
+        .map_current_key(|builder: EntityBuilder, main_window_entity: EntityID| {
+            builder
+                // Game window
+                .key(EntityID::next())
+                .map(game_window)
+                .field(ParentEntity(main_window_entity))
+                .finish()
+                .map_current_key(|builder: EntityBuilder, game_window_entity: EntityID| {
+                    builder
+                        // Test Rect
+                        .key(EntityID::next())
+                        .map(test_rect)
+                        .field(ParentEntity(game_window_entity))
+                        .finish()
+                        // Player
+                        .key(EntityID::next())
+                        .map(player)
+                        .fields((
+                            Name("Player".into()),
+                            Position(Vector2I::ONE),
+                            ParentEntity(game_window_entity),
+                        ))
+                        .finish()
+                        .map_current_key(|builder: EntityBuilder, test_player_entity: EntityID| {
+                            // Test String
+                            builder
+                                .key(EntityID::next())
+                                .map(string_control)
+                                .fields((
+                                    Name("Test String".into()),
+                                    Position(Vector2I(2, 1)),
+                                    "Testing One Two Three...".to_string(),
+                                    ParentEntity(test_player_entity),
+                                ))
+                                .finish()
                         })
+                        // Button
+                        .map(palette_button(
+                            0.0..0.25,
+                            1.0..1.0,
+                            "RGB666",
+                            Connection::new(
+                                vec![curses_palette],
+                                |event: ButtonEvent| match event {
+                                    ButtonEvent::Pressed => Some(CursesColorsEvent::SetPalette(
+                                        RGBArrangementPalette::new_666(),
+                                    )),
+                                    ButtonEvent::Released => None,
+                                },
+                            ),
+                            game_window_entity,
+                        ))
+                        .map(palette_button(
+                            0.25..0.5,
+                            1.0..1.0,
+                            "RGB676",
+                            Connection::new(
+                                vec![curses_palette],
+                                |event: ButtonEvent| match event {
+                                    ButtonEvent::Pressed => Some(CursesColorsEvent::SetPalette(
+                                        RGBArrangementPalette::new_676(),
+                                    )),
+                                    ButtonEvent::Released => None,
+                                },
+                            ),
+                            game_window_entity,
+                        ))
+                        .map(palette_button(
+                            0.5..0.75,
+                            1.0..1.0,
+                            "RGB685",
+                            Connection::new(
+                                vec![curses_palette],
+                                |event: ButtonEvent| match event {
+                                    ButtonEvent::Pressed => Some(CursesColorsEvent::SetPalette(
+                                        RGBArrangementPalette::new_685(),
+                                    )),
+                                    ButtonEvent::Released => None,
+                                },
+                            ),
+                            game_window_entity,
+                        ))
+                        .map(palette_button(
+                            0.75..1.0,
+                            1.0..1.0,
+                            "RGB884",
+                            Connection::new(
+                                vec![curses_palette],
+                                |event: ButtonEvent| match event {
+                                    ButtonEvent::Pressed => Some(CursesColorsEvent::SetPalette(
+                                        RGBArrangementPalette::new_884(),
+                                    )),
+                                    ButtonEvent::Released => None,
+                                },
+                            ),
+                            game_window_entity,
+                        ))
                 })
-                .assemble(entity_list_window(
+                // Entity List
+                .map(entity_list_window(
                     main_window_entity,
                     entity_inspector_entity,
                 ))
-                .assemble(scene_tree_window(main_window_entity))
-                .assemble(component_list_window(
+                // Scene Tree
+                .map(scene_tree_window(main_window_entity))
+                // Component List
+                .map(component_list_window(
                     main_window_entity,
                     component_inspector_entity,
                 ))
-                .assemble(component_data_list_window(main_window_entity))
-                .assemble(system_list_window(
+                // Component Data List
+                .map(component_data_list_window(main_window_entity))
+                // System List
+                .map(system_list_window(
                     main_window_entity,
                     system_inspector_entity,
                 ))
         })
 }
 
-mod component_assemblers {
+mod system_builders {
+    use antigen::{
+        components::{GlobalPosition, GlobalZIndex},
+        systems::{ColorRenderer, EventConsumer, EventProcessor, SceneTreeData},
+    };
+    use antigen_systems::{AnchorsMargins, ChildEntities, PositionIntegrator, StringRenderer};
+    use curses_systems::CursesRenderer;
+    use systems::InputVelocity;
+
     use super::*;
 
-    pub type StringAssemblage = (Name, Control, String, Position);
-
-    pub fn string_control(name: String, string: String, position: Vector2I) -> StringAssemblage {
-        (Name(name), Control, string, Position(position))
+    pub fn event_consumers(builder: SystemBuilder) -> SystemBuilder {
+        builder
+            .system(EventConsumer::<AntigenInputEvent>::default())
+            .system(EventConsumer::<curses_components::CursesEvent>::default())
+            .system(EventConsumer::<ButtonEvent>::default())
+            .system(EventConsumer::<ListEvent>::default())
     }
 
-    pub type RectAssemblage = (Name, Control, Position, Size, char, ColorRGBF);
-
-    pub fn rect_control(name: String, color: ColorRGBF) -> RectAssemblage {
-        (
-            Name(name),
-            Control,
-            Position::default(),
-            Size::default(),
-            char::default(),
-            color,
-        )
+    pub fn input(builder: SystemBuilder) -> SystemBuilder {
+        builder
+            .system(antigen_systems::LocalMousePosition)
+            .system(systems::QuitKey::new(antigen::core::keyboard::Key::Escape))
+            .system(systems::InputAxis)
     }
 
-    pub type BorderAssemblage = (Name, Control, Position, Size, CPUShader, ColorRGBF);
+    pub fn user_interface(builder: SystemBuilder) -> SystemBuilder {
+        builder
+            .system(antigen_systems::List::new(|builder| {
+                builder.field(DebugExclude)
+            }))
+            .system(antigen_systems::Button)
+    }
 
-    pub fn border_control(name: String) -> BorderAssemblage {
-        (
-            Name(name),
-            Control,
-            Position::default(),
-            Size::default(),
-            CPUShader(CPUShader::rect),
-            ColorRGB(0.753f32, 0.753f32, 0.753f32),
-        )
+    pub fn event_processors(builder: SystemBuilder) -> SystemBuilder {
+        builder.system(EventProcessor)
+    }
+
+    pub fn gameplay(builder: SystemBuilder) -> SystemBuilder {
+        builder.system(InputVelocity).system(PositionIntegrator)
+    }
+
+    pub fn scene_tree(builder: SystemBuilder) -> SystemBuilder {
+        builder
+            .system(AnchorsMargins)
+            .system(ChildEntities)
+            .system(SceneTreeData::<Position, GlobalPosition>::default())
+            .system(SceneTreeData::<ZIndex, GlobalZIndex>::default())
+    }
+
+    pub fn rendering(builder: SystemBuilder) -> SystemBuilder {
+        builder
+            .system(ColorRenderer::<ColorRGBF>::default())
+            .system(StringRenderer)
+            .system(CursesRenderer::default())
     }
 }
 
-mod entity_assemblers {
+mod component_builders {
     use super::*;
-    use antigen::{components::GlobalPositionData, entity_component_system::MapEntityAssembler};
-    use component_assemblers::*;
+    use antigen::{
+        assemblage::{rect_control, ComponentBuilder},
+        components::{GlobalPosition, GlobalZIndex, IntRange, Window},
+    };
+    use curses_components::{CursesWindowData};
 
-    pub fn global_event_queue(assembler: EntityAssembler) -> EntityAssembler {
-        assembler.key(EntityID::next()).fields((
+    pub fn player(builder: ComponentBuilder) -> ComponentBuilder {
+        builder.fields((
+            StringShader,
+            antigen_components::Velocity(Vector2I::ZERO),
+            '@',
+            ColorRGB(1.0f32, 0.6f32, 1.0f32),
+            GlobalPosition::default(),
+            GlobalZIndex::default(),
+        ))
+    }
+
+    pub fn global_event_queue(builder: ComponentBuilder) -> ComponentBuilder {
+        builder.fields((
             Name("Global Event Queues".into()),
-            antigen_components::EventQueue::<curses_components::CursesEvent>::default(),
-            antigen_components::EventQueue::<AntigenInputEvent>::default(),
+            EventQueue::<curses_components::CursesEvent>::default(),
+            EventQueue::<AntigenInputEvent>::default(),
         ))
     }
 
-    pub fn entity_inspector(key: EntityID) -> impl MapEntityAssembler {
-        move |assembler: EntityAssembler| {
-            assembler.key(key).fields((
-                Name("Entity Inspector".into()),
-                antigen_components::EventQueue::<antigen_systems::EntityInspectorEvent>::default(),
-                antigen_components::IntRange::new(-1..0),
-            ))
-        }
-    }
-
-    pub fn component_inspector(key: EntityID) -> impl MapEntityAssembler {
-        move |assembler: EntityAssembler| {
-            assembler.key(key).fields((
-                Name("Component Inspector".into()),
-                antigen_components::EventQueue::<antigen_systems::ComponentInspectorEvent>::default(
-                ),
-                antigen_components::IntRange::new(-1..0),
-            ))
-        }
-    }
-
-    pub fn system_inspector(key: EntityID) -> impl MapEntityAssembler {
-        move |assembler: EntityAssembler| {
-            assembler.key(key).fields((
-                Name("System Inspector".into()),
-                antigen_components::EventQueue::<antigen_systems::SystemInspectorEvent>::default(),
-                antigen_components::IntRange::new(-1..0),
-            ))
-        }
-    }
-
-    pub fn cpu_framebuffer(assembler: EntityAssembler) -> EntityAssembler {
-        assembler.key(EntityID::next()).fields((
-            Name("CPU Framebuffer".into()),
-            antigen_components::SoftwareFramebuffer::new(ColorRGB(0.0f32, 0.0f32, 0.0f32)),
+    pub fn entity_inspector(builder: ComponentBuilder) -> ComponentBuilder {
+        builder.fields((
+            Name("Entity Inspector".into()),
+            EventQueue::<antigen_systems::EntityInspectorEvent>::default(),
+            IntRange::new(-1..0),
         ))
     }
 
-    pub fn string_framebuffer(assembler: EntityAssembler) -> EntityAssembler {
-        assembler.key(EntityID::next()).fields((
-            Name("String Framebuffer".into()),
-            antigen_components::SoftwareFramebuffer::new(' '),
+    pub fn component_inspector(builder: ComponentBuilder) -> ComponentBuilder {
+        builder.fields((
+            Name("Component Inspector".into()),
+            EventQueue::<antigen_systems::ComponentInspectorEvent>::default(),
+            IntRange::new(-1..0),
         ))
     }
 
-    pub fn main_window(
-        debug_label: Option<&'static str>,
-        position: Position,
-        size: Size,
-    ) -> impl MapEntityAssembler {
-        move |assembler: EntityAssembler| {
-            assembler.key(EntityID::next()).fields((
-                Name(debug_label.unwrap().to_string()),
-                antigen_components::Window,
-                curses_components::CursesWindowData::default(),
-                position,
-                size,
-            ))
-        }
+    pub fn system_inspector(builder: ComponentBuilder) -> ComponentBuilder {
+        builder.fields((
+            Name("System Inspector".into()),
+            EventQueue::<antigen_systems::SystemInspectorEvent>::default(),
+            IntRange::new(-1..0),
+        ))
     }
 
-    pub fn game_window(parent_window_entity: EntityID) -> impl MapEntityAssembler {
-        move |assembler: EntityAssembler| {
-            assembler.key(EntityID::next()).fields((
-                Name("Game".into()),
-                Position::default(),
-                Size::default(),
-                ParentEntity(parent_window_entity),
-                Anchors::new(0.0..0.25, 0.0..1.0),
-            ))
-        }
+    pub fn main_window(builder: ComponentBuilder) -> ComponentBuilder {
+        builder.fields((Window, CursesWindowData::default()))
     }
 
-    pub fn test_rect(parent_entity: EntityID) -> impl MapEntityAssembler {
-        move |assembler: EntityAssembler| {
-            assembler
+    pub fn game_window(builder: ComponentBuilder) -> ComponentBuilder {
+        builder.fields((
+            Name("Game".into()),
+            Position::default(),
+            ZIndex::default(),
+            Size::default(),
+            Anchors::new(0.0..0.25, 0.0..1.0),
+        ))
+    }
+
+    pub fn test_rect(builder: ComponentBuilder) -> ComponentBuilder {
+        builder.map(rect_control).fields((
+            Name("Test Rect".into()),
+            Anchors::new(0.0..1.0, 0.0..1.0),
+            SoftwareShader::hsv(),
+        ))
+    }
+}
+
+mod entity_builders {
+    use super::*;
+    use antigen::{assemblage::rect_control, assemblage::MapEntityBuilder};
+
+    pub fn palette_button(
+        anchor_horizontal: Range<f32>,
+        anchor_vertical: Range<f32>,
+        text: &'static str,
+        connection: Connection,
+        parent_entity: EntityID,
+    ) -> impl MapEntityBuilder {
+        move |builder: EntityBuilder| {
+            builder
                 .key(EntityID::next())
-                .fields(rect_control(
-                    "Test Rect".into(),
-                    ColorRGB(0.753f32, 0.753f32, 0.753f32),
-                ))
+                .map(button_control)
                 .fields((
-                    Anchors::new(0.0..1.0, 0.0..1.0),
-                    antigen_components::CPUShader(antigen_components::CPUShader::hsv),
+                    Name(text.to_owned() + " Button"),
+                    Anchors::new(anchor_horizontal, anchor_vertical),
+                    Margins::new(1, 1, -4, 1),
+                    SoftwareShader::color(ColorRGB(0.25, 0.25, 0.25)),
+                    connection,
                     ParentEntity(parent_entity),
-                    antigen_components::GlobalPositionData::default(),
                 ))
-        }
-    }
-
-    pub fn player(position: Position, parent_entity: EntityID) -> impl MapEntityAssembler {
-        move |assembler: EntityAssembler| {
-            assembler.key(EntityID::next()).fields((
-                Control,
-                position,
-                antigen_components::Velocity(Vector2I::ZERO),
-                '@',
-                ColorRGB(1.0f32, 0.6f32, 1.0f32),
-                ParentEntity(parent_entity),
-                GlobalPositionData::default(),
-            ))
-        }
-    }
-
-    pub fn test_string(parent_entity: EntityID) -> impl MapEntityAssembler {
-        move |assembler: EntityAssembler| {
-            assembler
-                .key(EntityID::next())
-                .fields(string_control(
-                    "Test String".into(),
-                    "Testing One Two Three".into(),
-                    Vector2I::ONE,
-                ))
-                .fields((
-                    ParentEntity(parent_entity),
-                    antigen_components::GlobalPositionData::default(),
-                ))
+                .finish()
+                .map_current_key(|builder: EntityBuilder, button_entity: EntityID| {
+                    // Button Text
+                    builder
+                        .key(EntityID::next())
+                        .map(string_control)
+                        .fields((
+                            Name("Button Text".into()),
+                            Position(Vector2I(4, 1)),
+                            text.to_string(),
+                            ParentEntity(button_entity),
+                        ))
+                        .finish()
+                })
         }
     }
 
@@ -358,140 +380,177 @@ mod entity_assemblers {
         anchor_horizontal: Range<f32>,
         anchor_vertical: Range<f32>,
         parent_entity: EntityID,
-    ) -> impl MapEntityAssembler {
-        move |assembler: EntityAssembler|
+    ) -> impl MapEntityBuilder {
+        move |builder: EntityBuilder|
     // Window Entity
-    assembler
-        .assemble(window(anchor_horizontal, anchor_vertical, parent_entity))
-        .assemble(|assembler: EntityAssembler| {
-            let window_entity = assembler.current_key();
-
+    builder
+        .key(EntityID::next())
+        .map(rect_control).fields((
+            Name("Debug Window".into()),
+            SoftwareShader::color(ColorRGB(0.0f32, 0.0f32, 0.0f32)),
+            ZIndex(1),
+            Anchors::new(anchor_horizontal, anchor_vertical),
+            ParentEntity(parent_entity),
+        ))
+        .finish()
+        .map_current_key(|builder: EntityBuilder, window_entity: EntityID| {
             // Border Entity
-            assembler
+            builder
                 .key(EntityID::next())
-                .fields(border_control("Border".into()))
+                .map(rect_control)
                 .fields((
+                    Name("Border".into()),
+                    SoftwareShader::rect(ColorRGB(0.753f32, 0.753f32, 0.753f32)),
+                    ZIndex::default(),
                     Anchors::new(0.0..1.0, 0.0..1.0),
                     ParentEntity(window_entity),
                 ))
-                .assemble(|assembler: EntityAssembler| {
-                    let border_entity = assembler.current_key();
-
-                    assembler
-                        .assemble(window_title(window_name, border_entity))
-                        .assemble(list(window_name.into(), border_entity))
-                })
+                .finish()
+                .map_current_key(|builder: EntityBuilder, border_entity| {
+                    builder
+                        // Title
+                        .key(EntityID::next())
+                        .map(string_control)
+                        .fields((
+                            Name("Debug Window Title".into()),
+                            Position(Vector2I(2, 1)),
+                            format!("{}\n========", window_name),
+                            ParentEntity(border_entity),
+                        ))
+                        .finish()
+                        // List
+                        .key(EntityID::next())
+                        .map(list_control)
+                        .fields((
+                            Name(window_name.into()),
+                            Anchors::new(0.0..1.0, 0.0..1.0),
+                            Margins::new(2, 2, 3, 1),
+                            LocalMousePositionData::default(),
+                            ParentEntity(border_entity),
+                        ))
+                        .finish()
+                    })
         })
-    }
-    pub fn window(
-        anchor_horizontal: Range<f32>,
-        anchor_vertical: Range<f32>,
-        parent_entity: EntityID,
-    ) -> impl MapEntityAssembler {
-        move |assembler: EntityAssembler| {
-            assembler
-                .key(EntityID::next())
-                .fields(rect_control(
-                    "Debug Window".into(),
-                    ColorRGB(0.0f32, 0.0f32, 0.0f32),
-                ))
-                .fields((
-                    Anchors::new(anchor_horizontal, anchor_vertical),
-                    ZIndex(1),
-                    ParentEntity(parent_entity),
-                ))
-        }
-    }
-
-    pub fn window_title(title: &'static str, parent_entity: EntityID) -> impl MapEntityAssembler {
-        move |assembler: EntityAssembler| {
-            assembler
-                .key(EntityID::next())
-                .fields(string_control(
-                    "Debug Window Title".into(),
-                    format!("{}\n========", title),
-                    Vector2I(2, 1),
-                ))
-                .fields((
-                    ParentEntity(parent_entity),
-                    antigen_components::GlobalPositionData::default(),
-                ))
-        }
-    }
-
-    pub fn list(title: String, parent_entity: EntityID) -> impl MapEntityAssembler {
-        move |assembler: EntityAssembler| {
-            assembler
-                .key(EntityID::next())
-                .assemble(|assembler: EntityAssembler| {
-                    let list_entity = assembler.current_key();
-
-                    assembler.key(list_entity).fields((
-                        Name(title),
-                        Position::default(),
-                        Size::default(),
-                        ParentEntity(parent_entity),
-                        Anchors::new(0.0..1.0, 0.0..1.0),
-                        Margins::new(2, 2, 3, 1),
-                        Vec::<String>::new(),
-                        LocalMousePositionData::default(),
-                        antigen_components::ListData::new(Some(list_entity)),
-                    ))
-                })
-        }
     }
 
     pub fn entity_list_window(
         parent_entity: EntityID,
         entity_inspector_entity: EntityID,
-    ) -> impl MapEntityAssembler {
-        move |assembler: EntityAssembler| {
-            debug_window("Entities", 0.25..0.5, 0.0..0.5, parent_entity)(assembler).fields((
-                DebugEntityList,
-                EventQueue::<ListEvent>::default(),
-                EventTargets::new(vec![entity_inspector_entity]),
-            ))
+    ) -> impl MapEntityBuilder {
+        move |builder: EntityBuilder| {
+            builder
+                .map(debug_window("Entities", 0.25..0.5, 0.0..0.5, parent_entity))
+                .map_current_key(|builder: EntityBuilder, list_entity: EntityID| {
+                    builder.key_fields(
+                        list_entity,
+                        (
+                            DebugEntityList,
+                            EventQueue::<ListEvent>::default(),
+                            Connection::new(
+                                vec![entity_inspector_entity],
+                                |list_event: ListEvent| match list_event {
+                                    ListEvent::Pressed(index) => Some(
+                                        antigen_systems::EntityInspectorEvent::SetInspectedEntity(
+                                            index,
+                                        ),
+                                    ),
+                                    _ => None,
+                                },
+                            ),
+                        ),
+                    )
+                })
         }
     }
 
-    pub fn scene_tree_window(parent_entity: EntityID) -> impl MapEntityAssembler {
-        move |assembler: EntityAssembler| {
-            debug_window("Scene Tree", 0.25..0.5, 0.5..1.0, parent_entity)(assembler)
-                .field(DebugSceneTree)
+    pub fn scene_tree_window(parent_entity: EntityID) -> impl MapEntityBuilder {
+        move |builder: EntityBuilder| {
+            builder
+                .map(debug_window(
+                    "Scene Tree",
+                    0.25..0.5,
+                    0.5..1.0,
+                    parent_entity,
+                ))
+                .map_current_key(|builder: EntityBuilder, list_entity: EntityID| {
+                    builder.key_field(list_entity, DebugSceneTree)
+                })
         }
     }
 
     pub fn component_list_window(
         parent_entity: EntityID,
         component_inspector_entity: EntityID,
-    ) -> impl MapEntityAssembler {
-        move |assembler: EntityAssembler| {
-            debug_window("Components", 0.5..0.75, 0.0..0.5, parent_entity)(assembler).fields((
-                DebugComponentList,
-                DebugExclude,
-                EventQueue::<ListEvent>::default(),
-                EventTargets::new(vec![component_inspector_entity]),
-            ))
+    ) -> impl MapEntityBuilder {
+        move |builder: EntityBuilder| {
+            builder
+                .map(debug_window(
+                    "Components",
+                    0.5..0.75,
+                    0.0..0.5,
+                    parent_entity,
+                ))
+                .map_current_key(|builder: EntityBuilder, list_entity: EntityID| {
+                    builder.key_fields(
+                        list_entity,
+                        (
+                            DebugComponentList,
+                            DebugExclude,
+                            EventQueue::<ListEvent>::default(),
+                            Connection::new(vec![component_inspector_entity], |list_event: ListEvent| match list_event {
+                                ListEvent::Pressed(index) => {
+                                    Some(antigen_systems::ComponentInspectorEvent::SetInspectedComponent(index))
+                                }
+                                _ => None,
+                            }),
+                        ),
+                    )
+                })
         }
     }
 
-    pub fn component_data_list_window(parent_entity: EntityID) -> impl MapEntityAssembler {
-        move |assembler: EntityAssembler| {
-            debug_window("Component Data", 0.75..1.0, 0.0..1.0, parent_entity)(assembler)
-                .field(DebugComponentDataList)
+    pub fn component_data_list_window(parent_entity: EntityID) -> impl MapEntityBuilder {
+        move |builder: EntityBuilder| {
+            builder
+                .map(debug_window(
+                    "Component Data",
+                    0.75..1.0,
+                    0.0..1.0,
+                    parent_entity,
+                ))
+                .map_current_key(|builder: EntityBuilder, list_entity: EntityID| {
+                    builder.key_field(list_entity, DebugComponentDataList)
+                })
         }
     }
 
     pub fn system_list_window(
         parent_entity: EntityID,
         system_inspector_entity: EntityID,
-    ) -> impl MapEntityAssembler {
-        move |assembler: EntityAssembler| {
-            debug_window("Systems", 0.5..0.75, 0.5..1.0, parent_entity)(assembler).fields((
-                DebugSystemList,
-                EventQueue::<ListEvent>::default(),
-                EventTargets::new(vec![system_inspector_entity]),
-            ))
+    ) -> impl MapEntityBuilder {
+        move |builder: EntityBuilder| {
+            builder
+                .map(debug_window("Systems", 0.5..0.75, 0.5..1.0, parent_entity))
+                .map_current_key(|builder: EntityBuilder, list_entity: EntityID| {
+                    builder.key_fields(
+                        list_entity,
+                        (
+                            DebugSystemList,
+                            EventQueue::<ListEvent>::default(),
+                            Connection::new(
+                                vec![system_inspector_entity],
+                                |list_event: ListEvent| match list_event {
+                                    ListEvent::Pressed(index) => Some(
+                                        antigen_systems::SystemInspectorEvent::SetInspectedSystem(
+                                            index,
+                                        ),
+                                    ),
+                                    _ => None,
+                                },
+                            ),
+                        ),
+                    )
+                })
         }
     }
 }

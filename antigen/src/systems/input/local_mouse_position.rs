@@ -4,17 +4,17 @@ use store::StoreQuery;
 
 use crate::{
     components::EventQueue,
-    components::{GlobalPositionData, ParentEntity, Position, Window},
+    components::{GlobalPosition, ParentEntity, Position, Window},
     core::events::AntigenInputEvent,
     entity_component_system::{ComponentStore, EntityID, SystemError, SystemTrait},
     primitive_types::Vector2I,
 };
 
 type AntigenEventQueueEntity<'a> = (EntityID, Ref<'a, EventQueue<AntigenInputEvent>>);
-type LocalMousePositionEntities<'a> = (
+type WriteLocalMousePosition<'a> = (
     EntityID,
     Ref<'a, Position>,
-    Option<Ref<'a, GlobalPositionData>>,
+    Option<Ref<'a, GlobalPosition>>,
     RefMut<'a, LocalMousePositionData>,
 );
 type WindowEntity<'a> = (
@@ -42,7 +42,7 @@ impl SystemTrait for LocalMousePosition {
             };
 
             for (entity_id, position, global_position, mut local_mouse_position) in
-                StoreQuery::<LocalMousePositionEntities>::iter(db.as_ref())
+                StoreQuery::<WriteLocalMousePosition>::iter(db.as_ref())
             {
                 let mut candidate_id = entity_id;
                 let mut window_position = Vector2I::default();

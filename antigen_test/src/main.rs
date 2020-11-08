@@ -1,6 +1,7 @@
 mod components;
 mod scenes;
 mod systems;
+mod assemblage;
 
 use std::time::Duration;
 

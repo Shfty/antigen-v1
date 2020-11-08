@@ -27,19 +27,15 @@ impl SystemTrait for CursesKeyboard {
             .next()
             .expect("No antigen event queue entity");
 
-        let mut antigen_keys: Vec<antigen::core::keyboard::Key> = Vec::new();
-
-        for event in curses_event_queue.iter() {
-            if let CursesEvent::KeyResize = event {
+        let antigen_keys = curses_event_queue.iter().flat_map(|event| {
+            if CursesEvent::KeyResize == *event {
                 pancurses::resize_term(0, 0);
+                None
             } else {
                 let pancurses_input: CursesInput = (*event).into();
-                let antigen_key = pancurses_input.into_key();
-                if antigen_key != antigen::core::keyboard::Key::Unknown {
-                    antigen_keys.push(antigen_key);
-                }
+                Some(pancurses_input.into_key())
             }
-        }
+        });
 
         for antigen_input in antigen_keys {
             antigen_event_queue.push(AntigenInputEvent::KeyPress {

@@ -1,5 +1,6 @@
 pub mod components;
 pub mod systems;
+pub mod assemblage;
 
 mod color;
 mod keys;

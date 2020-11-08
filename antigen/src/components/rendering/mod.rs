@@ -1,5 +1,5 @@
-mod cpu_shader;
-mod software_framebuffer;
+mod software_shader;
+mod framebuffer;
 
-pub use cpu_shader::*;
-pub use software_framebuffer::*;
+pub use software_shader::*;
+pub use framebuffer::*;

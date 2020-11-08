@@ -16,7 +16,7 @@ use crate::{
     entity_component_system::ComponentStore,
 };
 
-type AnchorsEntity<'a> = (
+type ReadAnchorsEntity<'a> = (
     EntityID,
     Ref<'a, Anchors>,
     Ref<'a, Position>,
@@ -31,7 +31,7 @@ impl SystemTrait for AnchorsMargins {
         // Sort into a HashMap based on tree depth
         let mut tree_depth_entities: HashMap<i64, Vec<EntityID>> = HashMap::default();
 
-        StoreQuery::<AnchorsEntity>::iter(db.as_ref()).for_each(
+        StoreQuery::<ReadAnchorsEntity>::iter(db.as_ref()).for_each(
             |(entity_id, _, _, parent_entity)| {
                 let parent_id: EntityID = **parent_entity;
 
@@ -68,9 +68,7 @@ impl SystemTrait for AnchorsMargins {
             .flat_map(|key| tree_depth_entities.get(&key).into_iter().flatten())
         {
             let parent_id: EntityID = **db.get::<ParentEntity>(entity_id).unwrap();
-            let parent_position = *db.get::<Position>(&parent_id).unwrap();
 
-            let Vector2I(parent_pos_x, parent_pos_y) = *parent_position;
             let Vector2I(parent_width, parent_height) = **db.get::<Size>(&parent_id).unwrap();
 
             let (anchor_left, anchor_right, anchor_top, anchor_bottom) =
@@ -82,8 +80,8 @@ impl SystemTrait for AnchorsMargins {
                     None => (0, 0, 0, 0),
                 };
 
-            let x = margin_left + parent_pos_x + (parent_width as f32 * anchor_left).floor() as i64;
-            let y = margin_top + parent_pos_y + (parent_height as f32 * anchor_top).floor() as i64;
+            let x = margin_left + (parent_width as f32 * anchor_left).floor() as i64;
+            let y = margin_top + (parent_height as f32 * anchor_top).floor() as i64;
 
             **db.get_mut::<Position>(entity_id).unwrap() = Vector2I(x, y);
 

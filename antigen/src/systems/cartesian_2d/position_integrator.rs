@@ -14,8 +14,9 @@ pub struct PositionIntegrator;
 
 impl SystemTrait for PositionIntegrator {
     fn run(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
-        StoreQuery::<IntegratePosition>::iter(db.as_ref())
-            .for_each(|(_key, velocity, mut position)| **position += **velocity);
+        for (_key, velocity, mut position) in StoreQuery::<IntegratePosition>::iter(db.as_ref()) {
+            **position += **velocity;
+        }
 
         Ok(())
     }

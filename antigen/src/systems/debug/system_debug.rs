@@ -34,16 +34,15 @@ impl SystemTrait for SystemDebug {
                 system_durations.iter().map(|(_, duration)| duration).sum();
 
             // Process system inspector events
-            if let Some((_, event_queue, mut int_range)) =
+            if let Some((_, mut event_queue, mut int_range)) =
                 StoreQuery::<SystemInspectorEventQueue>::iter(db.as_ref()).next()
             {
                 int_range.set_range(0..system_durations.len() as i64);
 
-                let events: &Vec<SystemInspectorEvent> = event_queue.as_ref();
-                for event in events {
+                for event in event_queue.drain(..) {
                     let SystemInspectorEvent::SetInspectedSystem(index) = event;
                     if let Some(index) = index {
-                        int_range.set_index(*index as i64);
+                        int_range.set_index(index as i64);
                     } else {
                         int_range.set_index(-1);
                     }

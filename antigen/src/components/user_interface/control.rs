@@ -1,2 +1,2 @@
 #[derive(Debug, Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
-pub struct Control;
+pub struct StringShader;

@@ -1,4 +1,4 @@
-use crate::primitive_types::{ColorRGB, ColorRGB8, ColorRGBF};
+use crate::primitive_types::{ColorIndex, ColorRGB, ColorRGB8, ColorRGBF};
 
 use super::Palette;
 
@@ -36,7 +36,7 @@ impl RGBArrangementPalette {
         for r in reds {
             for g in greens {
                 for b in blues {
-                    colors.push(ColorRGB(*r, *g, *b))
+                    colors.push(ColorRGB8::new(*r, *g, *b))
                 }
             }
         }
@@ -45,7 +45,7 @@ impl RGBArrangementPalette {
             let idx = i - color_count;
             let range = 256 - color_count;
             let grey = ((idx as f32 / range as f32) * 255.0) as u8;
-            colors.push(ColorRGB(grey, grey, grey));
+            colors.push(ColorRGB8::new(grey, grey, grey));
         }
 
         let red_fac = red_fac as u8;
@@ -105,8 +105,7 @@ impl RGBArrangementPalette {
 }
 
 impl Palette for RGBArrangementPalette {
-    type From = f32;
-    type To = f32;
+    type Color = f32;
 
     fn get_colors(&self) -> Vec<ColorRGBF> {
         let colors: Vec<ColorRGBF> = self
@@ -121,7 +120,7 @@ impl Palette for RGBArrangementPalette {
         colors
     }
 
-    fn get_color_idx(&self, color: ColorRGBF) -> usize {
+    fn get_color_idx(&self, color: ColorRGBF) -> ColorIndex {
         let ColorRGB(r, g, b) = color;
 
         let red_index = (r * (self.red_count - 1) as f32).round() as u8;
@@ -134,10 +133,11 @@ impl Palette for RGBArrangementPalette {
 
         let color_index = red_index + green_index + blue_index;
 
-        color_index as usize
+        ColorIndex(color_index as usize)
     }
 
-    fn get_color(&self, idx: usize) -> ColorRGBF {
+    fn get_color(&self, idx: ColorIndex) -> ColorRGBF {
+        let idx: usize = idx.into();
         self.colors[idx].into()
     }
 }

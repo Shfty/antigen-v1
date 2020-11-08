@@ -5,6 +5,15 @@ pub struct EventQueue<T>(Vec<T>)
 where
     T: Debug;
 
+impl<T> EventQueue<T>
+where
+    T: Debug,
+{
+    pub fn new(events: Vec<T>) -> Self {
+        EventQueue(events)
+    }
+}
+
 impl<T> Deref for EventQueue<T>
 where
     T: Debug,

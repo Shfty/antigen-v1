@@ -1,30 +1,103 @@
+TODO: List restructure
+      Refactor list mouse handling to piggyback on top of button functionality
+            Lists should still be able to work in a non-interactive fashion without the button components
+            Adding button components should cause the list to consume its ButtonEvent queue and use that to populate its ListEvent queue
+            All lists currently require an IntRange, but non-interactive components only need the range part
+
+      Refactor list item layout logic into its own component / system setup
+            Currently uses a position + size based layout strategy
+                  Controls are tightly packed linearly based on their size
+            Anchors / margins based layout is another case worth considering
+                  Should this be handled as a distinct system, or an optional element?
+      
+      Minus input and layout, the list's job is to maintain a set of child UI controls based on some source data
+
+
+TODO: Finish builder refactor
+      Replace any remaining Assembler references with Builder
+      Sweep over debug scene and polish entity creation code - focus on component builders
+      Settle on a naming convention for antigen - currently 'assemblage' is just a catch-all used to refer to entity/component builders
+
+TODO: Rendering refactor
+      Allow for updating source palette for CursesPalette component at runtime via setter
+            Will need a Button system for switching via UI - model after List system mouse handling
+                  Focus / mouse hit testing is common - should this be abstracted out into an input handling system trait akin to Renderer?
+                  
+      Renderer trait is only useful as a categorization tag at the moment
+            Doesn't make sense for it to enforce a render() method as-is
+            Intent is to allow interoperability between data-compatible renderers and framebuffers
+                  Problem: Most renderer / framebuffer combinations aren't data-compatible
+                        Hardware framebuffers can't be written by a software renderer, and vice-versa
+                        Renderer may be too generic of a concept - end is the same but the means are very different
+                              Next level of specialization (Raster, Vector, etc) is valuable, as are the specializations within that (Hardware, Software, Curses, etc)
+                        The actual problem is conversion between the different types of framebuffer
+                              Ex.
+                                    ColorRGB<f32> -> ColorRGB<u8>
+                                          Simple map(Into::into) across framebuffer data
+                                    ((ColorIndex, i64), (char, i64)) -> (ColorIndex, char)
+                                          Fold with z-buffer predicate
+                                    (ColorIndex, char) -> (chtype, chtype) -> chtype
+                                          Fold with chtype conversion and logical OR
+                                    Vector -> Raster
+                                          Reinterpret vector line list as line primitives, process with raster renderer
+                              Can this be made into a generic adapter system?
+
+      Curses renderer doesn't fit into the Renderer / Framebuffer pattern yet
+            Elements:
+                  Merge color and char framebuffers into pancurses color index + char (chtype)
+                  Render to curses
+
+      Notes:
+            Renderer Trait - Something that reads data from the ECS (so all Renderers must be Systems) and renders it into a framebuffer
+                  RasterRenderer Trait? - Renderer that operates on RasterFramebuffers
+                        SoftwareRasterRenderer Trait
+                              ColorRenderer
+                              StringRenderer
+                        CursesRasterRenderer?
+                  VectorRenderer Trait? - Renderer that operates on a VectorFramebuffers
+            Framebuffer Trait - Data storage that can be written to by a Renderer
+                  RasterFramebuffer Trait - 2D grid data storage
+                        SoftwareRasterFramebuffer - 2D grid data stored in RAM
+                        CursesWindow - 2D grid data stored in Curses, interface to a curses window handle
+                        HardwareRasterFramebuffer? - 2D grid data stored in VRAM, interface to a graphics library framebuffer handle
+                  VectorFramebuffer Trait? - Line list data storage
+                        SoftwareVectorFramebuffer? - Line list data stored in RAM
+
+            Existing color case can be classified as a Software / Raster / ColorRGBF framebuffer
+            Existing char case can be classified as a Software / Raster / char framebuffer
+            Existing curses case can be classified as a Hardware / Raster / (ColorRGBF, char) framebuffer
+                  Probably not actually ColorRGBF, since it uses an indexed palette - room for more generalization here
+            Other examples:
+                  Hardware / Raster / ColorRGBF
+                  Hardware / Raster / ColorRGB8
+            Raster framebuffer is the most common case
+            Categories:
+                  Forward / Deferred
+                  Software / Hardware
+                  Raster / Vector
+                  ColorRGBF / ColorRGB8
+            Vector framebuffer is an example of an exotic case
+                  List of position + color vertices describing lines or line strips
+                  Needs to be rasterized for display
+                        Some kind of chaining mechanism is necessary
+                        Should feed into a rasterizing renderer as line primitives
+            Refactor existing Renderer behavior into a RasterRenderer trait
+                  Should encapsulate grid iteration logic
+                        How do position and size params factor in here - inherent to raster renderer?
+                              Currently yes, but the more general implementation is polygonal meshes + vertex shader
+            Modify StringRenderer to use a SoftwareShader that takes string input and outputs characters
+                  Should strings instead be a case of an exotic framebuffer?
+                  List of position + string vertices
+                        Needs to feed into a rasterizing renderer that takes string primitives and outputs chars
+
+TODO: Fix type name sanitization stripping K from Foo<K, V>
+
 TODO: Refactor sweep for systems
+            List
       Need to make sure querying is being done optimally under new setup
       Minimize cloning in favor of iterators
       Fix concessions made due to inherited mutability
-      Use Assembler for cases where entity creation needs to be deferred due to inherited mutability
-      Create type aliases for query signatures
-            Reduces signature repetition
-            Better expressivity for query blocks
-            Ex:
-                  type IntegratePlayerPosition<'a> = (HasField<char>, Ref<'a, Velocity>, RefMut<'a, Position>);
-                  StoreQuery::<IntegratePlayerPosition>::iter(db.as_mut()).for_each(|(_, velocity, position)| **position += **velocity);
-
-TODO: Figure out a solution for avoiding inherited mutability when using assemblages
-      Currently necessary due to the automatic storage population strategy
-      Nesting RefCells is undesirable due to extra borrow complexity
-      Add unchecked variants of insert and assemble functions?
-            Moves responsibility to the calling code
-            Solves the problem, but the ideal would be fully transparent automation
-
-TODO: Refactor sweep for impl Trait
-      Arguments, return types
-      Can return a Fn type
-            ex. currying an internal closure
-            ex. Defining a trait method that returns Fn
-                  Applicable to Assemblage constructor storage?
-      Can return iterators with impl Iterator<Item=Foo>
-            Better than returning concrete collections where possible
+      Use Builder for cases where entity creation needs to be deferred due to inherited mutability
 
 TODO: Can anchors/margins be refactored into separate systems?
       More specifically, can margins be generalized?
@@ -50,31 +123,15 @@ TODO: Vertically-split 2x multisampling for each curses cell
       Invoke multiple times with offsets from kernel, average result
       Refer to this as AA, not MSAA - while accurate in the literal sense of multi-sampled AA, the GPU version only applies to edges
 
-TODO: Palettes as components - have renderer take an entity reference for runtime switching
-
 TODO: Type-level color/framebuffer/renderer support for HSV, palette index
 
-TODO: Text shaders for char buffer
-      Can CPUShader be generalized for this?
-
 TODO: Shader chaining - take an Option<fn(ShaderInput)> to allow for combination (ex. a wire rect that has a color effect)
-
-TODO: Custom mode for pancurses text color registration - pass fn(Color) -> Color as part of enum
 
 TODO: Cleanup pass for distinction between CursesInput / CursesEvent
 
 TODO: Split IntRangeComponent into i64 and Range<i64>
       Would this be better codified as ListRange and ListIndex?
       Could do away with range altogether and draw directly from list size
-
-TODO: Refactor software renderer / string renderer into a single generic system
-      Input data fetching + rendering code is the only major difference
-      Need to figure out a good abstraction
-      Could move common logic into an impl, have the renderers call it manually
-
-TODO: Pass an assemblage through during ListData instantiation to be used for list items
-      Can this be done with generics instead of a dyn trait object?
-            Would introduce a dependency in ListSystem
 
 TODO: Filtering for debug components
       (Would this be better expressed as a sort + color highlight?)
@@ -104,7 +161,6 @@ TODO: Profiler window
 TODO: Component data inspector
       How would this work?
       Seems like it would be necessary to introduce some sort of property interface for get/set of specific fields
-      Doesn't seem like it could be easily automated without macros
 
 TODO: Clipping rects for UI controls
 TODO: Refactor list system to only update when hover, selection, list item count or contents have changed

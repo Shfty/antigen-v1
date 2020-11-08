@@ -2,10 +2,12 @@ use std::ops::{Deref, DerefMut};
 
 use crate::primitive_types::Vector2I;
 
-#[derive(Debug, Default, Copy, Clone)]
-pub struct GlobalPositionData(Vector2I);
+use super::Position;
 
-impl Deref for GlobalPositionData {
+#[derive(Debug, Default, Copy, Clone)]
+pub struct GlobalPosition(Vector2I);
+
+impl Deref for GlobalPosition {
     type Target = Vector2I;
 
     fn deref(&self) -> &Self::Target {
@@ -13,8 +15,14 @@ impl Deref for GlobalPositionData {
     }
 }
 
-impl DerefMut for GlobalPositionData {
+impl DerefMut for GlobalPosition {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
+    }
+}
+
+impl From<Position> for GlobalPosition {
+    fn from(position: Position) -> Self {
+        GlobalPosition(*position)
     }
 }

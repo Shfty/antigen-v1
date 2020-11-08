@@ -1,4 +1,4 @@
-use crate::primitive_types::{ColorRGB, ColorRGBF};
+use crate::primitive_types::{ColorIndex, ColorRGB, ColorRGBF};
 
 use super::Palette;
 
@@ -7,7 +7,7 @@ pub struct AdaptivePalette {
 }
 
 impl AdaptivePalette {
-    pub fn new(source_palette: impl Palette<From = f32, To = f32>) -> Self {
+    pub fn new(source_palette: impl Palette<Color = f32>) -> Self {
         let mut colors: Vec<ColorRGBF> = source_palette.get_colors().iter().copied().collect();
         let colors = Self::median_cut(colors.len(), 256, &mut colors);
         AdaptivePalette { colors }
@@ -77,8 +77,8 @@ impl AdaptivePalette {
         {
             let left_color = left_colors
                 .iter()
-                .fold(ColorRGB(0.0, 0.0, 0.0), |acc, next| acc + *next)
-                / ColorRGB(
+                .fold(ColorRGBF::default(), |acc, next| acc + *next)
+                / ColorRGBF::new(
                     left_colors.len() as f32,
                     left_colors.len() as f32,
                     left_colors.len() as f32,
@@ -86,8 +86,8 @@ impl AdaptivePalette {
 
             let right_color = right_colors
                 .iter()
-                .fold(ColorRGB(0.0, 0.0, 0.0), |acc, next| acc + *next)
-                / ColorRGB(
+                .fold(ColorRGBF::default(), |acc, next| acc + *next)
+                / ColorRGBF::new(
                     right_colors.len() as f32,
                     right_colors.len() as f32,
                     right_colors.len() as f32,
@@ -105,13 +105,12 @@ impl AdaptivePalette {
 }
 
 impl Palette for AdaptivePalette {
-    type From = f32;
-    type To = f32;
+    type Color = f32;
     fn get_colors(&self) -> Vec<ColorRGBF> {
         self.colors.clone()
     }
 
-    fn get_color_idx(&self, color: ColorRGBF) -> usize {
+    fn get_color_idx(&self, color: ColorRGBF) -> ColorIndex {
         let mut colors: Vec<(usize, ColorRGBF)> =
             self.colors.clone().into_iter().enumerate().collect();
         colors.sort_by(|(_, lhs), (_, rhs)| {
@@ -121,10 +120,12 @@ impl Palette for AdaptivePalette {
                 .partial_cmp(&rhs_distance)
                 .unwrap_or_else(|| panic!("No valid comparison"))
         });
-        colors[0].0
+
+        ColorIndex(colors[0].0)
     }
 
-    fn get_color(&self, idx: usize) -> ColorRGBF {
+    fn get_color(&self, idx: ColorIndex) -> ColorRGBF {
+        let idx: usize = idx.into();
         self.colors[idx]
     }
 }

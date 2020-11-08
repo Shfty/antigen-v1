@@ -4,16 +4,16 @@ use super::SystemTrait;
 
 type SystemClosures = Vec<Box<dyn FnOnce(&mut EntityComponentSystem)>>;
 
-pub trait MapSystemAssembler: FnOnce(SystemAssembler) -> SystemAssembler {}
+pub trait MapSystemBuilder: FnOnce(SystemBuilder) -> SystemBuilder {}
 
-impl<T> MapSystemAssembler for T where T: FnOnce(SystemAssembler) -> SystemAssembler {}
+impl<T> MapSystemBuilder for T where T: FnOnce(SystemBuilder) -> SystemBuilder {}
 
 #[derive(Default)]
-pub struct SystemAssembler {
+pub struct SystemBuilder {
     closures: SystemClosures,
 }
 
-impl SystemAssembler {
+impl SystemBuilder {
     pub fn new() -> Self {
         Default::default()
     }
@@ -29,9 +29,9 @@ impl SystemAssembler {
         self
     }
 
-    pub fn assemble<F>(self, f: F) -> SystemAssembler
+    pub fn map<F>(self, f: F) -> SystemBuilder
     where
-        F: MapSystemAssembler,
+        F: MapSystemBuilder,
     {
         f(self)
     }

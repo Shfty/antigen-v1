@@ -34,8 +34,9 @@ where
     T: Debug + 'static,
 {
     fn run(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
-        StoreQuery::<WriteEventQueueEntity<T>>::iter(db.as_ref())
-            .for_each(|(_key, mut event_queue)| event_queue.clear());
+        for (_key, mut event_queue) in StoreQuery::<WriteEventQueueEntity<T>>::iter(db.as_ref()) {
+            event_queue.clear();
+        }
 
         Ok(())
     }

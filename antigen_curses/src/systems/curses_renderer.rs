@@ -1,202 +1,99 @@
-use std::{cell::Ref, fmt::Debug};
+// TODO:    Color / pair registration shouldn't happen every frame
+//          Leverage event system to handle on-update callbacks?
+
+use std::{cell::Ref, cell::RefMut, fmt::Debug};
 
 use antigen::{
-    components::{Size, SoftwareFramebuffer, Window},
-    core::palette::Palette,
+    components::{Framebuffer, Size, SoftwareRasterFramebuffer, Window},
     entity_component_system::{ComponentStore, EntityID, SystemError, SystemTrait},
-    primitive_types::ColorRGB,
-    primitive_types::ColorRGBF,
+    primitive_types::{ColorRGBF, Vector2I},
 };
-use pancurses::ToChtype;
+use pancurses::{ToChtype};
 use store::StoreQuery;
 
-use crate::components::CursesWindowData;
+use crate::{components::{CursesPalette, CursesWindowData}};
 
-type ReadCursesWindow<'a> = (EntityID, Ref<'a, Window>, Ref<'a, CursesWindowData>, Ref<'a, Size>);
-type ReadSoftwareFramebuffer<'a> = (EntityID, Ref<'a, SoftwareFramebuffer<ColorRGBF>>);
-type ReadStringFramebuffer<'a> = (EntityID, Ref<'a, SoftwareFramebuffer<char>>);
+type ReadCursesWindow<'a> = (
+    EntityID,
+    Ref<'a, Window>,
+    Ref<'a, Size>,
+    RefMut<'a, CursesWindowData>,
+);
+type ReadColorFramebuffer<'a> = (
+    EntityID,
+    Ref<'a, SoftwareRasterFramebuffer<ColorRGBF>>,
+    Ref<'a, SoftwareRasterFramebuffer<i64>>,
+);
+type ReadStringFramebuffer<'a> = (
+    EntityID,
+    Ref<'a, SoftwareRasterFramebuffer<char>>,
+    Ref<'a, SoftwareRasterFramebuffer<i64>>,
+);
 
-#[derive(Debug, Copy, Clone)]
-pub enum TextColorMode {
-    BlackWhite,
-    Invert,
-    Color(ColorRGBF),
-}
+#[derive(Debug, Default)]
+pub struct CursesRenderer;
 
-#[derive(Debug)]
-pub struct CursesRenderer<T>
-where
-    T: Debug + Palette,
-{
-    palette: T,
-    text_color_mode: TextColorMode,
-}
-
-impl<T> CursesRenderer<T>
-where
-    T: Debug + Palette<From = f32, To = f32>,
-{
-    pub fn new(palette: T, text_color_mode: TextColorMode) -> Self {
-        CursesRenderer {
-            palette,
-            text_color_mode,
-        }
-    }
-}
-
-impl<T> SystemTrait for CursesRenderer<T>
-where
-    T: Debug + Palette<From = f32, To = f32>,
-{
+impl SystemTrait for CursesRenderer {
     fn run(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
-        // Fetch window entity
-        let (_, _window, curses_window, _size) =
-            StoreQuery::<ReadCursesWindow>::iter(
-                db.as_ref(),
-            )
+        let (_, curses_palette) = StoreQuery::<(EntityID, Ref<CursesPalette>)>::iter(db.as_ref())
             .next()
-            .expect("No curses window entity");
+            .expect("Failed to get curses palette");
 
-        let window_width: i64;
-        let window_height: i64;
-        let curses_window = (**curses_window)
-            .as_ref()
-            .expect("Failed to get curses window handle");
-
-        let (height, width) = curses_window.get_max_yx();
-        window_width = width as i64;
-        window_height = height as i64;
-
-        // Fetch software framebuffer entity
-        let (_, software_framebuffer) =
-            StoreQuery::<ReadSoftwareFramebuffer>::iter(db.as_ref())
+        // Fetch framebuffer entities
+        let (_, color_framebuffer, color_depth_buffer) =
+            StoreQuery::<ReadColorFramebuffer>::iter(db.as_ref())
                 .next()
                 .expect("No software framebuffer entity");
 
-        let color_buffer = software_framebuffer.get_color_buffer();
-        let color_z_buffer = software_framebuffer.get_z_buffer();
-
-        // Fetch string framebuffer entity
-        let (_, string_framebuffer) =
+        let (_, string_framebuffer, string_depth_buffer) =
             StoreQuery::<ReadStringFramebuffer>::iter(db.as_ref())
                 .next()
                 .expect("No string framebuffer entity");
 
-        let char_buffer = string_framebuffer.get_color_buffer();
-        let char_z_buffer = string_framebuffer.get_z_buffer();
+        // Fetch window entity
+        let (_, _, _, mut curses_window) = StoreQuery::<ReadCursesWindow>::iter(db.as_ref())
+            .next()
+            .expect("No curses window entity");
 
-        // Create pancurses > palette map to make sure built-in pancurses colors are respected
-        let indices = [
-            (
-                pancurses::COLOR_BLACK,
-                self.palette.get_color_idx(ColorRGB(0.0f32, 0.0f32, 0.0f32)),
-            ),
-            (
-                pancurses::COLOR_BLUE,
-                self.palette.get_color_idx(ColorRGB(0.0, 0.0, 1.0)),
-            ),
-            (
-                pancurses::COLOR_CYAN,
-                self.palette.get_color_idx(ColorRGB(0.0, 1.0, 1.0)),
-            ),
-            (
-                pancurses::COLOR_GREEN,
-                self.palette.get_color_idx(ColorRGB(0.0, 1.0, 0.0)),
-            ),
-            (
-                pancurses::COLOR_MAGENTA,
-                self.palette.get_color_idx(ColorRGB(1.0, 1.0, 0.0)),
-            ),
-            (
-                pancurses::COLOR_RED,
-                self.palette.get_color_idx(ColorRGB(1.0, 0.0, 0.0)),
-            ),
-            (
-                pancurses::COLOR_YELLOW,
-                self.palette.get_color_idx(ColorRGB(1.0, 0.0, 1.0)),
-            ),
-            (
-                pancurses::COLOR_WHITE,
-                self.palette.get_color_idx(ColorRGB(1.0, 1.0, 1.0)),
-            ),
-        ];
+        // Composite color and string buffers into a chtype buffer
+        // Fetch size and assert that all framebuffer sizes match
+        let framebuffer_size = color_framebuffer.get_size();
+        assert!(
+            framebuffer_size == color_depth_buffer.get_size()
+                && framebuffer_size == string_framebuffer.get_size()
+                && framebuffer_size == string_depth_buffer.get_size()
+        );
 
-        let mut colors = self.palette.get_colors();
-        for (pancurses_idx, palette_idx) in indices.iter() {
-            colors.swap(*palette_idx, *pancurses_idx as usize);
-        }
+        let Vector2I(width, height) = framebuffer_size;
 
-        // Register colors
-        for (i, color) in colors.iter().enumerate() {
-            let ColorRGB(r, g, b) = color;
-            let i = i as i16;
+        let window_width = width as i32;
+        let window_height = height as i32;
 
-            pancurses::init_color(
-                i,
-                (r * 1000.0) as i16,
-                (g * 1000.0) as i16,
-                (b * 1000.0) as i16,
-            );
+        let color_framebuffer = color_framebuffer.get_buffer();
+        let color_depth_buffer = color_depth_buffer.get_buffer();
+        let string_framebuffer = string_framebuffer.get_buffer();
+        let string_depth_buffer = string_depth_buffer.get_buffer();
 
-            let foreground_color = match self.text_color_mode {
-                TextColorMode::Color(color) => self.palette.get_color_idx(color),
-                TextColorMode::BlackWhite => {
-                    if ColorRGB::distance(color, &ColorRGB(1.0f32, 1.0f32, 1.0f32))
-                        > ColorRGB::distance(color, &ColorRGB(0.0f32, 0.0f32, 0.0f32))
-                    {
-                        self.palette.get_color_idx(ColorRGB(1.0f32, 1.0f32, 1.0f32))
-                    } else {
-                        self.palette.get_color_idx(ColorRGB(0.0f32, 0.0f32, 0.0f32))
-                    }
-                }
-                TextColorMode::Invert => self
-                    .palette
-                    .get_color_idx(ColorRGB(1.0f32, 1.0f32, 1.0f32) - *color),
-            };
+        let raster = (0..window_height)
+            .flat_map(move |y| (0..window_width).map(move |x| Vector2I(x as i64, y as i64)))
+            .enumerate()
+            .flat_map(move |(idx, position)| {
+                let color = color_framebuffer[idx];
+                let color_z = color_depth_buffer[idx];
 
-            let mut foreground_color = foreground_color as i16;
-            for (pancurses_idx, palette_idx) in indices.iter() {
-                if foreground_color == *pancurses_idx {
-                    foreground_color = *palette_idx as i16;
-                } else if foreground_color == *palette_idx as i16 {
-                    foreground_color = *pancurses_idx;
-                }
-            }
+                let char = string_framebuffer[idx];
+                let char_z = string_depth_buffer[idx];
 
-            let background_color = i;
-
-            pancurses::init_pair(i, foreground_color, background_color);
-        }
-
-        let mut cells: Vec<(i32, i32, char, i16)> = Vec::new();
-        let window_width = window_width as i32;
-        let window_height = window_height as i32;
-        for y in 0..window_height as i32 {
-            for x in 0..window_width as i32 {
-                let idx = (y * window_width + x) as usize;
-
-                let color = color_buffer[idx];
-                let color_z = color_z_buffer[idx];
-
-                let char = char_buffer[idx];
-                let char_z = char_z_buffer[idx];
-
-                if color == ColorRGB(0.0, 0.0, 0.0) && char == ' ' {
-                    continue;
+                if color == ColorRGBF::new(0.0, 0.0, 0.0) && char == ' ' {
+                    return None;
                 }
 
-                if color_z.is_none() && char_z.is_none() {
-                    continue;
+                if color_z == -1 && char_z == -1 {
+                    return None;
                 }
 
-                let mut color_pair = self.palette.get_color_idx(color) as i16;
-                for (pancurses_idx, palette_idx) in indices.iter() {
-                    if color_pair == *pancurses_idx {
-                        color_pair = *palette_idx as i16;
-                    } else if color_pair == *palette_idx as i16 {
-                        color_pair = *pancurses_idx;
-                    }
-                }
+                let color_idx = color.into_index(&*curses_palette);
+                let color_idx: usize = color_idx.into();
 
                 let char = match char_z.cmp(&color_z) {
                     std::cmp::Ordering::Less => ' ',
@@ -204,17 +101,15 @@ where
                     std::cmp::Ordering::Greater => char,
                 };
 
-                cells.push((x, y, char, color_pair));
-            }
-        }
+                let cell = char.to_chtype() | pancurses::COLOR_PAIR(color_idx as u64);
 
-        curses_window.erase();
-        for (x, y, char, color_pair) in cells {
-            curses_window.mvaddch(
-                y as i32,
-                x as i32,
-                char.to_chtype() | pancurses::COLOR_PAIR(color_pair as u64),
-            );
+                Some((position, cell))
+            });
+
+        // Render
+        curses_window.clear();
+        for (pos, cell) in raster {
+            curses_window.set(pos, cell);
         }
 
         Ok(())

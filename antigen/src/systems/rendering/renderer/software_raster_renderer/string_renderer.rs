@@ -1,28 +1,24 @@
-use std::cell::{Ref, RefMut};
+use std::cell::Ref;
 
 use store::StoreQuery;
 
-use crate::components::{Control, SoftwareFramebuffer};
 use crate::{
-    components::{GlobalPositionData, Position},
+    components::{
+        StringShader, Framebuffer, GlobalPosition, GlobalZIndex, Position, SoftwareRasterFramebuffer,
+    },
     entity_component_system::{ComponentStore, EntityID},
     primitive_types::Vector2I,
 };
 
-use super::Renderer;
+use super::SoftwareRasterRenderer;
 
 const TAB_WIDTH: i64 = 4;
 
-type ReadStringControlTransforms<'a> = (
-    EntityID,
-    Option<Ref<'a, Control>>,
-    Option<Ref<'a, char>>,
-    Option<Ref<'a, String>>,
-);
-type ReadStringControlEntities<'a> = (
+type ReadStringControlEntity<'a> = (
     EntityID,
     Ref<'a, Position>,
-    Option<Ref<'a, GlobalPositionData>>,
+    Option<Ref<'a, GlobalPosition>>,
+    Option<Ref<'a, GlobalZIndex>>,
     Option<Ref<'a, char>>,
     Option<Ref<'a, String>>,
 );
@@ -32,14 +28,14 @@ pub struct StringRenderer;
 
 impl StringRenderer {
     fn render_string(
-        framebuffer: &mut SoftwareFramebuffer<char>,
-        window_size: Vector2I,
+        framebuffer: &mut SoftwareRasterFramebuffer<char>,
+        depth_buffer: &mut SoftwareRasterFramebuffer<i64>,
         position: Vector2I,
-        string: &str,
         z: i64,
+        string: &str,
     ) {
-        let Vector2I(window_width, window_height) = window_size;
         let Vector2I(x, mut y) = position;
+        let Vector2I(window_width, window_height) = framebuffer.get_size();
 
         let len = string.len() as i64;
 
@@ -79,7 +75,16 @@ impl StringRenderer {
                     x += TAB_WIDTH - (x % TAB_WIDTH);
                 }
                 _ => {
-                    framebuffer.draw(new_x + x, y, window_width, char, z);
+                    let rx = new_x + x;
+                    let ry = y;
+                    let pos = Vector2I(rx, ry);
+                    let existing_z = depth_buffer.get(pos);
+                    if z < existing_z {
+                        continue;
+                    }
+
+                    framebuffer.set(pos, char);
+                    depth_buffer.set(pos, z);
                     x += 1;
                 }
             }
@@ -87,32 +92,41 @@ impl StringRenderer {
     }
 }
 
-impl Renderer for StringRenderer {
-    type Data = char;
+impl SoftwareRasterRenderer for StringRenderer {
+    type Output = char;
 
-    fn entity_predicate(db: &ComponentStore, entity_id: EntityID) -> bool {
-        let (_, control, char, string) =
-            StoreQuery::<ReadStringControlTransforms>::get(db.as_ref(), &entity_id);
-
-        control.is_some() && (char.is_some() || string.is_some())
+    fn gather_entities(&self, db: &ComponentStore) -> Vec<EntityID> {
+        StoreQuery::<(EntityID, Ref<StringShader>, Ref<char>)>::iter(db.as_ref())
+            .map(|(entity_id, _, _)| entity_id)
+            .chain(
+                StoreQuery::<(EntityID, Ref<StringShader>, Ref<String>)>::iter(db.as_ref())
+                    .map(|(entity_id, _, _)| entity_id),
+            )
+            .collect()
     }
 
     fn render(
         &self,
         db: &ComponentStore,
-        framebuffer: &mut RefMut<SoftwareFramebuffer<Self::Data>>,
-        window_size: Vector2I,
+        framebuffer: &mut SoftwareRasterFramebuffer<char>,
+        depth_buffer: &mut SoftwareRasterFramebuffer<i64>,
         entity_id: EntityID,
-        z: i64,
     ) {
-        let (_, position, global_position, char, string) =
-            StoreQuery::<ReadStringControlEntities>::get(db.as_ref(), &entity_id);
+        let (_, position, global_position, global_z, char, string) =
+            StoreQuery::<ReadStringControlEntity>::get(db.as_ref(), &entity_id);
 
         // Get Position
         let Vector2I(x, y) = if let Some(global_position) = global_position {
             **global_position
         } else {
             **position
+        };
+
+        // Get Z Index
+        let z = if let Some(global_z) = global_z {
+            **global_z
+        } else {
+            0
         };
 
         let string = if let Some(string) = string {
@@ -126,10 +140,10 @@ impl Renderer for StringRenderer {
         for (i, string) in string.split('\n').enumerate() {
             Self::render_string(
                 &mut *framebuffer,
-                window_size,
+                &mut *depth_buffer,
                 Vector2I(x, y + i as i64),
-                string,
                 z,
+                string,
             )
         }
     }

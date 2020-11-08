@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use crate::primitive_types::Vector2I;
 
 #[derive(Debug, Default, Copy, Clone)]
@@ -12,5 +14,13 @@ impl From<Vector2I> for LocalMousePositionData {
 impl Into<Vector2I> for LocalMousePositionData {
     fn into(self) -> Vector2I {
         self.0
+    }
+}
+
+impl Deref for LocalMousePositionData {
+    type Target = Vector2I;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }

@@ -5,12 +5,12 @@ pub use storage::*;
 pub use traits::*;
 
 use crate::{
-    components::Name, components::SystemProfilingData, core::profiler::Profiler,
-    systems::ComponentDataDebug, systems::ComponentDebug, systems::EntityDebug,
-    systems::SceneTreeDebug, systems::SystemDebug,
+    assemblage::EntityBuilder, components::Name, components::SystemProfilingData,
+    core::profiler::Profiler, systems::ComponentDataDebug, systems::ComponentDebug,
+    systems::EntityDebug, systems::SceneTreeDebug, systems::SystemDebug,
 };
 
-use store::{Assembler, StoreQuery};
+use store::StoreQuery;
 
 use std::cell::RefMut;
 
@@ -28,12 +28,14 @@ impl<'a> EntityComponentSystem {
             component_store: ComponentStore::default(),
         };
 
-        Assembler::new()
-            .key(EntityID::next())
-            .fields((
-                Name("System Profiling Data".into()),
-                SystemProfilingData::default(),
-            ))
+        EntityBuilder::new()
+            .key_fields(
+                EntityID::next(),
+                (
+                    Name("System Profiling Data".into()),
+                    SystemProfilingData::default(),
+                ),
+            )
             .finish(&mut ecs.component_store);
 
         ecs.push_system(SystemDebug);
@@ -64,10 +66,7 @@ impl<'a> EntityComponentSystem {
             let duration = profiler.finish();
 
             if let Some((_, mut system_debug)) =
-                StoreQuery::<SystemProfilingEntity>::iter(
-                    self.component_store.as_ref(),
-                )
-                .next()
+                StoreQuery::<SystemProfilingEntity>::iter(self.component_store.as_ref()).next()
             {
                 system_debug.set_duration(system_id, duration)
             }

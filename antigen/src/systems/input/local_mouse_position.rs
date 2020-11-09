@@ -5,12 +5,11 @@ use store::StoreQuery;
 use crate::{
     components::EventQueue,
     components::{GlobalPosition, ParentEntity, Position, Window},
-    core::events::AntigenInputEvent,
+    core::events::MouseMove,
     entity_component_system::{ComponentStore, EntityID, SystemError, SystemTrait},
     primitive_types::Vector2I,
 };
 
-type AntigenEventQueueEntity<'a> = (EntityID, Ref<'a, EventQueue<AntigenInputEvent>>);
 type WriteLocalMousePosition<'a> = (
     EntityID,
     Ref<'a, Position>,
@@ -31,16 +30,12 @@ pub struct LocalMousePosition;
 
 impl SystemTrait for LocalMousePosition {
     fn run(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
-        let (_, event_queue) = StoreQuery::<AntigenEventQueueEntity>::iter(db.as_ref())
-            .next()
-            .expect("No antigen input event queue");
+        let (_, event_queue) =
+            StoreQuery::<(EntityID, Ref<EventQueue<MouseMove>>)>::iter(db.as_ref())
+                .next()
+                .expect("No antigen input event queue");
 
-        for event in event_queue.iter() {
-            let mouse_position = match event {
-                AntigenInputEvent::MouseMove { position, delta: _ } => position,
-                _ => continue,
-            };
-
+        for mouse_move in event_queue.iter() {
             for (entity_id, position, global_position, mut local_mouse_position) in
                 StoreQuery::<WriteLocalMousePosition>::iter(db.as_ref())
             {
@@ -68,7 +63,7 @@ impl SystemTrait for LocalMousePosition {
                     **position
                 };
 
-                *local_mouse_position = (*mouse_position - (window_position + position)).into();
+                *local_mouse_position = (mouse_move.position - (window_position + position)).into();
             }
         }
 

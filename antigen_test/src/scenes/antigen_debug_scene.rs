@@ -9,11 +9,11 @@ use antigen::{
         self as antigen_components, DebugComponentDataList, DebugComponentList, DebugSceneTree,
         DebugSystemList, EventQueue,
     },
-    core::{events::AntigenInputEvent, palette::RGBArrangementPalette},
+    core::palette::RGBArrangementPalette,
     entity_component_system::{EntityID, SystemBuilder},
     primitive_types::{ColorRGB, ColorRGBF, Vector2I},
     systems as antigen_systems,
-    systems::ButtonEvent,
+    systems::LocalMousePress,
 };
 use antigen_components::{
     Anchors, Connection, DebugEntityList, DebugExclude, LocalMousePositionData, Margins, Name,
@@ -124,60 +124,44 @@ pub fn entity_assembler(builder: EntityBuilder) -> EntityBuilder {
                             0.0..0.25,
                             1.0..1.0,
                             "RGB666",
-                            Connection::new(
-                                vec![curses_palette],
-                                |event: ButtonEvent| match event {
-                                    ButtonEvent::Pressed => Some(CursesColorsEvent::SetPalette(
-                                        RGBArrangementPalette::new_666(),
-                                    )),
-                                    ButtonEvent::Released => None,
-                                },
-                            ),
+                            Connection::new(vec![curses_palette], true, |_: LocalMousePress| {
+                                Some(CursesColorsEvent::SetPalette(
+                                    RGBArrangementPalette::new_666(),
+                                ))
+                            }),
                             game_window_entity,
                         ))
                         .map(palette_button(
                             0.25..0.5,
                             1.0..1.0,
                             "RGB676",
-                            Connection::new(
-                                vec![curses_palette],
-                                |event: ButtonEvent| match event {
-                                    ButtonEvent::Pressed => Some(CursesColorsEvent::SetPalette(
-                                        RGBArrangementPalette::new_676(),
-                                    )),
-                                    ButtonEvent::Released => None,
-                                },
-                            ),
+                            Connection::new(vec![curses_palette], true, |_: LocalMousePress| {
+                                Some(CursesColorsEvent::SetPalette(
+                                    RGBArrangementPalette::new_676(),
+                                ))
+                            }),
                             game_window_entity,
                         ))
                         .map(palette_button(
                             0.5..0.75,
                             1.0..1.0,
                             "RGB685",
-                            Connection::new(
-                                vec![curses_palette],
-                                |event: ButtonEvent| match event {
-                                    ButtonEvent::Pressed => Some(CursesColorsEvent::SetPalette(
-                                        RGBArrangementPalette::new_685(),
-                                    )),
-                                    ButtonEvent::Released => None,
-                                },
-                            ),
+                            Connection::new(vec![curses_palette], true, |_: LocalMousePress| {
+                                Some(CursesColorsEvent::SetPalette(
+                                    RGBArrangementPalette::new_685(),
+                                ))
+                            }),
                             game_window_entity,
                         ))
                         .map(palette_button(
                             0.75..1.0,
                             1.0..1.0,
                             "RGB884",
-                            Connection::new(
-                                vec![curses_palette],
-                                |event: ButtonEvent| match event {
-                                    ButtonEvent::Pressed => Some(CursesColorsEvent::SetPalette(
-                                        RGBArrangementPalette::new_884(),
-                                    )),
-                                    ButtonEvent::Released => None,
-                                },
-                            ),
+                            Connection::new(vec![curses_palette], true, |_: LocalMousePress| {
+                                Some(CursesColorsEvent::SetPalette(
+                                    RGBArrangementPalette::new_884(),
+                                ))
+                            }),
                             game_window_entity,
                         ))
                 })
@@ -206,7 +190,12 @@ pub fn entity_assembler(builder: EntityBuilder) -> EntityBuilder {
 mod system_builders {
     use antigen::{
         components::{GlobalPosition, GlobalZIndex},
-        systems::{ColorRenderer, EventConsumer, EventProcessor, SceneTreeData},
+        core::events::{KeyPress, KeyRelease, MouseMove, MousePress, MouseRelease, MouseScroll},
+        systems::LocalMouseMove,
+        systems::{
+            ColorRenderer, EventConsumer, EventProcessor, LocalMousePress, LocalMouseRelease,
+            LocalMouseScroll, SceneTreeData,
+        },
     };
     use antigen_systems::{AnchorsMargins, ChildEntities, PositionIntegrator, StringRenderer};
     use curses_systems::CursesRenderer;
@@ -216,15 +205,24 @@ mod system_builders {
 
     pub fn event_consumers(builder: SystemBuilder) -> SystemBuilder {
         builder
-            .system(EventConsumer::<AntigenInputEvent>::default())
+            .system(EventConsumer::<MouseMove>::default())
+            .system(EventConsumer::<MousePress>::default())
+            .system(EventConsumer::<MouseRelease>::default())
+            .system(EventConsumer::<MouseScroll>::default())
+            .system(EventConsumer::<KeyPress>::default())
+            .system(EventConsumer::<KeyRelease>::default())
+            .system(EventConsumer::<LocalMouseMove>::default())
+            .system(EventConsumer::<LocalMousePress>::default())
+            .system(EventConsumer::<LocalMouseRelease>::default())
+            .system(EventConsumer::<LocalMouseScroll>::default())
             .system(EventConsumer::<curses_components::CursesEvent>::default())
-            .system(EventConsumer::<ButtonEvent>::default())
             .system(EventConsumer::<ListEvent>::default())
     }
 
     pub fn input(builder: SystemBuilder) -> SystemBuilder {
         builder
             .system(antigen_systems::LocalMousePosition)
+            .system(antigen_systems::LocalMouseEvents)
             .system(systems::QuitKey::new(antigen::core::keyboard::Key::Escape))
             .system(systems::InputAxis)
     }
@@ -234,7 +232,7 @@ mod system_builders {
             .system(antigen_systems::List::new(|builder| {
                 builder.field(DebugExclude)
             }))
-            .system(antigen_systems::Button)
+            .system(antigen_systems::LocalMouseEvents)
     }
 
     pub fn event_processors(builder: SystemBuilder) -> SystemBuilder {
@@ -266,8 +264,10 @@ mod component_builders {
     use antigen::{
         assemblage::{rect_control, ComponentBuilder},
         components::{GlobalPosition, GlobalZIndex, IntRange, Window},
+        core::events::MouseMove,
+        core::events::{KeyPress, KeyRelease, MousePress, MouseRelease, MouseScroll},
     };
-    use curses_components::{CursesWindowData};
+    use curses_components::{CursesEvent, CursesWindowData};
 
     pub fn player(builder: ComponentBuilder) -> ComponentBuilder {
         builder.fields((
@@ -283,8 +283,13 @@ mod component_builders {
     pub fn global_event_queue(builder: ComponentBuilder) -> ComponentBuilder {
         builder.fields((
             Name("Global Event Queues".into()),
-            EventQueue::<curses_components::CursesEvent>::default(),
-            EventQueue::<AntigenInputEvent>::default(),
+            EventQueue::<CursesEvent>::default(),
+            EventQueue::<MouseMove>::default(),
+            EventQueue::<MouseScroll>::default(),
+            EventQueue::<MousePress>::default(),
+            EventQueue::<MouseRelease>::default(),
+            EventQueue::<KeyPress>::default(),
+            EventQueue::<KeyRelease>::default(),
         ))
     }
 
@@ -337,7 +342,11 @@ mod component_builders {
 
 mod entity_builders {
     use super::*;
-    use antigen::{assemblage::rect_control, assemblage::MapEntityBuilder};
+    use antigen::{
+        assemblage::rect_control,
+        assemblage::MapEntityBuilder,
+        systems::{LocalMousePress, LocalMouseScroll},
+    };
 
     pub fn palette_button(
         anchor_horizontal: Range<f32>,
@@ -426,6 +435,8 @@ mod entity_builders {
                             Anchors::new(0.0..1.0, 0.0..1.0),
                             Margins::new(2, 2, 3, 1),
                             LocalMousePositionData::default(),
+                            EventQueue::<LocalMousePress>::default(),
+                            EventQueue::<LocalMouseScroll>::default(),
                             ParentEntity(border_entity),
                         ))
                         .finish()
@@ -448,6 +459,7 @@ mod entity_builders {
                             EventQueue::<ListEvent>::default(),
                             Connection::new(
                                 vec![entity_inspector_entity],
+                                false,
                                 |list_event: ListEvent| match list_event {
                                     ListEvent::Pressed(index) => Some(
                                         antigen_systems::EntityInspectorEvent::SetInspectedEntity(
@@ -497,7 +509,7 @@ mod entity_builders {
                             DebugComponentList,
                             DebugExclude,
                             EventQueue::<ListEvent>::default(),
-                            Connection::new(vec![component_inspector_entity], |list_event: ListEvent| match list_event {
+                            Connection::new(vec![component_inspector_entity], false, |list_event: ListEvent| match list_event {
                                 ListEvent::Pressed(index) => {
                                     Some(antigen_systems::ComponentInspectorEvent::SetInspectedComponent(index))
                                 }
@@ -539,6 +551,7 @@ mod entity_builders {
                             EventQueue::<ListEvent>::default(),
                             Connection::new(
                                 vec![system_inspector_entity],
+                                false,
                                 |list_event: ListEvent| match list_event {
                                     ListEvent::Pressed(index) => Some(
                                         antigen_systems::SystemInspectorEvent::SetInspectedSystem(

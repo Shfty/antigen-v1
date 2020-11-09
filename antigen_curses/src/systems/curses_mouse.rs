@@ -2,7 +2,7 @@ use std::cell::{Ref, RefMut};
 
 use antigen::{
     components::EventQueue,
-    core::events::AntigenInputEvent,
+    core::events::{MouseMove, MousePress, MouseRelease, MouseScroll},
     entity_component_system::{ComponentStore, EntityID, SystemError, SystemTrait},
     primitive_types::Vector2I,
 };
@@ -14,7 +14,6 @@ const WHEEL_UP: usize = 65536;
 const WHEEL_DOWN: usize = 2097152;
 
 type ReadCursesEventQueue<'a> = (EntityID, Ref<'a, EventQueue<CursesEvent>>);
-type WriteAntigenEventQueue<'a> = (EntityID, RefMut<'a, EventQueue<AntigenInputEvent>>);
 
 /// Converts pancurses mouse inputs into antigen mouse inputs
 #[derive(Debug)]
@@ -34,15 +33,9 @@ impl Default for CursesMouse {
 
 impl SystemTrait for CursesMouse {
     fn run(&mut self, db: &mut ComponentStore) -> Result<(), SystemError> {
-        let (_, curses_event_queue) =
-            StoreQuery::<ReadCursesEventQueue>::iter(db.as_ref())
-                .next()
-                .expect("No curses event queue entity");
-
-        let (_, mut antigen_event_queue) =
-            StoreQuery::<WriteAntigenEventQueue>::iter(db.as_ref())
-                .next()
-                .expect("No antigen event queue entity");
+        let (_, curses_event_queue) = StoreQuery::<ReadCursesEventQueue>::iter(db.as_ref())
+            .next()
+            .expect("No curses event queue entity");
 
         for curses_event in curses_event_queue.iter() {
             if *curses_event == CursesEvent::KeyMouse {
@@ -74,18 +67,30 @@ impl SystemTrait for CursesMouse {
                 }
 
                 if delta != Vector2I(0, 0) {
-                    antigen_event_queue.push(AntigenInputEvent::MouseMove {
-                        position: prev_position + delta,
-                        delta,
-                    })
+                    for (_, mut mouse_move_queue) in
+                        StoreQuery::<(EntityID, RefMut<EventQueue<MouseMove>>)>::iter(db.as_ref())
+                    {
+                        mouse_move_queue.push(MouseMove {
+                            position: prev_position + delta,
+                            delta,
+                        })
+                    }
                 }
 
                 if WHEEL_UP & self.button_mask > 0 {
-                    antigen_event_queue.push(AntigenInputEvent::MouseScroll { delta: -1 })
+                    for (_, mut mouse_scroll_queue) in
+                        StoreQuery::<(EntityID, RefMut<EventQueue<MouseScroll>>)>::iter(db.as_ref())
+                    {
+                        mouse_scroll_queue.push(MouseScroll { delta: -1 })
+                    }
                 }
 
                 if WHEEL_DOWN & self.button_mask > 0 {
-                    antigen_event_queue.push(AntigenInputEvent::MouseScroll { delta: 1 })
+                    for (_, mut mouse_scroll_queue) in
+                        StoreQuery::<(EntityID, RefMut<EventQueue<MouseScroll>>)>::iter(db.as_ref())
+                    {
+                        mouse_scroll_queue.push(MouseScroll { delta: 1 })
+                    }
                 }
 
                 if self.button_mask != prev_button_mask {
@@ -100,12 +105,6 @@ impl SystemTrait for CursesMouse {
                         if (pancurses::BUTTON3_PRESSED as usize & self.button_mask) > 0 {
                             pressed_mask |= 2;
                         }
-                        if (pancurses::BUTTON4_PRESSED as usize & self.button_mask) > 0 {
-                            pressed_mask |= 8;
-                        }
-                        if (pancurses::BUTTON5_PRESSED as usize & self.button_mask) > 0 {
-                            pressed_mask |= 16;
-                        }
                     }
 
                     let mut released_mask = 0usize;
@@ -119,24 +118,30 @@ impl SystemTrait for CursesMouse {
                         if (pancurses::BUTTON3_RELEASED as usize & self.button_mask) > 0 {
                             released_mask |= 2;
                         }
-                        if (pancurses::BUTTON4_RELEASED as usize & self.button_mask) > 0 {
-                            released_mask |= 8;
-                        }
-                        if (pancurses::BUTTON5_RELEASED as usize & self.button_mask) > 0 {
-                            released_mask |= 16;
-                        }
                     }
 
                     if pressed_mask != 0 {
-                        antigen_event_queue.push(AntigenInputEvent::MousePress {
-                            button_mask: pressed_mask,
-                        })
+                        for (_, mut mouse_press_queue) in
+                            StoreQuery::<(EntityID, RefMut<EventQueue<MousePress>>)>::iter(
+                                db.as_ref(),
+                            )
+                        {
+                            mouse_press_queue.push(MousePress {
+                                button_mask: pressed_mask,
+                            })
+                        }
                     }
 
                     if released_mask != 0 {
-                        antigen_event_queue.push(AntigenInputEvent::MouseRelease {
-                            button_mask: released_mask,
-                        })
+                        for (_, mut mouse_release_queue) in
+                            StoreQuery::<(EntityID, RefMut<EventQueue<MouseRelease>>)>::iter(
+                                db.as_ref(),
+                            )
+                        {
+                            mouse_release_queue.push(MouseRelease {
+                                button_mask: released_mask,
+                            })
+                        }
                     }
                 }
             }

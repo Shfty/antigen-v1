@@ -1,8 +1,12 @@
+TODO: Input handling restructure
+      Investigate local input events showing up duplicated in debug output
+            Events don't seem to be double registering, since lists aren't double scrolling
+            Is this an order-of-execution issue with the debug systems?
+
 TODO: List restructure
-      Refactor list mouse handling to piggyback on top of button functionality
-            Lists should still be able to work in a non-interactive fashion without the button components
-            Adding button components should cause the list to consume its ButtonEvent queue and use that to populate its ListEvent queue
-            All lists currently require an IntRange, but non-interactive components only need the range part
+      Tidy methods, refactor shared code (ex. height calculation, string preparation) into functions
+      List iteration currently reads everything, when it should only take what's needed
+      Proper clipping for hover/selection entities
 
       Refactor list item layout logic into its own component / system setup
             Currently uses a position + size based layout strategy
@@ -11,7 +15,6 @@ TODO: List restructure
                   Should this be handled as a distinct system, or an optional element?
       
       Minus input and layout, the list's job is to maintain a set of child UI controls based on some source data
-
 
 TODO: Finish builder refactor
       Replace any remaining Assembler references with Builder

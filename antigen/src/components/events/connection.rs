@@ -19,29 +19,52 @@ impl Debug for Connection {
 }
 
 impl Connection {
-    pub fn new<O, I>(targets: Vec<EntityID>, convert: fn(O) -> Option<I>) -> Self
+    pub fn new<O, I>(targets: Vec<EntityID>, consume: bool, convert: fn(O) -> Option<I>) -> Self
     where
         O: Clone + Debug + 'static,
         I: Clone + Debug + 'static,
     {
         let closure_targets = targets.clone();
-        let convert = move |db: &ComponentStore, entity_id: EntityID| {
-            if let Some(output_queue) = db.get::<EventQueue<O>>(&entity_id) {
-                for event in output_queue.iter() {
-                    if let Some(event) = convert(event.clone()) {
-                        for target in &closure_targets {
-                            if let Some(mut input_queue) = db.get_mut::<EventQueue<I>>(target) {
-                                input_queue.push(event.clone());
+        let convert = if consume {
+            let convert = move |db: &ComponentStore, entity_id: EntityID| {
+                if let Some(mut output_queue) = db.get_mut::<EventQueue<O>>(&entity_id) {
+                    for event in output_queue.drain(..) {
+                        if let Some(event) = convert(event) {
+                            for target in &closure_targets {
+                                if let Some(mut input_queue) = db.get_mut::<EventQueue<I>>(target) {
+                                    input_queue.push(event.clone());
+                                }
                             }
                         }
                     }
                 }
-            }
+            };
+
+            let convert: Box<dyn Fn(&ComponentStore, EntityID)> = Box::new(convert);
+            convert
+        } else {
+            let convert = move |db: &ComponentStore, entity_id: EntityID| {
+                if let Some(output_queue) = db.get_mut::<EventQueue<O>>(&entity_id) {
+                    for event in output_queue.iter() {
+                        if let Some(event) = convert(event.clone()) {
+                            for target in &closure_targets {
+                                if let Some(mut input_queue) = db.get_mut::<EventQueue<I>>(target) {
+                                    input_queue.push(event.clone());
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+
+            let convert: Box<dyn Fn(&ComponentStore, EntityID)> = Box::new(convert);
+            convert
         };
 
-        let convert: Box<dyn Fn(&ComponentStore, EntityID)> = Box::new(convert);
-
-        Connection { targets, convert }
+        Connection {
+            targets,
+            convert,
+        }
     }
 
     pub fn run(&self, db: &ComponentStore, entity_id: EntityID) {

@@ -2,6 +2,8 @@ use crate::{
     assemblage::{ComponentBuilder, EntityBuilder, MapComponentBuilder, MapEntityBuilder},
     components::{GlobalZIndex, Name, SoftwareShader},
     primitive_types::HashMap,
+    systems::LocalMousePress,
+    systems::LocalMouseScroll,
 };
 use std::{cell::Ref, cell::RefMut, cmp::max, cmp::min, collections::hash_map::Entry};
 
@@ -10,14 +12,11 @@ use crate::{
         EventQueue, GlobalPosition, ListData, LocalMousePositionData, ParentEntity, Position, Size,
         StringShader,
     },
-    core::events::AntigenInputEvent,
     entity_component_system::{ComponentStore, EntityID, SystemError, SystemTrait},
     primitive_types::{ColorRGBF, Vector2I},
 };
 
 use store::{StoreBuilder, StoreQuery};
-
-type ReadAntigenEventQueueEntity<'a> = (EntityID, Ref<'a, EventQueue<AntigenInputEvent>>);
 
 type WriteListEventQueue<'a> = (EntityID, Option<RefMut<'a, EventQueue<ListEvent>>>);
 
@@ -240,35 +239,39 @@ impl List {
             }
 
             // If the mouse was clicked inside this control, update the selected index
-            if contains_mouse {
-                if let Some((_, event_queue)) =
-                    StoreQuery::<ReadAntigenEventQueueEntity>::iter(db.as_ref()).next()
-                {
-                    for event in event_queue.iter() {
-                        match event {
-                            AntigenInputEvent::MousePress { button_mask: 1 } => {
-                                let index = if let Some(hovered_item) = hovered_item {
-                                    Some(hovered_item)
-                                } else {
-                                    None
-                                };
+            if let (_, Some(event_queue)) = StoreQuery::<(
+                EntityID,
+                Option<Ref<EventQueue<LocalMousePress>>>,
+            )>::get(db.as_ref(), &entity_id)
+            {
+                for event in event_queue.iter() {
+                    if event.button_mask == 1 {
+                        let index = if let Some(hovered_item) = hovered_item {
+                            Some(hovered_item)
+                        } else {
+                            None
+                        };
 
-                                // Push press event into queue
-                                let (_, list_event_queue) =
-                                    StoreQuery::<WriteListEventQueue>::get(db.as_ref(), &entity_id);
+                        // Push press event into queue
+                        let (_, list_event_queue) =
+                            StoreQuery::<WriteListEventQueue>::get(db.as_ref(), &entity_id);
 
-                                if let Some(mut list_event_queue) = list_event_queue {
-                                    list_event_queue.push(ListEvent::Pressed(index));
-                                }
-
-                                list_data.set_selected_index(index.map(|i| i));
-                            }
-                            AntigenInputEvent::MouseScroll { delta } => {
-                                list_data.add_scroll_offset(*delta as i64);
-                            }
-                            _ => (),
+                        if let Some(mut list_event_queue) = list_event_queue {
+                            list_event_queue.push(ListEvent::Pressed(index));
                         }
+
+                        list_data.set_selected_index(index.map(|i| i));
                     }
+                }
+            }
+
+            if let (_, Some(event_queue)) = StoreQuery::<(
+                EntityID,
+                Option<Ref<EventQueue<LocalMouseScroll>>>,
+            )>::get(db.as_ref(), &entity_id)
+            {
+                for event in event_queue.iter() {
+                    list_data.add_scroll_offset(event.delta as i64);
                 }
             }
 

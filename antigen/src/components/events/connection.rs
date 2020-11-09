@@ -12,7 +12,7 @@ pub struct Connection {
 
 impl Debug for Connection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("EventTargets")
+        f.debug_struct("Connection")
             .field("targets", &self.targets)
             .finish()
     }

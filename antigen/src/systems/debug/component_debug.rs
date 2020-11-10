@@ -11,22 +11,20 @@ use crate::{
     entity_component_system::{SystemError, SystemTrait},
 };
 
-use super::EntityInspectorEvent;
+use super::SetInspectedEntity;
 
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
-pub enum ComponentInspectorEvent {
-    SetInspectedComponent(Option<usize>),
-}
+pub struct SetInspectedComponent(pub Option<usize>);
 
 type DebugEntities = (EntityID, NoField<DebugExclude>);
 type EntityInspectorEventQueue<'a> = (
     EntityID,
-    Ref<'a, EventQueue<EntityInspectorEvent>>,
+    Ref<'a, EventQueue<SetInspectedEntity>>,
     Ref<'a, IntRange>,
 );
 type ComponentInspectorEntity<'a> = (
     EntityID,
-    RefMut<'a, EventQueue<ComponentInspectorEvent>>,
+    RefMut<'a, EventQueue<SetInspectedComponent>>,
     RefMut<'a, IntRange>,
 );
 type DebugComponentListEntity<'a> = (
@@ -55,9 +53,9 @@ impl ComponentDebug {
                 .expect("No component inspector entity");
         int_range.set_range(0..debug_entity_count as i64);
 
-        let events: &mut Vec<ComponentInspectorEvent> = event_queue.as_mut();
+        let events: &mut Vec<SetInspectedComponent> = event_queue.as_mut();
         for event in events.drain(..) {
-            let ComponentInspectorEvent::SetInspectedComponent(index) = event;
+            let SetInspectedComponent(index) = event;
             if let Some(index) = index {
                 int_range.set_index(index as i64);
             } else {

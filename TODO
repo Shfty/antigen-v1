@@ -95,13 +95,6 @@ TODO: Rendering refactor
 
 TODO: Fix type name sanitization stripping K from Foo<K, V>
 
-TODO: Refactor sweep for systems
-            List
-      Need to make sure querying is being done optimally under new setup
-      Minimize cloning in favor of iterators
-      Fix concessions made due to inherited mutability
-      Use Builder for cases where entity creation needs to be deferred due to inherited mutability
-
 TODO: Can anchors/margins be refactored into separate systems?
       More specifically, can margins be generalized?
             Would need somewhere to store final position / size data
@@ -109,14 +102,8 @@ TODO: Can anchors/margins be refactored into separate systems?
             Preferable to keep things unified if possible - too much overlap between GlobalPosition and MarginPosition
             Could handle in renderer?
 
-TODO: Fix list hover/selection overlay positioning
-      Doesn't account for height of previous entries
-      Causes incorrect selection indices
-
-TODO: Account for list scroll when positioning hover/selection overlays
 TODO: Max limit for list scroll offset
 TODO: Scrollbar for lists
-TODO: Lists should scroll line-by-line, not item-by-item
 
 TODO: Vertical scrolling for HSV shader
 

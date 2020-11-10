@@ -11,7 +11,7 @@ use crate::{
     entity_component_system::{SystemError, SystemTrait},
 };
 
-use super::EntityInspectorEvent;
+use super::SetInspectedEntity;
 
 type DebugEntities = (EntityID, NoField<DebugExclude>);
 type DebugComponentDataListEntity<'a> = (
@@ -21,7 +21,7 @@ type DebugComponentDataListEntity<'a> = (
 );
 type EntityInspectorEntity<'a> = (
     EntityID,
-    Ref<'a, EventQueue<EntityInspectorEvent>>,
+    Ref<'a, EventQueue<SetInspectedEntity>>,
     Ref<'a, IntRange>,
 );
 
@@ -37,8 +37,8 @@ impl SystemTrait for ComponentDataDebug {
 
         // Populate strings for debug component list entities
         let (_, _, int_range) = StoreQuery::<EntityInspectorEntity>::iter(db.as_ref())
-        .next()
-        .expect("No entity inspector present");
+            .next()
+            .expect("No entity inspector present");
 
         let index = int_range.get_index();
         if index >= 0 {

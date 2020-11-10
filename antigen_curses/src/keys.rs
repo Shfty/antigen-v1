@@ -1,14 +1,17 @@
-pub struct CursesInput(pancurses::Input);
+use antigen::core::keyboard::Key;
 
-impl From<pancurses::Input> for CursesInput {
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub struct CursesEvent(pub pancurses::Input);
+
+impl From<pancurses::Input> for CursesEvent {
     fn from(input: pancurses::Input) -> Self {
-        CursesInput(input)
+        CursesEvent(input)
     }
 }
 
-impl antigen::core::keyboard::IntoKey for CursesInput {
-    fn into_key(self) -> antigen::core::keyboard::Key {
-        let CursesInput(input) = self;
+impl Into<Key> for CursesEvent {
+    fn into(self) -> antigen::core::keyboard::Key {
+        let CursesEvent(input) = self;
         match input {
             pancurses::Input::Character(char) => match char {
                 ' ' => antigen::core::keyboard::Key::Space,

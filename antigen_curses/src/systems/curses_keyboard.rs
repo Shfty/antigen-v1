@@ -2,12 +2,12 @@ use std::cell::{Ref, RefMut};
 
 use antigen::{
     components::EventQueue,
-    core::{events::KeyPress, events::KeyRelease, keyboard::IntoKey},
+    core::{events::KeyPress, events::KeyRelease},
     entity_component_system::{ComponentStore, EntityID, SystemError, SystemTrait},
 };
 use store::StoreQuery;
 
-use crate::{components::CursesEvent, CursesInput};
+use crate::CursesEvent;
 
 type ReadCursesEventQueue<'a> = (EntityID, Ref<'a, EventQueue<CursesEvent>>);
 
@@ -32,12 +32,13 @@ impl SystemTrait for CursesKeyboard {
                 .expect("No antigen event queue entity");
 
         let antigen_keys = curses_event_queue.iter().flat_map(|event| {
-            if CursesEvent::KeyResize == *event {
+            let CursesEvent(event) = event;
+            if pancurses::Input::KeyResize == *event {
                 pancurses::resize_term(0, 0);
                 None
             } else {
-                let pancurses_input: CursesInput = (*event).into();
-                Some(pancurses_input.into_key())
+                let pancurses_input: CursesEvent = (*event).into();
+                Some(pancurses_input.into())
             }
         });
 

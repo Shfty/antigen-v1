@@ -18,13 +18,11 @@ use crate::{
 
 use store::{StoreBuilder, StoreQuery};
 
-type WriteListEventQueue<'a> = (EntityID, Option<RefMut<'a, EventQueue<ListEvent>>>);
+#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
+pub struct ListHovered(pub i64);
 
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
-pub enum ListEvent {
-    Hovered(i64),
-    Pressed(Option<usize>),
-}
+pub struct ListPressed(pub Option<usize>);
 
 fn hover_highlight(entity_id: EntityID, parent_entity: EntityID) -> impl MapEntityBuilder {
     move |builder: EntityBuilder| {
@@ -234,7 +232,7 @@ impl List {
             };
 
             // Clear local event queue
-            if let Some(mut list_event_queue) = db.get_mut::<EventQueue<ListEvent>>(&entity_id) {
+            if let Some(mut list_event_queue) = db.get_mut::<EventQueue<ListPressed>>(&entity_id) {
                 list_event_queue.clear();
             }
 
@@ -254,10 +252,13 @@ impl List {
 
                         // Push press event into queue
                         let (_, list_event_queue) =
-                            StoreQuery::<WriteListEventQueue>::get(db.as_ref(), &entity_id);
+                            StoreQuery::<(EntityID, Option<RefMut<EventQueue<ListPressed>>>)>::get(
+                                db.as_ref(),
+                                &entity_id,
+                            );
 
                         if let Some(mut list_event_queue) = list_event_queue {
-                            list_event_queue.push(ListEvent::Pressed(index));
+                            list_event_queue.push(ListPressed(index));
                         }
 
                         list_data.set_selected_index(index.map(|i| i));

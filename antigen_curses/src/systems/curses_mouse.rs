@@ -8,7 +8,7 @@ use antigen::{
 };
 use store::StoreQuery;
 
-use crate::components::CursesEvent;
+use crate::CursesEvent;
 
 const WHEEL_UP: usize = 65536;
 const WHEEL_DOWN: usize = 2097152;
@@ -38,7 +38,8 @@ impl SystemTrait for CursesMouse {
             .expect("No curses event queue entity");
 
         for curses_event in curses_event_queue.iter() {
-            if *curses_event == CursesEvent::KeyMouse {
+            let CursesEvent(curses_event) = curses_event;
+            if *curses_event == pancurses::Input::KeyMouse {
                 // Check for mouse input
                 let mouse_event =
                     pancurses::getmouse().expect("Failed to get pancurses mouse event");

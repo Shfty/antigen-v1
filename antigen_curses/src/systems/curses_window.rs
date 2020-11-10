@@ -7,7 +7,7 @@ use antigen::{
 };
 use store::StoreQuery;
 
-use crate::components::{CursesEvent, CursesWindowData};
+use crate::{components::CursesWindowData, CursesEvent};
 
 type ReadCursesEventQueue<'a> = (EntityID, Ref<'a, EventQueue<CursesEvent>>);
 type WriteCursesWindow<'a> = (
@@ -78,10 +78,10 @@ impl SystemTrait for CursesWindow {
         self.try_create_window(&mut curses_window, &size, string)?;
 
         // Process any pending resize inputs
-        if curses_event_queue
-            .iter()
-            .any(|input| *input == CursesEvent::KeyResize)
-        {
+        if curses_event_queue.iter().any(|input| {
+            let CursesEvent(input) = input;
+            *input == pancurses::Input::KeyResize
+        }) {
             pancurses::resize_term(0, 0);
         }
 

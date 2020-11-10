@@ -23,10 +23,8 @@ use antigen_curses::{
     assemblage::curses,
     components::{self as curses_components, CursesPalette},
     systems as curses_systems,
-    systems::CursesColorsEvent,
+    systems::SetPalette,
 };
-
-use antigen_systems::ListEvent;
 
 use std::ops::Range;
 
@@ -67,9 +65,7 @@ pub fn entity_assembler(builder: EntityBuilder) -> EntityBuilder {
             (
                 Name("Curses Palette".into()),
                 CursesPalette::default(),
-                EventQueue::<CursesColorsEvent>::new(vec![CursesColorsEvent::SetPalette(
-                    RGBArrangementPalette::new_884(),
-                )]),
+                EventQueue::<SetPalette>::new(vec![SetPalette(RGBArrangementPalette::new_884())]),
             ),
         )
         // Global Event Queues
@@ -125,9 +121,7 @@ pub fn entity_assembler(builder: EntityBuilder) -> EntityBuilder {
                             1.0..1.0,
                             "RGB666",
                             Connection::new(vec![curses_palette], true, |_: LocalMousePress| {
-                                Some(CursesColorsEvent::SetPalette(
-                                    RGBArrangementPalette::new_666(),
-                                ))
+                                Some(SetPalette(RGBArrangementPalette::new_666()))
                             }),
                             game_window_entity,
                         ))
@@ -136,9 +130,7 @@ pub fn entity_assembler(builder: EntityBuilder) -> EntityBuilder {
                             1.0..1.0,
                             "RGB676",
                             Connection::new(vec![curses_palette], true, |_: LocalMousePress| {
-                                Some(CursesColorsEvent::SetPalette(
-                                    RGBArrangementPalette::new_676(),
-                                ))
+                                Some(SetPalette(RGBArrangementPalette::new_676()))
                             }),
                             game_window_entity,
                         ))
@@ -147,9 +139,7 @@ pub fn entity_assembler(builder: EntityBuilder) -> EntityBuilder {
                             1.0..1.0,
                             "RGB685",
                             Connection::new(vec![curses_palette], true, |_: LocalMousePress| {
-                                Some(CursesColorsEvent::SetPalette(
-                                    RGBArrangementPalette::new_685(),
-                                ))
+                                Some(SetPalette(RGBArrangementPalette::new_685()))
                             }),
                             game_window_entity,
                         ))
@@ -158,9 +148,7 @@ pub fn entity_assembler(builder: EntityBuilder) -> EntityBuilder {
                             1.0..1.0,
                             "RGB884",
                             Connection::new(vec![curses_palette], true, |_: LocalMousePress| {
-                                Some(CursesColorsEvent::SetPalette(
-                                    RGBArrangementPalette::new_884(),
-                                ))
+                                Some(SetPalette(RGBArrangementPalette::new_884()))
                             }),
                             game_window_entity,
                         ))
@@ -193,10 +181,11 @@ mod system_builders {
         core::events::{KeyPress, KeyRelease, MouseMove, MousePress, MouseRelease, MouseScroll},
         systems::LocalMouseMove,
         systems::{
-            ColorRenderer, EventConsumer, EventProcessor, LocalMousePress, LocalMouseRelease,
-            LocalMouseScroll, SceneTreeData,
+            ColorRenderer, EventConsumer, EventProcessor, ListHovered, ListPressed,
+            LocalMousePress, LocalMouseRelease, LocalMouseScroll, SceneTreeData,
         },
     };
+    use antigen_curses::CursesEvent;
     use antigen_systems::{AnchorsMargins, ChildEntities, PositionIntegrator, StringRenderer};
     use curses_systems::CursesRenderer;
     use systems::InputVelocity;
@@ -215,8 +204,9 @@ mod system_builders {
             .system(EventConsumer::<LocalMousePress>::default())
             .system(EventConsumer::<LocalMouseRelease>::default())
             .system(EventConsumer::<LocalMouseScroll>::default())
-            .system(EventConsumer::<curses_components::CursesEvent>::default())
-            .system(EventConsumer::<ListEvent>::default())
+            .system(EventConsumer::<CursesEvent>::default())
+            .system(EventConsumer::<ListHovered>::default())
+            .system(EventConsumer::<ListPressed>::default())
     }
 
     pub fn input(builder: SystemBuilder) -> SystemBuilder {
@@ -266,8 +256,11 @@ mod component_builders {
         components::{GlobalPosition, GlobalZIndex, IntRange, Window},
         core::events::MouseMove,
         core::events::{KeyPress, KeyRelease, MousePress, MouseRelease, MouseScroll},
+        systems::SetInspectedComponent,
+        systems::SetInspectedEntity,
     };
-    use curses_components::{CursesEvent, CursesWindowData};
+    use antigen_curses::CursesEvent;
+    use curses_components::CursesWindowData;
 
     pub fn player(builder: ComponentBuilder) -> ComponentBuilder {
         builder.fields((
@@ -296,7 +289,7 @@ mod component_builders {
     pub fn entity_inspector(builder: ComponentBuilder) -> ComponentBuilder {
         builder.fields((
             Name("Entity Inspector".into()),
-            EventQueue::<antigen_systems::EntityInspectorEvent>::default(),
+            EventQueue::<SetInspectedEntity>::default(),
             IntRange::new(-1..0),
         ))
     }
@@ -304,7 +297,7 @@ mod component_builders {
     pub fn component_inspector(builder: ComponentBuilder) -> ComponentBuilder {
         builder.fields((
             Name("Component Inspector".into()),
-            EventQueue::<antigen_systems::ComponentInspectorEvent>::default(),
+            EventQueue::<SetInspectedComponent>::default(),
             IntRange::new(-1..0),
         ))
     }
@@ -345,8 +338,10 @@ mod entity_builders {
     use antigen::{
         assemblage::rect_control,
         assemblage::MapEntityBuilder,
-        systems::{LocalMousePress, LocalMouseScroll},
+        systems::SetInspectedEntity,
+        systems::{ListPressed, LocalMousePress, LocalMouseScroll, SetInspectedComponent},
     };
+    use antigen_systems::SystemInspectorEvent::SetInspectedSystem;
 
     pub fn palette_button(
         anchor_horizontal: Range<f32>,
@@ -456,18 +451,11 @@ mod entity_builders {
                         list_entity,
                         (
                             DebugEntityList,
-                            EventQueue::<ListEvent>::default(),
+                            EventQueue::<ListPressed>::default(),
                             Connection::new(
                                 vec![entity_inspector_entity],
                                 false,
-                                |list_event: ListEvent| match list_event {
-                                    ListEvent::Pressed(index) => Some(
-                                        antigen_systems::EntityInspectorEvent::SetInspectedEntity(
-                                            index,
-                                        ),
-                                    ),
-                                    _ => None,
-                                },
+                                |ListPressed(index)| Some(SetInspectedEntity(index)),
                             ),
                         ),
                     )
@@ -508,13 +496,12 @@ mod entity_builders {
                         (
                             DebugComponentList,
                             DebugExclude,
-                            EventQueue::<ListEvent>::default(),
-                            Connection::new(vec![component_inspector_entity], false, |list_event: ListEvent| match list_event {
-                                ListEvent::Pressed(index) => {
-                                    Some(antigen_systems::ComponentInspectorEvent::SetInspectedComponent(index))
-                                }
-                                _ => None,
-                            }),
+                            EventQueue::<ListPressed>::default(),
+                            Connection::new(
+                                vec![component_inspector_entity],
+                                false,
+                                |ListPressed(index)| Some(SetInspectedComponent(index)),
+                            ),
                         ),
                     )
                 })
@@ -548,18 +535,11 @@ mod entity_builders {
                         list_entity,
                         (
                             DebugSystemList,
-                            EventQueue::<ListEvent>::default(),
+                            EventQueue::<ListPressed>::default(),
                             Connection::new(
                                 vec![system_inspector_entity],
                                 false,
-                                |list_event: ListEvent| match list_event {
-                                    ListEvent::Pressed(index) => Some(
-                                        antigen_systems::SystemInspectorEvent::SetInspectedSystem(
-                                            index,
-                                        ),
-                                    ),
-                                    _ => None,
-                                },
+                                |ListPressed(index)| Some(SetInspectedSystem(index)),
                             ),
                         ),
                     )

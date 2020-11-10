@@ -14,14 +14,12 @@ use crate::{
 };
 
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
-pub enum EntityInspectorEvent {
-    SetInspectedEntity(Option<usize>),
-}
+pub struct SetInspectedEntity(pub Option<usize>);
 
 type DebugEntities = (EntityID, NoField<DebugExclude>);
 type EntityInspectorEventQueue<'a> = (
     EntityID,
-    RefMut<'a, EventQueue<EntityInspectorEvent>>,
+    RefMut<'a, EventQueue<SetInspectedEntity>>,
     RefMut<'a, IntRange>,
 );
 type DebugEntityListEntity<'a> = (EntityID, Ref<'a, DebugEntityList>, RefMut<'a, Vec<String>>);
@@ -42,9 +40,9 @@ impl SystemTrait for EntityDebug {
         {
             int_range.set_range(0..debug_entities.len() as i64);
 
-            let event_queue: &mut Vec<EntityInspectorEvent> = event_queue.as_mut();
+            let event_queue: &mut Vec<SetInspectedEntity> = event_queue.as_mut();
             for event in event_queue.drain(..) {
-                let EntityInspectorEvent::SetInspectedEntity(index) = event;
+                let SetInspectedEntity(index) = event;
                 if let Some(index) = index {
                     int_range.set_index(index as i64);
                 } else {

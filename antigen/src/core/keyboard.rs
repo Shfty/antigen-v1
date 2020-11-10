@@ -165,7 +165,3 @@ pub enum Key {
 
     Unknown,
 }
-
-pub trait IntoKey {
-    fn into_key(self) -> Key;
-}

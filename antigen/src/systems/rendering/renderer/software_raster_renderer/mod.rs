@@ -14,10 +14,6 @@ use crate::{
     primitive_types::Vector2I,
 };
 
-use super::Renderer;
-
-type ReadWindowEntity<'a> = (EntityID, Ref<'a, Window>, Ref<'a, Size>);
-
 #[derive(Debug, Copy, Clone, PartialOrd, PartialEq)]
 pub struct RasterInput {
     pub local_pos: Vector2I,
@@ -39,14 +35,15 @@ impl RasterInput {
 }
 
 /// Renderer subtrait for drawing into a 2D grid framebuffer
-pub trait SoftwareRasterRenderer: Renderer {
+pub trait SoftwareRasterRenderer {
     type Output: Copy + 'static;
 
     fn prepare_framebuffer(&self, db: &ComponentStore) -> Option<EntityID> {
         // Fetch window size
-        let (_, _, size) = StoreQuery::<ReadWindowEntity>::iter(db.as_ref())
+        let (_, _, size) = StoreQuery::<(EntityID, Ref<Window>, Ref<Size>)>::iter(db.as_ref())
             .next()
             .expect("No window entity");
+
         let size = **size;
 
         // Fetch data buffer and depth buffer
@@ -84,30 +81,6 @@ pub trait SoftwareRasterRenderer: Renderer {
     );
 }
 
-impl<T> Renderer for T
-where
-    T: SoftwareRasterRenderer,
-    <T as SoftwareRasterRenderer>::Output: Clone + 'static,
-{
-    fn render(&self, db: &ComponentStore, framebuffer_id: EntityID, entities: &[EntityID]) {
-        let (_, mut framebuffer, mut depth_buffer) = StoreQuery::<(
-            EntityID,
-            RefMut<SoftwareRasterFramebuffer<<T as SoftwareRasterRenderer>::Output>>,
-            RefMut<SoftwareRasterFramebuffer<i64>>,
-        )>::get(db.as_ref(), &framebuffer_id);
-
-        for entity_id in entities {
-            SoftwareRasterRenderer::render(
-                self,
-                db,
-                &mut *framebuffer,
-                &mut *depth_buffer,
-                *entity_id,
-            )
-        }
-    }
-}
-
 impl<T> SystemTrait for T
 where
     T: Debug + SoftwareRasterRenderer + 'static,
@@ -118,7 +91,22 @@ where
             let control_entities: Vec<EntityID> =
                 SoftwareRasterRenderer::gather_entities(self, &db);
 
-            Renderer::render(self, db, framebuffer_entity, &control_entities)
+            let (_, mut framebuffer, mut depth_buffer) =
+                StoreQuery::<(
+                    EntityID,
+                    RefMut<SoftwareRasterFramebuffer<<T as SoftwareRasterRenderer>::Output>>,
+                    RefMut<SoftwareRasterFramebuffer<i64>>,
+                )>::get(db.as_ref(), &framebuffer_entity);
+
+            for entity_id in control_entities {
+                SoftwareRasterRenderer::render(
+                    self,
+                    db,
+                    &mut *framebuffer,
+                    &mut *depth_buffer,
+                    entity_id,
+                )
+            }
         }
 
         Ok(())

@@ -78,10 +78,12 @@ impl SystemTrait for CursesWindow {
         self.try_create_window(&mut curses_window, &size, string)?;
 
         // Process any pending resize inputs
-        if curses_event_queue.iter().any(|input| {
+        let wants_resize = curses_event_queue.iter().any(|input| {
             let CursesEvent(input) = input;
             *input == pancurses::Input::KeyResize
-        }) {
+        });
+
+        if wants_resize {
             pancurses::resize_term(0, 0);
         }
 

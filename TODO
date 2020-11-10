@@ -22,28 +22,21 @@ TODO: Finish builder refactor
       Settle on a naming convention for antigen - currently 'assemblage' is just a catch-all used to refer to entity/component builders
 
 TODO: Rendering refactor
-      Allow for updating source palette for CursesPalette component at runtime via setter
-            Will need a Button system for switching via UI - model after List system mouse handling
-                  Focus / mouse hit testing is common - should this be abstracted out into an input handling system trait akin to Renderer?
-                  
-      Renderer trait is only useful as a categorization tag at the moment
-            Doesn't make sense for it to enforce a render() method as-is
-            Intent is to allow interoperability between data-compatible renderers and framebuffers
-                  Problem: Most renderer / framebuffer combinations aren't data-compatible
-                        Hardware framebuffers can't be written by a software renderer, and vice-versa
-                        Renderer may be too generic of a concept - end is the same but the means are very different
-                              Next level of specialization (Raster, Vector, etc) is valuable, as are the specializations within that (Hardware, Software, Curses, etc)
-                        The actual problem is conversion between the different types of framebuffer
-                              Ex.
-                                    ColorRGB<f32> -> ColorRGB<u8>
-                                          Simple map(Into::into) across framebuffer data
-                                    ((ColorIndex, i64), (char, i64)) -> (ColorIndex, char)
-                                          Fold with z-buffer predicate
-                                    (ColorIndex, char) -> (chtype, chtype) -> chtype
-                                          Fold with chtype conversion and logical OR
-                                    Vector -> Raster
-                                          Reinterpret vector line list as line primitives, process with raster renderer
-                              Can this be made into a generic adapter system?
+      Problem: Most renderer / framebuffer combinations aren't data-compatible
+            Hardware framebuffers can't be written by a software renderer, and vice-versa
+            Renderer may be too generic of a concept - end is the same but the means are very different
+                  Next level of specialization (Raster, Vector, etc) is valuable, as are the specializations within that (Hardware, Software, Curses, etc)
+            The actual problem is conversion between the different types of framebuffer
+                  Ex.
+                        ColorRGB<f32> -> ColorRGB<u8>
+                              Simple map(Into::into) across framebuffer data
+                        ((ColorIndex, i64), (char, i64)) -> (ColorIndex, char)
+                              Fold with z-buffer predicate
+                        (ColorIndex, char) -> (chtype, chtype) -> chtype
+                              Fold with chtype conversion and logical OR
+                        Vector -> Raster
+                              Reinterpret vector line list as line primitives, process with raster renderer
+                  Can this be made into a generic adapter system?
 
       Curses renderer doesn't fit into the Renderer / Framebuffer pattern yet
             Elements:

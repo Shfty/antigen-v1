@@ -222,7 +222,6 @@ mod system_builders {
             .system(antigen_systems::List::new(|builder| {
                 builder.field(DebugExclude)
             }))
-            .system(antigen_systems::LocalMouseEvents)
     }
 
     pub fn event_processors(builder: SystemBuilder) -> SystemBuilder {

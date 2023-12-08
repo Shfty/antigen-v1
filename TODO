@@ -1,7 +1,86 @@
-TODO: Input handling restructure
-      Investigate local input events showing up duplicated in debug output
-            Events don't seem to be double registering, since lists aren't double scrolling
-            Is this an order-of-execution issue with the debug systems?
+TODO: Thread safety for Store, ECS
+      ECS tick runs on its own 'game thread', winit event loop on the main (i.e. render) thread
+      Need to be able to pass Arc<EntityComponentSystem> between threads
+            Should this be Arc<ComponentStore> instead? Clone from inside ECS before game thread takes ownership of it
+      winit event loop takes a reference, uses to query windows, renderers, passes, etc
+            Raises some questions re. whether the winit event loop can be classed as a system
+                  Sort of, but not one that gets invoked by the ECS
+                  Reads from the ECS, then invokes render passes / bundles
+                  Writing to the data buffers used by these passes / bundles is done on the game thread
+                        In some cases, writes are invoked by the render thread - need to account for this (ideally should be automatic via Store thread safety)
+
+Threading architecture
+      Main thread
+            Spawns ECS thread, runs event loop
+                  i.e. winit, curses, etc
+                        Need to formalize curses event loop
+                        Important to consider the need for multiple event loops
+                              i.e. Being able to run curses, winit and cpal loops at the same time
+                                    winit needs the main thread for cross-platform compatibility
+                                    curses should in theory be able to run outside the main thread
+                                          Need to check - if not, will end up being naturally mutually exclusive to winit
+                                    cpal is able to run on its own thread with no issue
+                                          This may be better handled inside a system
+                                                Could be better still to have each domain-specific system (ex. OPL2) run its own cpal thread if allowed
+                                                      Better encapsulation, offload mixing to OS
+      ECS thread
+            Runs systems in parallel blocks segmented by data dependency (probably via rayon's par_iter)
+      System job threads
+            Perform R/W on ECS, should be free to invoke their own multithreading (via rayon, std::thread::spawn, etc)
+
+      In theory, game thread performance should be limited by the summed run-time of the slowest system in each parallel block
+      Render thread should draw as often as the API is capable of, render passes should interpolate data where appropriate
+
+Antigen
+      Does
+            Polymorphic data storage and querying
+            Automate multi-threaded execution of program logic
+            Provide a set of pre-built systems for existing use-cases
+            Provide debugging and profiling tools for iteration, maintenance and optimization
+      Does Not
+            Impose overhead via monolithic abstrations such as gameplay, physics or rendering
+            Enforce usage of any pre-built systems
+
+Framework Concept
+      Other engines have their own frameworks for various things like rendering, collision, physics, network, etc
+      This often proves to be monolithic, rigid, and unfxiable, resulting in workarounds and development friction
+      Solution:
+            Frameworks should be modular; smaller, more specific, and interchangeable
+            Where other engines allow you to pick backends as a setting, Antigen should act as a composition of them
+            Backends should be represented by crates
+            Ex:
+                  Dragonfly
+                  =========
+                  Antigenesis
+                        Antigen
+                        Antigen-Winit
+                        Antigen-WGPU
+                              Antigen-Buffered-Renderer
+                                    Antigen-Integer-Scale
+                              Antigen-Forward-Renderer
+                              Antigen-Sprite-Rendering
+                              Antigen-UI
+                        Antigen-CPAL
+                              Antigen-OPL2
+                              Antigen-Sega-PSG
+                              Antigen-Sequencer
+                        Antigen-GILRS
+                              Antigen-Gamepad
+                  Dragonfly-Game
+
+                  - Dragonfly is the top-level crate
+                        - Represents a prospective Antigen game in a Mega Drive style
+                  - Antigen provides the ECS core
+                  - Antigenesis provides a Mega Drive-like 'fantasy console'
+                        - Abstractions for input, rendering, audio (physics?)
+                              - Powered by other antigen integration crates
+                              - Embody fantasy console limitations
+                                    - Should provide a way to get around them if needed
+                  - Dragonfly-Game provides the game logic, uses Antigenesis as an API
+                        
+
+
+TODO: Refactor ComponentTrait casting using downcast-rs
 
 TODO: List restructure
       Tidy methods, refactor shared code (ex. height calculation, string preparation) into functions

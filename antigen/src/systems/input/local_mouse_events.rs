@@ -85,7 +85,7 @@ impl SystemTrait for LocalMouseEvents {
                 .expect("No mouse scroll event queue");
 
         for (
-            _,
+            entity_id,
             local_mouse_position,
             size,
             local_mouse_move_queue,

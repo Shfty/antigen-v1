@@ -13,6 +13,7 @@ use antigen::{
 fn main() -> Result<(), SystemError> {
     // Create and populate ECS
     let mut ecs = EntityComponentSystem::default();
+    
     scenes::antigen_debug_scene::system_assembler(Default::default()).finish(&mut ecs);
     scenes::antigen_debug_scene::entity_assembler(Default::default())
         .finish(ecs.get_component_store());
